@@ -1,0 +1,63 @@
+Name:		time
+Version:	1.1.2.0
+Stability:	stable
+License:	BSD3
+License-File:	LICENSE
+Author:		Ashley Yakeley
+Maintainer:	<ashley@semantic.org>
+Homepage:	http://semantic.org/TimeLib/
+Synopsis:	time library
+Category:
+Build-Type:     Custom
+Cabal-Version:  >=1.2
+
+Extra-Source-Files:
+        aclocal.m4 configure.ac configure
+        include/HsTime.h include/HsTimeConfig.h.in
+Extra-Tmp-Files:
+        config.log config.status autom4te.cache
+        include/HsTimeConfig.h
+
+Flag split-base
+
+Library {
+    Build-Depends: base >= 2
+    if flag(split-base)
+       Build-Depends: base >= 3, old-locale
+    else
+       Build-Depends: base < 3
+    if os(windows)
+        Build-Depends: Win32
+    Exposed-Modules:
+        Data.Time.Calendar,
+        Data.Time.Calendar.MonthDay,
+        Data.Time.Calendar.OrdinalDate,
+        Data.Time.Calendar.WeekDate,
+        Data.Time.Calendar.Julian,
+        Data.Time.Calendar.Easter,
+        Data.Time.Clock,
+        Data.Time.Clock.POSIX,
+        Data.Time.Clock.TAI,
+        Data.Time.LocalTime,
+        Data.Time.Format,
+        Data.Time
+    Extensions:	ForeignFunctionInterface, CPP
+    C-Sources:	cbits/HsTime.c
+    Other-Modules:
+        Data.Time.Calendar.Private,
+        Data.Time.Calendar.Days,
+        Data.Time.Calendar.Gregorian,
+        Data.Time.Calendar.JulianYearDay,
+        Data.Time.Clock.Scale,
+        Data.Time.Clock.UTC,
+        Data.Time.Clock.CTimeval,
+        Data.Time.Clock.UTCDiff,
+        Data.Time.LocalTime.TimeZone,
+        Data.Time.LocalTime.TimeOfDay,
+        Data.Time.LocalTime.LocalTime,
+        Data.Time.Format.Parse
+    Include-Dirs:	include
+    Install-Includes:
+        HsTime.h HsTimeConfig.h
+}
+

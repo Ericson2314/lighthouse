@@ -1,0 +1,12 @@
+\begin{code}
+module TypeRep where
+
+data Type
+data PredType
+data TyThing
+
+type Kind = Type
+
+isCoercionKind :: Kind -> Bool
+\end{code}
+

@@ -1,0 +1,36 @@
+\About
+\DWorm
+
+\cThis application is developed using the Glasgow Haskell Compiler,
+\ca programming environment for the functional programming
+\clanguage Haskell. 
+\d(see http://www.haskell.org/ghc).
+
+\cThe application uses Port of Clean Object I/O library to Haskell.
+\cOriginal library was developed by the 
+\cresearch group Functional Languages at the University of Nijmegen.
+\d(see ftp.cs.kun.nl and http://www.cs.kun.nl/~clean/).
+
+Library was ported by
+        Krasimir Andreev Angelov
+        Peter Achten
+        Simon Peyton Jones
+\EndAbout
+
+\Help
+\DWorm Help
+
+The worm is directed by the arrow-keys. Portions of food (little
+magenta rectangles) will appear randomly in the playfield (one
+at a time). When the worm hits food it will eat it, after which
+the worm grows. Every portion of food gives you a certain
+amount of points.
+
+The higher the speed of the worm, the more points you score per
+portion. The game is over when the worm hits itself, one of the
+obstacles, or the boundaries of the playfield.
+
+Every time you score 500 points (i.e. at 500,1000,1500 etc.) you
+will enter a new level. The levels all have different obstacles to
+make the life of the worm a bit more complicated.
+\EndHelp

@@ -1,0 +1,407 @@
+<?xml version="1.0" encoding="iso-8859-1"?>
+<chapter id="bugs-and-infelicities">
+  <title>Known bugs and infelicities</title>
+
+  <sect1 id="vs-Haskell-defn">
+    <title>Haskell&nbsp;98 vs.&nbsp;Glasgow Haskell: language non-compliance
+</title>
+    
+    <indexterm><primary>GHC vs the Haskell 98 language</primary></indexterm>
+    <indexterm><primary>Haskell 98 language vs GHC</primary></indexterm>
+
+  <para>This section lists Glasgow Haskell infelicities in its
+  implementation of Haskell&nbsp;98.  See also the &ldquo;when things
+  go wrong&rdquo; section (<xref linkend="wrong"/>) for information
+  about crashes, space leaks, and other undesirable phenomena.</para>
+
+  <para>The limitations here are listed in Haskell Report order
+  (roughly).</para>
+
+  <sect2 id="haskell98-divergence">
+    <title>Divergence from Haskell&nbsp;98</title>
+    
+      
+    <sect3 id="infelicities-lexical">
+      <title>Lexical syntax</title>
+      
+      <itemizedlist>
+	<listitem>
+	  <para>Certain lexical rules regarding qualified identifiers
+	  are slightly different in GHC compared to the Haskell
+	  report.  When you have
+	  <replaceable>module</replaceable><literal>.</literal><replaceable>reservedop</replaceable>,
+	  such as <literal>M.\</literal>, GHC will interpret it as a
+	  single qualified operator rather than the two lexemes
+	  <literal>M</literal> and <literal>.\</literal>.</para>
+	</listitem>
+      </itemizedlist>
+    </sect3>
+      
+      <sect3 id="infelicities-syntax">
+	<title>Context-free syntax</title>
+	
+	<itemizedlist>
+	  <listitem>
+	    <para>GHC is a little less strict about the layout rule when used
+	      in <literal>do</literal> expressions.  Specifically, the
+	      restriction that "a nested context must be indented further to
+	      the right than the enclosing context" is relaxed to allow the
+	      nested context to be at the same level as the enclosing context,
+	      if the enclosing context is a <literal>do</literal>
+	      expression.</para>
+
+	    <para>For example, the following code is accepted by GHC:
+
+<programlisting>
+main = do args &lt;- getArgs
+	  if null args then return [] else do
+          ps &lt;- mapM process args
+          mapM print ps</programlisting>
+
+	      </para>
+	  </listitem>
+
+	<listitem>
+	  <para>GHC doesn't do fixity resolution in expressions during
+	  parsing.  For example, according to the Haskell report, the
+	  following expression is legal Haskell:
+<programlisting>
+    let x = 42 in x == 42 == True</programlisting>
+	and parses as:
+<programlisting>
+    (let x = 42 in x == 42) == True</programlisting>
+
+          because according to the report, the <literal>let</literal>
+	  expression <quote>extends as far to the right as
+	  possible</quote>.  Since it can't extend past the second
+	  equals sign without causing a parse error
+	  (<literal>==</literal> is non-fix), the
+	  <literal>let</literal>-expression must terminate there.  GHC
+	  simply gobbles up the whole expression, parsing like this:
+<programlisting>
+    (let x = 42 in x == 42 == True)</programlisting>
+
+          The Haskell report is arguably wrong here, but nevertheless
+          it's a difference between GHC &amp; Haskell 98.</para>
+	</listitem>
+      </itemizedlist>
+    </sect3>
+
+  <sect3 id="infelicities-exprs-pats">
+      <title>Expressions and patterns</title>
+
+	<para>None known.</para>
+    </sect3>
+
+    <sect3 id="infelicities-decls">
+      <title>Declarations and bindings</title>
+
+      <para>GHC's typechecker makes all pattern bindings monomorphic
+      by default; this behaviour can be disabled with
+      <option>-fno-mono-pat-binds</option>.  See <xref
+      linkend="options-language" />.</para>
+    </sect3>
+      
+      <sect3 id="infelicities-Modules">
+	<title>Module system and interface files</title>
+	
+	<para>None known.</para>
+    </sect3>
+
+    <sect3 id="infelicities-numbers">
+      <title>Numbers, basic types, and built-in classes</title>
+
+      <variablelist>
+	<varlistentry>
+	  <term>Multiply-defined array elements&mdash;not checked:</term>
+	  <listitem>
+	    <para>This code fragment should
+	    elicit a fatal error, but it does not:
+
+<programlisting>
+main = print (array (1,1) [(1,2), (1,3)])</programlisting>
+GHC's implementation of <literal>array</literal> takes the value of an
+array slot from the last (index,value) pair in the list, and does no
+checking for duplicates.  The reason for this is efficiency, pure and simple.
+            </para>
+	  </listitem>
+	</varlistentry>
+      </variablelist>
+      
+    </sect3>
+
+      <sect3 id="infelicities-Prelude">
+	<title>In <literal>Prelude</literal> support</title>
+
+      <variablelist>
+	<varlistentry>
+	  <term>Arbitrary-sized tuples</term>
+	  <listitem>
+	    <para>Tuples are currently limited to size 100.  HOWEVER:
+            standard instances for tuples (<literal>Eq</literal>,
+            <literal>Ord</literal>, <literal>Bounded</literal>,
+            <literal>Ix</literal> <literal>Read</literal>, and
+            <literal>Show</literal>) are available
+            <emphasis>only</emphasis> up to 16-tuples.</para>
+
+	    <para>This limitation is easily subvertible, so please ask
+            if you get stuck on it.</para>
+	    </listitem>
+	  </varlistentry>
+
+	  <varlistentry>
+	    <term><literal>Read</literal>ing integers</term>
+	    <listitem>
+	      <para>GHC's implementation of the
+	      <literal>Read</literal> class for integral types accepts
+	      hexadecimal and octal literals (the code in the Haskell
+	      98 report doesn't).  So, for example,
+<programlisting>read "0xf00" :: Int</programlisting>
+              works in GHC.</para>
+	      <para>A possible reason for this is that <literal>readLitChar</literal> accepts hex and
+		octal escapes, so it seems inconsistent not to do so for integers too.</para>
+	    </listitem>
+	  </varlistentry>
+
+	  <varlistentry>
+	    <term><literal>isAlpha</literal></term>
+	    <listitem>
+	      <para>The Haskell 98 definition of <literal>isAlpha</literal>
+              is:</para>
+
+<programlisting>isAlpha c = isUpper c || isLower c</programlisting>
+
+	      <para>GHC's implementation diverges from the Haskell 98
+              definition in the sense that Unicode alphabetic characters which
+              are neither upper nor lower case will still be identified as
+              alphabetic by <literal>isAlpha</literal>.</para>
+	    </listitem>
+	  </varlistentry>
+
+	  <varlistentry>
+	    <term>Strings treated as ISO-8859-1</term>
+	    <listitem>
+	      <para>
+            Various library functions, such as <literal>putStrLn</literal>,
+            treat Strings as if they were ISO-8859-1 rather than UTF-8.
+          </para>
+	    </listitem>
+	  </varlistentry>
+	</variablelist>
+    </sect3>
+  </sect2>
+
+  <sect2 id="haskell98-undefined">
+    <title>GHC's interpretation of undefined behaviour in
+    Haskell&nbsp;98</title>
+
+    <para>This section documents GHC's take on various issues that are
+    left undefined or implementation specific in Haskell 98.</para>
+
+    <variablelist>
+      <varlistentry>
+	<term>
+          The <literal>Char</literal> type
+          <indexterm><primary><literal>Char</literal></primary><secondary>size of</secondary></indexterm>
+        </term>
+	<listitem>
+	  <para>Following the ISO-10646 standard,
+	  <literal>maxBound :: Char</literal> in GHC is
+	  <literal>0x10FFFF</literal>.</para>
+	</listitem>
+      </varlistentry>
+
+      <varlistentry>
+	<term>
+          Sized integral types
+          <indexterm><primary><literal>Int</literal></primary><secondary>size of</secondary></indexterm>
+	</term>
+	<listitem>
+	  <para>In GHC the <literal>Int</literal> type follows the
+	  size of an address on the host architecture; in other words
+	  it holds 32 bits on a 32-bit machine, and 64-bits on a
+	  64-bit machine.</para>
+
+	  <para>Arithmetic on <literal>Int</literal> is unchecked for
+	  overflow<indexterm><primary>overflow</primary><secondary><literal>Int</literal></secondary>
+	    </indexterm>, so all operations on <literal>Int</literal> happen
+	  modulo
+	  2<superscript><replaceable>n</replaceable></superscript>
+	  where <replaceable>n</replaceable> is the size in bits of
+	  the <literal>Int</literal> type.</para>
+
+	  <para>The <literal>fromInteger</literal><indexterm><primary><literal>fromInteger</literal></primary>
+	    </indexterm>function (and hence
+	  also <literal>fromIntegral</literal><indexterm><primary><literal>fromIntegral</literal></primary>
+	    </indexterm>) is a special case when
+	  converting to <literal>Int</literal>.  The value of
+	  <literal>fromIntegral x :: Int</literal> is given by taking
+	  the lower <replaceable>n</replaceable> bits of <literal>(abs
+	  x)</literal>, multiplied by the sign of <literal>x</literal>
+	  (in 2's complement <replaceable>n</replaceable>-bit
+	  arithmetic).  This behaviour was chosen so that for example
+	  writing <literal>0xffffffff :: Int</literal> preserves the
+	  bit-pattern in the resulting <literal>Int</literal>.</para>
+
+
+	   <para>Negative literals, such as <literal>-3</literal>, are
+             specified by (a careful reading of) the Haskell Report as 
+             meaning <literal>Prelude.negate (Prelude.fromInteger 3)</literal>.
+	     So <literal>-2147483648</literal> means <literal>negate (fromInteger 2147483648)</literal>.
+	     Since <literal>fromInteger</literal> takes the lower 32 bits of the representation,
+	     <literal>fromInteger (2147483648::Integer)</literal>, computed at type <literal>Int</literal> is
+	     <literal>-2147483648::Int</literal>.  The <literal>negate</literal> operation then
+	     overflows, but it is unchecked, so <literal>negate (-2147483648::Int)</literal> is just
+	     <literal>-2147483648</literal>.  In short, one can write <literal>minBound::Int</literal> as
+	     a literal with the expected meaning (but that is not in general guaranteed.
+             </para>
+
+	  <para>The <literal>fromIntegral</literal> function also
+	  preserves bit-patterns when converting between the sized
+	  integral types (<literal>Int8</literal>,
+	  <literal>Int16</literal>, <literal>Int32</literal>,
+	  <literal>Int64</literal> and the unsigned
+	  <literal>Word</literal> variants), see the modules
+	  <literal>Data.Int</literal> and <literal>Data.Word</literal>
+	  in the library documentation.</para>
+	</listitem>
+      </varlistentry>
+
+      <varlistentry>
+	<term>Unchecked float arithmetic</term>
+	<listitem>
+	  <para>Operations on <literal>Float</literal> and
+          <literal>Double</literal> numbers are
+          <emphasis>unchecked</emphasis> for overflow, underflow, and
+          other sad occurrences.  (note, however that some
+          architectures trap floating-point overflow and
+          loss-of-precision and report a floating-point exception,
+          probably terminating the
+          program)<indexterm><primary>floating-point
+          exceptions</primary></indexterm>.</para>
+	</listitem>
+      </varlistentry>
+    </variablelist>
+      
+    </sect2>
+  </sect1>
+
+
+  <sect1 id="bugs">
+    <title>Known bugs or infelicities</title>
+
+    <para>The bug tracker lists bugs that have been reported in GHC but not
+      yet fixed: see the <ulink url="http://sourceforge.net/projects/ghc/">SourceForge GHC
+    page</ulink>.  In addition to those, GHC also has the following known bugs
+      or  infelicities.  These bugs are more permanent; it is unlikely that
+      any of them will be fixed in the short term.</para>
+
+  <sect2 id="bugs-ghc">
+    <title>Bugs in GHC</title>
+
+    <itemizedlist>
+      <listitem>
+	<para> GHC can warn about non-exhaustive or overlapping
+        patterns (see <xref linkend="options-sanity"/>), and usually
+        does so correctly.  But not always.  It gets confused by
+        string patterns, and by guards, and can then emit bogus
+        warnings.  The entire overlap-check code needs an overhaul
+        really.</para>
+      </listitem>
+
+      <listitem>
+	<para>GHC does not allow you to have a data type with a context 
+	   that mentions type variables that are not data type parameters.
+	  For example:
+<programlisting>
+  data C a b => T a = MkT a
+</programlisting>
+	  so that <literal>MkT</literal>'s type is
+<programlisting>
+  MkT :: forall a b. C a b => a -> T a
+</programlisting>
+        In principle, with a suitable class declaration with a functional dependency,
+	 it's possible that this type is not ambiguous; but GHC nevertheless rejects
+	  it.  The type variables mentioned in the context of the data type declaration must
+	be among the type parameters of the data type.</para>
+      </listitem>
+
+      <listitem>
+	<para>GHC's inliner can be persuaded into non-termination
+        using the standard way to encode recursion via a data type:</para>
+<programlisting>
+  data U = MkU (U -> Bool)
+       
+  russel :: U -> Bool
+  russel u@(MkU p) = not $ p u
+  
+  x :: Bool
+  x = russel (MkU russel)
+</programlisting>
+
+        <para>We have never found another class of programs, other
+        than this contrived one, that makes GHC diverge, and fixing
+        the problem would impose an extra overhead on every
+        compilation.  So the bug remains un-fixed.  There is more
+        background in <ulink
+        url="http://research.microsoft.com/~simonpj/Papers/inlining/">
+        Secrets of the GHC inliner</ulink>.</para>
+      </listitem>
+
+      <listitem>
+	<para>GHC does not keep careful track of
+	    what instance declarations are 'in scope' if they come from other packages.
+        Instead, all instance declarations that GHC has seen in other
+        packages are all in scope everywhere, whether or not the
+        module from that package is used by the command-line
+        expression.  This bug affects only the <option>--make</option> mode and
+	  GHCi.</para>
+      </listitem>
+
+    </itemizedlist>
+  </sect2>
+
+  <sect2 id="bugs-ghci">
+    <title>Bugs in GHCi (the interactive GHC)</title>
+    <itemizedlist>
+      <listitem>
+	<para>GHCi does not respect the <literal>default</literal>
+        declaration in the module whose scope you are in.  Instead,
+        for expressions typed at the command line, you always get the
+        default default-type behaviour; that is,
+        <literal>default(Int,Double)</literal>.</para>
+
+	<para>It would be better for GHCi to record what the default
+        settings in each module are, and use those of the 'current'
+        module (whatever that is).</para>
+      </listitem>
+
+      <listitem> 
+      <para>On Windows, there's a GNU ld/BFD bug
+      whereby it emits bogus PE object files that have more than
+      0xffff relocations. When GHCi tries to load a package affected by this
+      bug, you get an error message of the form
+<screen>
+Loading package javavm ... linking ... WARNING: Overflown relocation field (# relocs found: 30765)
+</screen>
+      The last time we looked, this bug still
+      wasn't fixed in the BFD codebase, and there wasn't any
+      noticeable interest in fixing it when we reported the bug
+      back in 2001 or so.
+      </para>
+      <para>The workaround is to split up the .o files that make up
+      your package into two or more .o's, along the lines of
+      how the "base" package does it.</para>
+      </listitem>
+    </itemizedlist>
+  </sect2>
+  </sect1>
+
+</chapter>
+
+<!-- Emacs stuff:
+     ;;; Local Variables: ***
+     ;;; mode: xml ***
+     ;;; sgml-parent-document: ("users_guide.xml" "book" "chapter") ***
+     ;;; End: ***
+ -->

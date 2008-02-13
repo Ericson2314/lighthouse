@@ -1,0 +1,10 @@
+module TcMatches where
+
+tcGRHSsPat    :: HsExpr.GRHSs Name.Name
+	      -> TcType.BoxyRhoType
+	      -> TcRnTypes.TcM (HsExpr.GRHSs TcRnTypes.TcId)
+
+tcMatchesFun :: Name.Name
+	     -> HsExpr.MatchGroup Name.Name
+	     -> TcType.BoxyRhoType
+	     -> TcRnTypes.TcM (HsBinds.HsWrapper, HsExpr.MatchGroup TcRnTypes.TcId)

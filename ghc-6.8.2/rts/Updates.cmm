@@ -1,0 +1,63 @@
+/* -----------------------------------------------------------------------------
+ *
+ * (c) The GHC Team, 1998-2004
+ *
+ * Code to perform updates.
+ *
+ * This file is written in a subset of C--, extended with various
+ * features specific to GHC.  It is compiled by GHC directly.  For the
+ * syntax of .cmm files, see the parser in ghc/compiler/cmm/CmmParse.y.
+ *
+ * ---------------------------------------------------------------------------*/
+
+
+#include "Cmm.h"
+#include "Updates.h"
+#include "StgLdvProf.h"
+
+/* on entry to the update code
+   (1) R1 points to the closure being returned
+   (2) Sp points to the update frame
+*/
+
+/* The update fragment has been tuned so as to generate good
+   code with gcc, which accounts for some of the strangeness in the
+   way it is written.  
+
+   In particular, the JMP_(ret) bit is passed down and pinned on the
+   end of each branch (there end up being two major branches in the
+   code), since we don't mind duplicating this jump.
+*/
+
+#define UPD_FRAME_ENTRY_TEMPLATE					\
+	{								\
+          W_ updatee;							\
+									\
+          updatee = StgUpdateFrame_updatee(Sp);				\
+									\
+	  /* remove the update frame from the stack */			\
+	  Sp = Sp + SIZEOF_StgUpdateFrame;				\
+									\
+	  /* ToDo: it might be a PAP, so we should check... */  	\
+	  TICK_UPD_CON_IN_NEW(sizeW_fromITBL(%GET_STD_INFO(updatee)));  \
+									\
+	  UPD_SPEC_IND(updatee, stg_IND_direct_info, R1, jump %ENTRY_CODE(Sp(0))); \
+	}
+
+#if defined(PROFILING)
+#define UPD_FRAME_PARAMS W_ unused1, W_ unused2, "ptr" W_ unused3
+#else
+#define UPD_FRAME_PARAMS "ptr" W_ unused1
+#endif
+
+/* this bitmap indicates that the first word of an update frame is a
+ * non-pointer - this is the update frame link.  (for profiling,
+ * there's a cost-centre-stack in there too).
+ */
+
+INFO_TABLE_RET( stg_upd_frame, UPDATE_FRAME, UPD_FRAME_PARAMS)
+UPD_FRAME_ENTRY_TEMPLATE
+
+
+INFO_TABLE_RET( stg_marked_upd_frame, UPDATE_FRAME, UPD_FRAME_PARAMS)
+UPD_FRAME_ENTRY_TEMPLATE

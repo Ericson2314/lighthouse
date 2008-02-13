@@ -1,0 +1,14 @@
+name:       packedstring
+version:    0.1.0.0
+license:    BSD3
+license-file:    LICENSE
+maintainer:    libraries@haskell.org
+synopsis:    (Deprecated) Packed Strings.
+description:
+    (Deprecated) Packed Strings.
+build-type: Simple
+build-depends: base, array
+exposed-modules:
+    Data.PackedString
+extensions: CPP
+ghc-options: -Dxen_HOST_OS

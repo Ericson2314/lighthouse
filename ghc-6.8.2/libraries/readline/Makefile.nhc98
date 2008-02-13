@@ -1,0 +1,17 @@
+THISPKG	= readline
+SEARCH	= -I$(TOPDIR)/targets/$(MACHINE) -Iinclude
+EXTRA_H_FLAGS =
+
+SRCS	= \
+	System/Console/SimpleLineEditor.hs
+#	System/Console/Readline.hsc
+
+# Here are the main rules.
+include ../Makefile.common
+
+# some extra rules
+
+# Here are the dependencies.
+
+# C-files dependencies.
+

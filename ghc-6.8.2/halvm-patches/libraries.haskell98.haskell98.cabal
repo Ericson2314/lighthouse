@@ -1,0 +1,27 @@
+*** ghc-pristine/libraries/haskell98/haskell98.cabal	2007-11-01 19:59:27.000000000 -0700
+--- ghc-xen/libraries/haskell98/haskell98.cabal	2007-11-14 18:24:14.000000000 -0800
+***************
+*** 12,22 ****
+  	the base package.
+  homepage:	http://www.haskell.org/definition/
+  build-type:     Simple
+! build-depends:	base, directory, random, old-time, old-locale, process, array
+  exposed-modules:
+  	-- Haskell 98 (Prelude and Numeric are in the base package)
+! 	Array, CPUTime, Char, Complex, Directory, IO, Ix, List, Locale,
+! 	Maybe, Monad, Random, Ratio, System, Time,
+  	-- FFI addendum (Foreign is in the base package)
+  	Bits, CError, CForeign, CString, CTypes, ForeignPtr, Int,
+  	MarshalAlloc, MarshalArray, MarshalError, MarshalUtils, Ptr,
+--- 12,22 ----
+  	the base package.
+  homepage:	http://www.haskell.org/definition/
+  build-type:     Simple
+! build-depends:	base, random, old-time, old-locale, array
+  exposed-modules:
+  	-- Haskell 98 (Prelude and Numeric are in the base package)
+! 	Array, CPUTime, Char, Complex, Ix, List, Locale,
+! 	Maybe, Monad, Random, Ratio, Time,
+  	-- FFI addendum (Foreign is in the base package)
+  	Bits, CError, CForeign, CString, CTypes, ForeignPtr, Int,
+  	MarshalAlloc, MarshalArray, MarshalError, MarshalUtils, Ptr,

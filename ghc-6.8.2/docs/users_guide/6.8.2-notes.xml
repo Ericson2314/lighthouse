@@ -1,0 +1,103 @@
+<?xml version="1.0" encoding="iso-8859-1"?>
+<sect1 id="release-6-8-2">
+  <title>Release notes for version 6.8.2</title>
+
+  <para>
+    6.8.2 is a bugfix release over 6.8.1. Many bugs in the compiler,
+    libraries and build system have been fixed. However, most library
+    APIs have not changed, so code that worked with 6.8.1 should
+    continue to work with 6.8.2. The notable exceptions, as well as the
+    user interface changes, are listed below.
+  </para>
+
+  <itemizedlist>
+    <listitem>
+      <para>
+        The <option>--print-docdir</option> for GHC has been removed,
+        as there were some problems with the implementation. We'll
+        revisit this area in a future release.
+      </para>
+    </listitem>
+    <listitem>
+      <para>
+        Standalone deriving declarations now respect scope: You can't
+        derive a <literal>Show</literal> instance, for example, unless
+        all the constructors are in scope.
+      </para>
+    </listitem>
+    <listitem>
+      <para>
+        GHCi now treats all input as unicode, except for the Windows
+        console where we do the correct conversion from the current
+        code page.
+      </para>
+    </listitem>
+    <listitem>
+      <para>
+        In GHCi, ":" now repeats the last command.
+      </para>
+    </listitem>
+    <listitem>
+      <para>
+        In GHCi, <literal>:{ ..lines.. :}</literal> can be used to
+        give multi-line commands. This is mainly useful in
+        <filename>.ghci</filename> files.
+      </para>
+    </listitem>
+    <listitem>
+      <para>
+        In GHCi, <literal>:show languages</literal> shows the
+        active language extensions and <literal>:show packages</literal>
+        shows the loaded packages.
+      </para>
+    </listitem>
+    <listitem>
+      <para>
+        In GHCi, <literal>:def!</literal> now overwrites a previous
+        command with the same name, <literal>:def</literal> on its own
+        lists the defined macros, and <literal>:undef f g</literal>
+        undefines both <literal>f</literal> and <literal>g</literal>.
+      </para>
+    </listitem>
+    <listitem>
+      <para>
+        There is now a variant, <literal>:browse!</literal>,
+        of <literal>:browse</literal>.
+      </para>
+    </listitem>
+    <listitem>
+      <para>
+        Various changes have been made to GHC's internals, so there are
+        some differences in the API exposed by the ghc package. Most
+        notably, <literal>checkAndLoadModule</literal> has now been
+        implemented.
+      </para>
+    </listitem>
+    <listitem>
+      <para>
+        The version of base has been increased from 3.0.0.0 to 3.0.1.0.
+      </para>
+    </listitem>
+    <listitem>
+      <para>
+        The version of Cabal has been increased from 1.2.2.0 to 1.2.3.0.
+      </para>
+    </listitem>
+    <listitem>
+      <para>
+        The version of containers has been increased from 0.1.0.0 to 0.1.0.1.
+      </para>
+    </listitem>
+    <listitem>
+      <para>
+        The version of unix has been increased from 2.2.0.0 to 2.3.0.0.
+      </para>
+    </listitem>
+    <listitem>
+      <para>
+        The version of Win32 has been increased from 2.1.0.0 to 2.1.1.0.
+      </para>
+    </listitem>
+  </itemizedlist>
+</sect1>
+

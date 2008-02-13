@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="iso-8859-1"?>
+<chapter id="ghc-language-features">
+<title>GHC Language Features</title>
+
+&glasgowexts;
+&parallel;
+
+</chapter>
+
+<!-- Emacs stuff:
+     ;;; Local Variables: ***
+     ;;; mode: xml ***
+     ;;; sgml-parent-document: ("users_guide.xml" "book" "chapter") ***
+     ;;; End: ***
+ -->

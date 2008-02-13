@@ -1,0 +1,43 @@
+-- ****************************************************************
+-- To fix for cabal < 1.1.4 comment out the Extra-Source-Files line
+-- ****************************************************************
+Name:                   regex-compat
+Version:                0.71.0.1
+-- Cabal-Version:       >=1.1.4
+License:                BSD3
+License-File:           LICENSE
+Copyright:              Copyright (c) 2006, Christopher Kuklewicz
+Author:                 Christopher Kuklewicz
+Maintainer:             TextRegexLazy@personal.mightyreason.com
+Stability:              Seems to work, passes a few tests
+Homepage:               http://sourceforge.net/projects/lazy-regex
+-- Package-URL:
+Synopsis:               Replaces/Enhances Text.Regex
+Description:            One module layer over regex-posix to replace Text.Regex
+Category:               Text
+Build-Type:             Simple
+Tested-With:            GHC
+Build-Depends:          regex-base, regex-posix, base >= 2.0
+-- Data-Files:
+-- Extra-Source-Files:     Text/Regex/Lazy/TestCompat.hs, Text/Regex/Lazy/TestFull.hs, Text/Regex/Impl/TestContext.hs, TestTextRegexLazy.hs, Example.hs, Example2.hs, lazy.html, README, Makefile
+-- Extra-Tmp-Files:
+Exposed-Modules:        Text.Regex
+Buildable:              True
+-- Other-Modules:
+-- ********* Be backward compatible until 6.4.2 is futher deployed
+-- HS-Source-Dirs:         "."
+-- Extensions:
+GHC-Options:            -Wall -Werror -O2
+-- GHC-Options:            -Wall -Werror
+-- GHC-Options:            -Wall -ddump-minimal-imports
+-- GHC-Prog-Options: 
+-- Hugs-Options:
+-- NHC-Options:
+-- Includes:
+-- Include-Dirs:
+-- C-Sources:
+-- Extra-Libraries:
+-- Extra-Lib-Dirs:
+-- CC-Options:
+-- LD-Options:
+-- Frameworks:

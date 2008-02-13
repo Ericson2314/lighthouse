@@ -1,0 +1,14 @@
+*** ghc-pristine/libraries/parsec/parsec.cabal	2007-11-01 20:04:14.000000000 -0700
+--- ghc-xen/libraries/parsec/parsec.cabal	2007-11-14 18:30:47.000000000 -0800
+***************
+*** 25,28 ****
+  	Text.ParserCombinators.Parsec.Token,
+  	Text.ParserCombinators.Parsec
+  build-depends:	base
+! extensions:	ExistentialQuantification, PolymorphicComponents
+--- 25,29 ----
+  	Text.ParserCombinators.Parsec.Token,
+  	Text.ParserCombinators.Parsec
+  build-depends:	base
+! extensions:	ExistentialQuantification, PolymorphicComponents, CPP
+! ghc-options: -Dxen_HOST_OS

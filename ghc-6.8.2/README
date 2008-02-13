@@ -1,0 +1,112 @@
+The Glasgow Haskell Compiler
+============================
+
+This is the source tree for GHC, a compiler and interactive
+environment for the Haskell functional programming language.
+
+For more information, visit GHC's web site:
+
+  http://www.haskell.org/ghc/
+
+Information for developers of GHC can be found here:
+
+  http://hackage.haskell.org/trac/ghc/
+
+
+Getting the Source
+==================
+
+There are two ways to get a source tree:
+
+  1. Download source tarballs
+  ---------------------------
+
+  The GHC source distribution comes in two parts:
+
+      ghc-<version>-src.tar.bz2
+      ghc-<version>-src-extralibs.tar.bz2
+
+  You only need the first one, which contains GHC itself and
+  the "boot" libraries.
+
+  The extralibs package contains a bunch of optional libraries.  If
+  you want, you can unpack this over the top of your source tree, and
+  these extra libraries will be built and installed automatically.
+  Make sure you unpack the extralibs package before running configure
+  (see below).
+
+  If you don't build extralibs now, you can add them later by building
+  and installing individual packages using Cabal.
+
+  2. Get the source from darcs
+  ----------------------------
+
+  First get the GHC darcs repository:
+
+    $ darcs get http://darcs.haskell.org/ghc/
+
+  Then run the darcs-all script in that repository
+  to get the other repositories:
+
+     $ cd ghc
+     $ chmod +x darcs-all
+     $ ./darcs-all get
+
+  This grabs the "boot" packages by default.  To get the full set of
+  packages, instead say
+
+     $ ./darcs-all --extra get
+
+  This also downloads the libraries that are normally bundled in the
+  "extralibs" package (see above).
+
+
+Building & Installing
+=====================
+
+NB. you need GHC installed in order to build GHC, because the compiler
+is itself written in Haskell.  It is possible to build GHC using just
+a C compiler, but we don't recommend this as the normal route.  If you
+*really* want to do it this way, then see the Building Guide (link
+below).
+
+You also need a few other tools installed: Happy [4], Alex [5], and
+Haddock [6] (for building library documentation), and a good DocBook
+XML toolchain if you want to build the compiler documentation.
+
+Quick start:  the following gives you a default build:
+
+	$ sh boot
+	$ ./configure
+	$ make
+	$ make install
+
+The "sh boot" step is only necessary if this is a tree checked out
+from darcs.  For source distributions downloaded from GHC's web site,
+this step has already been performed.
+
+These steps give you the default build, which includes everything
+optimised and built in various ways (eg. profiling libs are built).
+It can take a long time.  To customise the build, see the file
+HACKING.
+
+For full information on building GHC, see the GHC Building Guide [3].
+
+
+References
+==========
+
+ [1] http://www.haskell.org/ghc/                        GHC Home Page
+ [2] http://hackage.haskell.org/trac/ghc                GHC Developer's Wiki
+ [3] http://hackage.haskell.org/trac/ghc/wiki/Building  Building Guide
+ [4] http://www.haskell.org/happy/                      Happy
+ [5] http://www.haskell.org/alex/                       Alex
+ [6] http://www.haskell.org/haddock/                    Haddock
+
+
+Contributors
+============
+
+Please see
+
+   http://www.haskell.org/ghc/contributors.html

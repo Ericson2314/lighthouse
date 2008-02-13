@@ -1,0 +1,14 @@
+The regular expression stuff needs some of a rethink.
+
+Things that could be made more efficient, as I think of them:
+
+(1) Making Arrays in Wrap* may be a bit inefficient
+counter: Usage may be like "look up element 3" so random access is good
+
+(2) String DFA: the findRegex computes the prefix string itself, which is sometimes wasted / sometimes wanted / always discarded.  Also, the input string at the start of the match is discarded
+
+(3) Lazy computes MatchedStrings array then discards it.  Wasteful.
+
+(4) Mighty extend RegexLike with ability to return "strings", i.e. Extract instance.  The default conversion could be left in for some things.   Then RegexContext could pull from that instead of matchOnce/matchAll.
+
+(5) make RegexLike default matchAll/matchOnce in terms of matchOnceText and matchAllText

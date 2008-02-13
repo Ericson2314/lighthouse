@@ -1,0 +1,30 @@
+About these examples.
+=====================
+
+In this directory you will find three small mini Haskell Object I/O example 
+programs: Hello(LS/MVAR), Counter(LS/MVAR), and Talk(LS/MVAR). 
+
+The mini Haskell Object I/O library comes in two versions, depending on the 
+way state is handled. One version (LS) handles state in the same way as done
+in the Clean Object I/O library. The other version (MVAR) handles state by
+means of mutable variables (MVar-s). The library code contains both versions.
+They are distinguished by the C preprocessor flag MVAR (see preprocess.h in)
+ObjectIO directory. 
+
+To compile a LS application:
+*   after doing 'make depend', remove WindowdeviceMVAR entry in Haskell
+    dependency list
+*   if there are in the ObjectIO directory the files IOstate.hi-boot and
+    IOstateMVAR.hi-boot then this is OK.
+    if there are in the ObjectIO directory the files IOstateLS.hi-boot and
+    IOstate.hi-boot then these should be renamed as above.
+*   compile modules with -DMVAR=0 (this has been set in makefile). 
+
+To compile a MVAR application:
+*   after doing 'make depend', remove WindowdeviceLS entry in Haskell
+    dependency list
+*   if there are in the ObjectIO directory the files IOstate.hi-boot and
+    IOstateLS.hi-boot then this is OK.
+    if there are in the ObjectIO directory the files IOstateMVAR.hi-boot and
+    IOstate.hi-boot then these should be renamed as above.
+*   compile modules with -DMVAR=1 (this has been set in makefile).

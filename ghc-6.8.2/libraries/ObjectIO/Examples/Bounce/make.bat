@@ -1,0 +1,1 @@
+ghc Main.hs --make -package objectio -o Bounce.exe -optl "-Wl,--subsystem,windows"

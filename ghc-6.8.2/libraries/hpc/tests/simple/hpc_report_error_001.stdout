@@ -1,0 +1,17 @@
+Error: no .tix file or executable name specified
+Usage: hpc report [OPTION] .. <TIX_FILE> [<MODULE> [<MODULE> ..]]
+Output textual report about program coverage
+
+
+Options:
+
+    --per-module                  show module level detail
+    --decl-list                   show unused decls
+    --exclude=[PACKAGE:][MODULE]  exclude MODULE and/or PACKAGE
+    --include=[PACKAGE:][MODULE]  include MODULE and/or PACKAGE
+    --srcdir=DIR                  path to source directory of .hs files
+                                  multi-use of srcdir possible
+    --hpcdir=DIR                  sub-directory that contains .mix files
+                                  default .hpc [rarely used]
+    --xml-output                  show output in XML
+

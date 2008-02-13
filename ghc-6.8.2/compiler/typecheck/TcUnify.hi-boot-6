@@ -1,0 +1,7 @@
+module TcUnify where
+
+-- This boot file exists only to tie the knot between
+--		TcUnify and TcSimplify
+
+unifyType :: TcType.TcTauType -> TcType.TcTauType -> TcRnTypes.TcM ()
+zapToMonotype :: TcType.BoxyType -> TcRnTypes.TcM TcType.TcTauType

@@ -1,0 +1,22 @@
+*** ghc-pristine/rts/PrimOps.cmm	2007-12-10 10:11:32.000000000 -0800
+--- ghc-xen/rts/PrimOps.cmm	2008-01-02 14:27:14.000000000 -0800
+***************
+*** 1834,1839 ****
+--- 1834,1840 ----
+     Bytecode object primitives
+     -------------------------------------------------------------------------  */
+  
++ #ifdef ALLOW_INTERPRETER
+  newBCOzh_fast
+  {
+      /* R1 = instrs
+***************
+*** 1898,1903 ****
+--- 1899,1905 ----
+      
+      RET_P(ap);
+  }
++ #endif // ALLOW_INTERPRETER
+  
+  unpackClosurezh_fast
+  {

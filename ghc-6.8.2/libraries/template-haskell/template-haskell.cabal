@@ -1,0 +1,20 @@
+name:		template-haskell
+version:	2.2.0.0
+license:	BSD3
+license-file:	LICENSE
+maintainer:	libraries@haskell.org
+description:
+    Facilities for manipulating Haskell source code using Template Haskell.
+build-type: Simple
+build-depends: base, pretty, packedstring, containers
+exposed-modules:
+	Language.Haskell.TH.Syntax,
+    Language.Haskell.TH.PprLib,
+    Language.Haskell.TH.Ppr,
+    Language.Haskell.TH.Lib,
+    Language.Haskell.TH
+-- We need to set the package name to template-haskell (without a
+-- version number) as it's magic.
+ghc-options: -package-name template-haskell -Dxen_HOST_OS
+extensions: CPP
+

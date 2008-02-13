@@ -1,0 +1,2 @@
+SplitObjs = NO
+GhcWithInterpreter=NO

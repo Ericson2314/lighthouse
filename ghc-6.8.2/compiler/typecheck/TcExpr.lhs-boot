@@ -1,0 +1,27 @@
+\begin{code}
+module TcExpr where
+import HsSyn	( HsExpr, LHsExpr )
+import Name	( Name )
+import TcType	( TcType, TcRhoType, BoxySigmaType, BoxyRhoType )
+import TcRnTypes( TcM, TcId, InstOrigin )
+
+tcPolyExpr :: 
+	  LHsExpr Name
+       -> BoxySigmaType
+       -> TcM (LHsExpr TcId)
+
+tcMonoExpr :: 
+  	  LHsExpr Name
+       -> BoxyRhoType
+       -> TcM (LHsExpr TcId)
+
+tcInferRho :: 
+  	  LHsExpr Name
+       -> TcM (LHsExpr TcId, TcRhoType)
+
+tcSyntaxOp :: 
+	  InstOrigin
+       -> HsExpr Name
+       -> TcType
+       -> TcM (HsExpr TcId)
+\end{code}

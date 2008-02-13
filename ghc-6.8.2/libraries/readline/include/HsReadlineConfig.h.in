@@ -1,0 +1,28 @@
+/* include/HsReadlineConfig.h.in.  Generated from configure.ac by autoheader.  */
+
+/* Define to 1 if we're using GNUreadline.framework. */
+#undef HAVE_FRAMEWORK_READLINE
+
+/* Define to 1 if readline has version >= 4.0. */
+#undef HAVE_READLINE_4
+
+/* Define to 1 if readline has version >= 4.2. */
+#undef HAVE_READLINE_4_2
+
+/* Define to 1 if readline has version >= 5.0. */
+#undef HAVE_READLINE_5
+
+/* Define to the address where bug reports for this package should be sent. */
+#undef PACKAGE_BUGREPORT
+
+/* Define to the full name of this package. */
+#undef PACKAGE_NAME
+
+/* Define to the full name and version of this package. */
+#undef PACKAGE_STRING
+
+/* Define to the one symbol short name of this package. */
+#undef PACKAGE_TARNAME
+
+/* Define to the version of this package. */
+#undef PACKAGE_VERSION

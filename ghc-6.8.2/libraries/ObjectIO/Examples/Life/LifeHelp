@@ -1,0 +1,58 @@
+\About
+\DLife
+
+\cThis application is developed using the Glasgow Haskell Compiler, 
+\ca programming environment for the functional programming 
+\clanguage Haskell. 
+\d(see http://www.haskell.org/ghc).
+
+\cThe application uses Port of Clean Object I/O library to Haskell.
+\cOriginal library was developed by the 
+\cresearch group Functional Languages at the University of Nijmegen.
+\d(see ftp.cs.kun.nl and http://www.cs.kun.nl/~clean/).
+
+Library was ported by
+        Krasimir Andreev Angelov
+        Peter Achten
+        Simon Peyton Jones
+\EndAbout
+
+\Help
+\DLife Help
+
+\bAbout the Game of Life
+The Game of Life by Conway is played in a two-dimensional, infinite universe
+of cells. Each cell is identified by its position (x,y). The neighbours of a
+cell (x,y) are the cells
+
+\c[ (x+i,y+j) | i<-[-1..1], j<-[-1..1], (i,j)/=(0,0) ]
+
+A cell is either dead or alive. Given a generation of cells, the next 
+generation is computed using the following simple rules:
+
+For each cell in the universe:
+* it survives if it has 2 or 3 living neighbours, otherwise it dies
+* it is born  if it has 3 living neighbours
+
+\bUsing the program
+The program opens a "Life" window which displays only a finite part of the
+infinite universe of life. 
+
+The universe can be displayed with an individual cell size of 1,2,4,8, or 16
+pixels per cell (see 'Options' menu, 'Cell Size' settings). 
+
+In the "Life" window the user can indicate that a cell is alive by pressing 
+the mouse button at the desired position. A cell is killed by pressing the 
+mouse button in combination with the command modifier key. All cells can be 
+killed using the 'Erase All Cells' command ('Commands' menu). These include 
+also the cells that are not displayed.  
+
+Given a generation one can compute and display the next generation with the
+'Step' command (menu 'Commands'). The 'Play' command (menu 'Commands') does
+this continuesly. The 'Play' command does not detect cyclic situations nor
+even if the universe consists of dead cells only. To halt a 'Play' session, 
+choose 'Halt' (menu 'Commands').
+
+To quit the application, choose the 'Quit' command (menu 'File). 
+
+\EndHelp

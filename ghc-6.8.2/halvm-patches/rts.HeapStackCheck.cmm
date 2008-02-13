@@ -1,0 +1,57 @@
+*** ghc-pristine/rts/HeapStackCheck.cmm	2007-11-01 19:55:12.000000000 -0700
+--- ghc-xen/rts/HeapStackCheck.cmm	2007-11-05 17:38:37.000000000 -0800
+***************
+*** 100,108 ****
+--- 100,110 ----
+    R2 = c;					\
+    jump stg_returnToSchedButFirst;
+  
++ #ifdef ALLOW_INTERPRETER
+  #define YIELD_TO_INTERPRETER			\
+    PRE_RETURN(ThreadYielding, ThreadInterpret)	\
+    jump stg_returnToSchedNotPaused;
++ #endif // ALLOW_INTERPRETER
+  
+  /* -----------------------------------------------------------------------------
+     Heap checks in thunks/functions.
+***************
+*** 645,650 ****
+--- 647,653 ----
+      if (type == ARG_GEN || type == ARG_GEN_BIG) {
+  	jump StgFunInfoExtra_slow_apply(info);
+      } else { 
++ #ifdef ALLOW_INTERPRETER
+  	if (type == ARG_BCO) {
+  	    // cover this case just to be on the safe side
+  	    Sp_adj(-2);
+***************
+*** 654,660 ****
+--- 657,666 ----
+  	} else {
+  	    jump W_[stg_ap_stack_entries + WDS(type)];
+  	}
++ #else
++ 	    jump W_[stg_ap_stack_entries + WDS(type)];
+      }
++ #endif // ALLOW_INTERPRETER
+  #endif
+  }
+  
+***************
+*** 768,778 ****
+--- 774,788 ----
+     Yielding to the interpreter... top of stack says what to do next.
+     -------------------------------------------------------------------------- */
+  
++ #ifdef ALLOW_INTERPRETER
++ 
+  stg_yield_to_interpreter
+  {
+      YIELD_TO_INTERPRETER;
+  }
+  
++ #endif // ALLOW_INTERPRETER
++ 
+  /* -----------------------------------------------------------------------------
+     Blocks
+     -------------------------------------------------------------------------- */

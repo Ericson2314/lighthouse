@@ -1,0 +1,15 @@
+*** ghc-pristine/driver/mangler/ghc-asm.lprl	2007-01-05 10:42:19.000000000 -0800
+--- ghc-xen/driver/mangler/ghc-asm.lprl	2007-01-09 09:03:29.000000000 -0800
+***************
+*** 73,78 ****
+--- 73,82 ----
+      }
+  }
+  
++ if ( $TargetPlatform =~ /^i386-.*-xen/ ) {
++    $TargetPlatform = "i386-unknown-linux";
++ }
++ 
+  &mangle_asm($ifile,$ofile);
+  
+  exit(0);

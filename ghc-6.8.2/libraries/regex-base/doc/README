@@ -1,0 +1,39 @@
+README for TestRegexLazy-0.66
+
+By Chris Kuklewicz (TextRegexLazy (at) personal (dot) mightyreason (dot) com)
+
+For more detail on Text.Regex.Lazy look at the very very outdated
+lazy.html file or the LICENSE file.
+
+To build and install:
+  get Data.ByteString from http://www.cse.unsw.edu.au/~dons/fps.html
+  (You probably want to configure ByteString's cabal with -p for profiling)
+  edit list of BACKENDS in Makefile if you want to exclude regex-tre or regex-pcre
+  edit regex-pcre/regex-pcre.cabal to point to your PCRE installation
+  edit CONF and USER variables in Makefile to point to your setup
+  (The CONF includes -p for profiling)
+  run "make all" which will create and install all the packages in $(SUBDIRS)
+
+The packages:
+  regex-base : This hold the type class definitions and (most) RegexContext,Extract instances
+  regex-compat : Builds Text.Regex.New (soon to replace Text.Regex) on top of regex-parsec
+  regex-pcre : Build the PCRE backend, http://www.pcre.org/
+  regex-posix : Builds the Posix backend
+  regex-parsec : Builds my lazy parsec based pure haskell backend
+  regex-dfa : Build the simple backend based on CTKLight (this is LGPL)
+
+There is an additional "regex-devel" package where I am setting up
+testing and bechmarking. Use "make regex-devel" at the top level to
+compile (not install), or use its cabal Setup.hs.
+regex-devel/bench/runbench.sh is my simple toy benchmark.
+
+To use =~ and =~~ new API:
+
+> import Text.Regex.(Parsec|DFA|PCRE|PosixRE|TRE)
+and perhaps
+> import Text.Regex.Base
+
+Look at Example*.hs and instances in Text.Regex.Base.Context.hs for what it can do.
+
+For old "Text.Regex" API drop in compatibility, import Text.Regex.New (uses PosixRE backend)
+

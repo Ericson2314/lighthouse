@@ -1,0 +1,21 @@
+name:		directory
+version:	1.0.0.0
+license:	BSD3
+license-file:	LICENSE
+maintainer:	libraries@haskell.org
+synopsis:	library for directory handling
+description:
+	This package provides a library for handling directories.
+build-type: Configure
+exposed-modules:
+	System.Directory
+c-sources:
+	cbits/directory.c
+include-dirs: include
+includes:	HsDirectory.h
+install-includes:	HsDirectory.h HsDirectoryConfig.h
+extensions:	CPP, ForeignFunctionInterface
+build-depends: base, old-time, filepath
+extra-tmp-files:
+        config.log config.status autom4te.cache
+        include/HsDirectoryConfig.h

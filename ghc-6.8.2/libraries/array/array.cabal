@@ -1,0 +1,28 @@
+name:       array
+version:    0.1.0.0
+license:    BSD3
+license-file:    LICENSE
+maintainer:    libraries@haskell.org
+synopsis:   Mutable and immutable arrays
+description:
+    This package defines the classes @IArray@ of immutable arrays and
+    @MArray@ of arrays mutable within appropriate monads, as well as
+    some instances of these classes.
+build-type: Simple
+build-depends: base
+exposed-modules:
+    Data.Array
+    Data.Array.Base
+    Data.Array.Diff
+    Data.Array.IArray
+    Data.Array.IO
+    Data.Array.MArray
+    Data.Array.ST
+    Data.Array.Storable
+    Data.Array.Unboxed
+other-modules:
+    Data.Array.IO.Internals
+extensions: CPP
+include-dirs: include
+ghc-options: -fglasgow-exts -Dxen_HOST_OS
+

@@ -1,0 +1,7 @@
+module TyCon where
+
+data TyCon
+
+isTupleTyCon :: TyCon -> GHC.Base.Bool
+isUnboxedTupleTyCon :: TyCon -> GHC.Base.Bool
+isFunTyCon :: TyCon -> GHC.Base.Bool

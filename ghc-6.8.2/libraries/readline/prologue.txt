@@ -1,0 +1,3 @@
+An interface to the GNU readline library.  More information on
+readline can be found at <http://www.gnu.org/directory/readline.html>.
+

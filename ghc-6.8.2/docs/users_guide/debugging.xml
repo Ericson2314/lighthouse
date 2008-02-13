@@ -1,0 +1,628 @@
+<?xml version="1.0" encoding="iso-8859-1"?>
+<sect1 id="options-debugging">
+  <title>Debugging the compiler</title>
+
+  <indexterm><primary>debugging options (for GHC)</primary></indexterm>
+
+  <para>HACKER TERRITORY. HACKER TERRITORY.  (You were warned.)</para>
+
+  <sect2 id="dumping-output">
+    <title>Dumping out compiler intermediate structures</title>
+    
+    <indexterm><primary>dumping GHC intermediates</primary></indexterm>
+    <indexterm><primary>intermediate passes, output</primary></indexterm>
+    
+    <variablelist>
+      <varlistentry>
+	<term>
+          <option>-ddump-</option><replaceable>pass</replaceable>
+          <indexterm><primary><option>-ddump</option> options</primary></indexterm>
+        </term>
+	<listitem>
+	  <para>Make a debugging dump after pass
+        <literal>&lt;pass&gt;</literal> (may be common enough to need
+        a short form&hellip;).  You can get all of these at once
+        (<emphasis>lots</emphasis> of output) by using
+        <option>-v5</option>, or most of them with
+        <option>-v4</option>.  Some of the most useful ones
+        are:</para>
+
+	  <variablelist>
+	    <varlistentry>
+	      <term>
+	        <option>-ddump-parsed</option>:
+                <indexterm><primary><option>-ddump-parsed</option></primary></indexterm>
+	      </term>
+	      <listitem>
+		<para>parser output</para>
+	      </listitem>
+	    </varlistentry>
+
+	    <varlistentry>
+	      <term>
+	        <option>-ddump-rn</option>:
+                <indexterm><primary><option>-ddump-rn</option></primary></indexterm>
+	      </term>
+	      <listitem>
+		<para>renamer output</para>
+	      </listitem>
+	    </varlistentry>
+
+	    <varlistentry>
+	      <term>
+	        <option>-ddump-tc</option>:
+                <indexterm><primary><option>-ddump-tc</option></primary></indexterm>
+	      </term>
+	      <listitem>
+		<para>typechecker output</para>
+	      </listitem>
+	    </varlistentry>
+
+	    <varlistentry>
+	      <term>
+	        <option>-ddump-splices</option>:
+                <indexterm><primary><option>-ddump-splices</option></primary></indexterm>
+	      </term>
+	      <listitem>
+		<para>Dump Template Haskell expressions that we splice in,
+                and what Haskell code the expression evaluates to.</para>
+	      </listitem>
+	    </varlistentry>
+
+	    <varlistentry>
+	      <term>
+	        <option>-ddump-types</option>:
+                <indexterm><primary><option>-ddump-types</option></primary></indexterm>
+	      </term>
+	      <listitem>
+		<para>Dump a type signature for each value defined at
+              the top level of the module.  The list is sorted
+              alphabetically.  Using <option>-dppr-debug</option>
+              dumps a type signature for all the imported and
+              system-defined things as well; useful for debugging the
+              compiler.</para>
+	      </listitem>
+	    </varlistentry>
+
+	    <varlistentry>
+	      <term>
+	        <option>-ddump-deriv</option>:
+                <indexterm><primary><option>-ddump-deriv</option></primary></indexterm>
+	      </term>
+	      <listitem>
+		<para>derived instances</para>
+	      </listitem>
+	    </varlistentry>
+
+	    <varlistentry>
+	      <term>
+	        <option>-ddump-ds</option>:
+                <indexterm><primary><option>-ddump-ds</option></primary></indexterm>
+	      </term>
+	      <listitem>
+		<para>desugarer output</para>
+	      </listitem>
+	    </varlistentry>
+
+	    <varlistentry>
+	      <term>
+	        <option>-ddump-spec</option>:
+                <indexterm><primary><option>-ddump-spec</option></primary></indexterm>
+	      </term>
+	      <listitem>
+		<para>output of specialisation pass</para>
+	      </listitem>
+	    </varlistentry>
+
+	    <varlistentry>
+	      <term>
+	        <option>-ddump-rules</option>:
+                <indexterm><primary><option>-ddump-rules</option></primary></indexterm>
+	      </term>
+	      <listitem>
+		<para>dumps all rewrite rules (including those generated
+	      by the specialisation pass)</para>
+	      </listitem>
+	    </varlistentry>
+
+	    <varlistentry>
+	      <term>
+	        <option>-ddump-simpl</option>:
+                <indexterm><primary><option>-ddump-simpl</option></primary></indexterm>
+	      </term>
+	      <listitem>
+		<para>simplifier output (Core-to-Core passes)</para>
+	      </listitem>
+	    </varlistentry>
+
+	    <varlistentry>
+	      <term>
+	        <option>-ddump-inlinings</option>:
+                <indexterm><primary><option>-ddump-inlinings</option></primary></indexterm>
+	      </term>
+	      <listitem>
+		<para>inlining info from the simplifier</para>
+	      </listitem>
+	    </varlistentry>
+
+	    <varlistentry>
+	      <term>
+	        <option>-ddump-cpranal</option>:
+                <indexterm><primary><option>-ddump-cpranal</option></primary></indexterm>
+	      </term>
+	      <listitem>
+		<para>CPR analyser output</para>
+	      </listitem>
+	    </varlistentry>
+
+	    <varlistentry>
+	      <term>
+	        <option>-ddump-stranal</option>:
+                <indexterm><primary><option>-ddump-stranal</option></primary></indexterm>
+	      </term>
+	      <listitem>
+		<para>strictness analyser output</para>
+	      </listitem>
+	    </varlistentry>
+
+	    <varlistentry>
+	      <term>
+	        <option>-ddump-cse</option>:
+                <indexterm><primary><option>-ddump-cse</option></primary></indexterm>
+	      </term>
+	      <listitem>
+		<para>CSE pass output</para>
+	      </listitem>
+	    </varlistentry>
+
+	    <varlistentry>
+	      <term>
+	        <option>-ddump-workwrap</option>:
+                <indexterm><primary><option>-ddump-workwrap</option></primary></indexterm>
+	      </term>
+	      <listitem>
+		<para>worker/wrapper split output</para>
+	      </listitem>
+	    </varlistentry>
+
+	    <varlistentry>
+	      <term>
+	        <option>-ddump-occur-anal</option>:
+                <indexterm><primary><option>-ddump-occur-anal</option></primary></indexterm>
+	      </term>
+	      <listitem>
+		<para>`occurrence analysis' output</para>
+	      </listitem>
+	    </varlistentry>
+
+	    <varlistentry>
+	      <term>
+	        <option>-ddump-prep</option>:
+                <indexterm><primary><option>-ddump-prep</option></primary></indexterm>
+	      </term>
+	      <listitem>
+		<para>output of core preparation pass</para>
+	      </listitem>
+	    </varlistentry>
+
+	    <varlistentry>
+	      <term>
+	        <option>-ddump-stg</option>:
+                <indexterm><primary><option>-ddump-stg</option></primary></indexterm>
+	      </term>
+	      <listitem>
+		<para>output of STG-to-STG passes</para>
+	      </listitem>
+	    </varlistentry>
+
+	    <varlistentry>
+	      <term>
+	        <option>-ddump-flatC</option>:
+                <indexterm><primary><option>-ddump-flatC</option></primary></indexterm>
+	      </term>
+	      <listitem>
+		<para><emphasis>flattened</emphasis> Abstract&nbsp;C</para>
+	      </listitem>
+	    </varlistentry>
+
+	    <varlistentry>
+	      <term>
+	        <option>-ddump-cmm</option>:
+                <indexterm><primary><option>-ddump-cmm</option></primary></indexterm>
+	      </term>
+	      <listitem>
+		<para>Print the C-- code out.</para>
+	      </listitem>
+	    </varlistentry>
+
+	    <varlistentry>
+	      <term>
+	        <option>-ddump-opt-cmm</option>:
+                <indexterm><primary><option>-ddump-opt-cmm</option></primary></indexterm>
+	      </term>
+	      <listitem>
+		<para>Dump the results of C-- to C-- optimising passes.</para>
+	      </listitem>
+	    </varlistentry>
+
+	    <varlistentry>
+	      <term>
+	        <option>-ddump-asm</option>:
+                <indexterm><primary><option>-ddump-asm</option></primary></indexterm>
+	      </term>
+	      <listitem>
+		<para>assembly language from the native-code generator</para>
+	      </listitem>
+	    </varlistentry>
+
+	    <varlistentry>
+	      <term>
+	        <option>-ddump-bcos</option>:
+                <indexterm><primary><option>-ddump-bcos</option></primary></indexterm>
+	      </term>
+	      <listitem>
+		<para>byte code compiler output</para>
+	      </listitem>
+	    </varlistentry>
+
+	    <varlistentry>
+	      <term>
+	        <option>-ddump-foreign</option>:
+                <indexterm><primary><option>-ddump-foreign</option></primary></indexterm>
+	      </term>
+	      <listitem>
+		<para>dump foreign export stubs</para>
+	      </listitem>
+	    </varlistentry>
+	  </variablelist>
+	</listitem>
+      </varlistentry>
+      
+      <varlistentry>
+	<term>
+          <option>-ddump-simpl-iterations</option>:
+          <indexterm><primary><option>-ddump-simpl-iterations</option></primary></indexterm>
+        </term>
+	<listitem>
+	  <para>Show the output of each <emphasis>iteration</emphasis>
+        of the simplifier (each run of the simplifier has a maximum
+        number of iterations, normally 4).  Used when even
+        <option>-dverbose-simpl</option> doesn't cut it.</para>
+	</listitem>
+      </varlistentry>
+
+      <varlistentry>
+	<term>
+          <option>-ddump-simpl-stats</option>
+          <indexterm><primary><option>-ddump-simpl-stats option</option></primary></indexterm>
+        </term>
+	<listitem>
+	  <para>Dump statistics about how many of each kind of
+        transformation too place.  If you add
+        <option>-dppr-debug</option> you get more detailed
+        information.</para>
+	</listitem>
+      </varlistentry>
+
+      <varlistentry>
+	<term>
+          <option>-ddump-if-trace</option>
+          <indexterm><primary><option>-ddump-if-trace</option></primary></indexterm>
+        </term>
+	<listitem>
+	  <para>Make the interface loader be *real* chatty about what it is
+	upto.</para>
+	</listitem>
+      </varlistentry>
+
+      <varlistentry>
+	<term>
+          <option>-ddump-tc-trace</option>
+          <indexterm><primary><option>-ddump-tc-trace</option></primary></indexterm>
+        </term>
+	<listitem>
+	  <para>Make the type checker be *real* chatty about what it is
+	upto.</para>
+	</listitem>
+      </varlistentry>
+
+      <varlistentry>
+	<term>
+          <option>-ddump-rn-trace</option>
+          <indexterm><primary><option>-ddump-rn-trace</option></primary></indexterm>
+        </term>
+	<listitem>
+	  <para>Make the renamer be *real* chatty about what it is
+	upto.</para>
+	</listitem>
+      </varlistentry>
+
+      <varlistentry>
+	<term>
+          <option>-ddump-rn-stats</option>
+          <indexterm><primary><option>-dshow-rn-stats</option></primary></indexterm>
+        </term>
+	<listitem>
+	  <para>Print out summary of what kind of information the renamer
+        had to bring in.</para>
+	</listitem>
+      </varlistentry>
+
+      <varlistentry>
+	<term>
+          <option>-dverbose-core2core</option>
+          <indexterm><primary><option>-dverbose-core2core</option></primary></indexterm>
+        </term>
+	<term>
+          <option>-dverbose-stg2stg</option>
+          <indexterm><primary><option>-dverbose-stg2stg</option></primary></indexterm>
+        </term>
+	<listitem>
+	  <para>Show the output of the intermediate Core-to-Core and
+        STG-to-STG passes, respectively.  (<emphasis>Lots</emphasis>
+        of output!) So: when we're really desperate:</para>
+
+	  <screen>
+% ghc -noC -O -ddump-simpl -dverbose-simpl -dcore-lint Foo.hs
+</screen>
+
+	</listitem>
+      </varlistentry>
+      
+      <varlistentry>
+	<term>
+          <option>-dshow-passes</option>
+          <indexterm><primary><option>-dshow-passes</option></primary></indexterm>
+        </term>
+	<listitem>
+	  <para>Print out each pass name as it happens.</para>
+	</listitem>
+      </varlistentry>
+
+      <varlistentry>
+	<term>
+          <option>-dfaststring-stats</option>
+          <indexterm><primary><option>-dfaststring-stats</option></primary></indexterm>
+        </term>
+	<listitem>
+	  <para>Show statistics for the usage of fast strings by the
+          compiler.</para>
+	</listitem>
+      </varlistentry>
+
+      <varlistentry>
+	<term>
+          <option>-dppr-debug</option>
+          <indexterm><primary><option>-dppr-debug</option></primary></indexterm>
+        </term>
+	<listitem>
+	  <para>Debugging output is in one of several
+          &ldquo;styles.&rdquo; Take the printing of types, for
+          example.  In the &ldquo;user&rdquo; style (the default), the
+          compiler's internal ideas about types are presented in
+          Haskell source-level syntax, insofar as possible.  In the
+          &ldquo;debug&rdquo; style (which is the default for
+          debugging output), the types are printed in with explicit
+          foralls, and variables have their unique-id attached (so you
+          can check for things that look the same but aren't).  This
+          flag makes debugging output appear in the more verbose debug
+          style.</para>
+	</listitem>
+      </varlistentry>
+
+      <varlistentry>
+	<term>
+          <option>-dppr-user-length</option>
+          <indexterm><primary><option>-dppr-user-length</option></primary></indexterm>
+        </term>
+	<listitem>
+	  <para>In error messages, expressions are printed to a
+	  certain &ldquo;depth&rdquo;, with subexpressions beyond the
+	  depth replaced by ellipses.  This flag sets the
+	  depth.  Its default value is 5.</para>
+	</listitem>
+      </varlistentry>
+
+      <varlistentry>
+	<term>
+          <option>-dshow-unused-imports</option>
+          <indexterm><primary><option>-dshow-unused-imports</option></primary></indexterm>
+        </term>
+	<listitem>
+	  <para>Have the renamer report what imports does not
+	contribute.</para>
+	</listitem>
+      </varlistentry>
+    </variablelist>
+  </sect2>
+
+  <sect2 id="checking-consistency">
+    <title>Checking for consistency</title>
+
+    <indexterm><primary>consistency checks</primary></indexterm>
+    <indexterm><primary>lint</primary></indexterm>
+
+    <variablelist>
+
+      <varlistentry>
+	<term>
+          <option>-dcore-lint</option>
+          <indexterm><primary><option>-dcore-lint</option></primary></indexterm>
+        </term>
+	<listitem>
+	  <para>Turn on heavyweight intra-pass sanity-checking within
+          GHC, at Core level.  (It checks GHC's sanity, not yours.)</para>
+	</listitem>
+      </varlistentry>
+
+      <varlistentry>
+	<term>
+          <option>-dstg-lint</option>:
+          <indexterm><primary><option>-dstg-lint</option></primary></indexterm>
+        </term>
+	<listitem>
+	  <para>Ditto for STG level. (NOTE: currently doesn't work).</para>
+	</listitem>
+      </varlistentry>
+
+      <varlistentry>
+	<term>
+          <option>-dcmm-lint</option>:
+          <indexterm><primary><option>-dcmm-lint</option></primary></indexterm>
+        </term>
+	<listitem>
+	  <para>Ditto for C-- level.</para>
+	</listitem>
+      </varlistentry>
+
+    </variablelist>
+  </sect2>
+
+  <sect2>
+    <title>How to read Core syntax (from some <option>-ddump</option>
+    flags)</title>
+
+    <indexterm><primary>reading Core syntax</primary></indexterm>
+    <indexterm><primary>Core syntax, how to read</primary></indexterm>
+
+    <para>Let's do this by commenting an example.  It's from doing
+    <option>-ddump-ds</option> on this code:
+
+<programlisting>
+skip2 m = m : skip2 (m+2)
+</programlisting>
+
+    Before we jump in, a word about names of things.  Within GHC,
+    variables, type constructors, etc., are identified by their
+    &ldquo;Uniques.&rdquo; These are of the form `letter' plus
+    `number' (both loosely interpreted).  The `letter' gives some idea
+    of where the Unique came from; e.g., <literal>&lowbar;</literal>
+    means &ldquo;built-in type variable&rdquo;; <literal>t</literal>
+    means &ldquo;from the typechecker&rdquo;; <literal>s</literal>
+    means &ldquo;from the simplifier&rdquo;; and so on.  The `number'
+    is printed fairly compactly in a `base-62' format, which everyone
+    hates except me (WDP).</para>
+
+    <para>Remember, everything has a &ldquo;Unique&rdquo; and it is
+    usually printed out when debugging, in some form or another.  So
+    here we go&hellip;</para>
+
+<programlisting>
+Desugared:
+Main.skip2{-r1L6-} :: _forall_ a$_4 =&#62;{{Num a$_4}} -&#62; a$_4 -&#62; [a$_4]
+
+--# `r1L6' is the Unique for Main.skip2;
+--# `_4' is the Unique for the type-variable (template) `a'
+--# `{{Num a$_4}}' is a dictionary argument
+
+_NI_
+
+--# `_NI_' means "no (pragmatic) information" yet; it will later
+--# evolve into the GHC_PRAGMA info that goes into interface files.
+
+Main.skip2{-r1L6-} =
+    /\ _4 -&#62; \ d.Num.t4Gt -&#62;
+        let {
+          {- CoRec -}
+          +.t4Hg :: _4 -&#62; _4 -&#62; _4
+          _NI_
+          +.t4Hg = (+{-r3JH-} _4) d.Num.t4Gt
+
+          fromInt.t4GS :: Int{-2i-} -&#62; _4
+          _NI_
+          fromInt.t4GS = (fromInt{-r3JX-} _4) d.Num.t4Gt
+
+--# The `+' class method (Unique: r3JH) selects the addition code
+--# from a `Num' dictionary (now an explicit lambda'd argument).
+--# Because Core is 2nd-order lambda-calculus, type applications
+--# and lambdas (/\) are explicit.  So `+' is first applied to a
+--# type (`_4'), then to a dictionary, yielding the actual addition
+--# function that we will use subsequently...
+
+--# We play the exact same game with the (non-standard) class method
+--# `fromInt'.  Unsurprisingly, the type `Int' is wired into the
+--# compiler.
+
+          lit.t4Hb :: _4
+          _NI_
+          lit.t4Hb =
+              let {
+                ds.d4Qz :: Int{-2i-}
+                _NI_
+                ds.d4Qz = I#! 2#
+              } in  fromInt.t4GS ds.d4Qz
+
+--# `I# 2#' is just the literal Int `2'; it reflects the fact that
+--# GHC defines `data Int = I# Int#', where Int# is the primitive
+--# unboxed type.  (see relevant info about unboxed types elsewhere...)
+
+--# The `!' after `I#' indicates that this is a *saturated*
+--# application of the `I#' data constructor (i.e., not partially
+--# applied).
+
+          skip2.t3Ja :: _4 -&#62; [_4]
+          _NI_
+          skip2.t3Ja =
+              \ m.r1H4 -&#62;
+                  let { ds.d4QQ :: [_4]
+                        _NI_
+                        ds.d4QQ =
+                    let {
+                      ds.d4QY :: _4
+                      _NI_
+                      ds.d4QY = +.t4Hg m.r1H4 lit.t4Hb
+                    } in  skip2.t3Ja ds.d4QY
+                  } in
+                  :! _4 m.r1H4 ds.d4QQ
+
+          {- end CoRec -}
+        } in  skip2.t3Ja
+</programlisting>
+
+    <para>(&ldquo;It's just a simple functional language&rdquo; is an
+    unregisterised trademark of Peyton Jones Enterprises, plc.)</para>
+
+  </sect2>
+
+  <sect2 id="unreg">
+    <title>Unregisterised compilation</title>
+    <indexterm><primary>unregisterised compilation</primary></indexterm>
+
+    <para>The term "unregisterised" really means "compile via vanilla
+    C", disabling some of the platform-specific tricks that GHC
+    normally uses to make programs go faster.  When compiling
+    unregisterised, GHC simply generates a C file which is compiled
+    via gcc.</para>
+
+    <para>Unregisterised compilation can be useful when porting GHC to
+    a new machine, since it reduces the prerequisite tools to
+    <command>gcc</command>, <command>as</command>, and
+    <command>ld</command> and nothing more, and furthermore the amount
+    of platform-specific code that needs to be written in order to get
+    unregisterised compilation going is usually fairly small.</para>
+
+    <variablelist>
+      <varlistentry>
+	<term>
+          <option>-unreg</option>:
+          <indexterm><primary><option>-unreg</option></primary></indexterm>
+        </term>
+	<listitem>
+	  <para>Compile via vanilla ANSI C only, turning off
+	  platform-specific optimisations.  NOTE: in order to use
+	  <option>-unreg</option>, you need to have a set of libraries
+	  (including the RTS) built for unregisterised compilation.
+	  This amounts to building GHC with way "u" enabled.</para>
+	</listitem>
+      </varlistentry>
+    </variablelist>
+  </sect2>
+
+</sect1>
+
+<!-- Emacs stuff:
+     ;;; Local Variables: ***
+     ;;; mode: xml ***
+     ;;; sgml-parent-document: ("users_guide.xml" "book" "chapter" "sect1") ***
+     ;;; End: ***
+ -->

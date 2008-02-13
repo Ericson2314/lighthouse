@@ -1,0 +1,61 @@
+-- ****************************************************************
+-- To fix for cabal < 1.1.4 comment out the Extra-Source-Files line
+-- ****************************************************************
+Name:                   regex-posix
+Version:                0.72.0.2
+-- Cabal-Version:       >=1.1.4
+License:                BSD3
+License-File:           LICENSE
+Copyright:              Copyright (c) 2006, Christopher Kuklewicz
+Author:                 Christopher Kuklewicz
+Maintainer:             TextRegexLazy@personal.mightyreason.com
+Stability:              Seems to work, passes a few tests
+Homepage:               http://sourceforge.net/projects/lazy-regex
+-- Package-URL:
+Synopsis:               Replaces/Enhances Text.Regex
+Description:            The posix regex backend for regex-base
+Category:               Text
+Tested-With:            GHC
+Build-Type:             Configure
+Cabal-Version:          >=1.2
+
+Extra-Source-Files:     aclocal.m4 config.mk.in configure configure.ac
+                        include/HsRegexPosixConfig.h.in
+                        regex-posix.buildinfo.in
+
+Flag split-base
+
+Library
+  Build-Depends:        regex-base
+  if flag(split-base)
+    Build-Depends:      base >= 3.0, array, bytestring
+  else
+    Build-Depends:      base >= 2.0 && < 3
+-- Data-Files:
+-- Extra-Tmp-Files:
+-- This is the library
+  Exposed-Modules:      Text.Regex.Posix
+                        Text.Regex.Posix.Wrap
+                        Text.Regex.Posix.String
+                        Text.Regex.Posix.ByteString
+-- Futher fields
+  Buildable:              True
+-- Other-Modules:
+-- be backward compatible until 6.4.2 is futher deployed
+-- HS-Source-Dirs:         "."
+  Extensions:           CPP
+  GHC-Options:            -Wall -O2
+-- GHC-Options:            -Wall -Werror -O2
+-- GHC-Options:            -Wall -Werror
+-- GHC-Options:            -Wall -ddump-minimal-imports
+-- GHC-Prog-Options: 
+-- Hugs-Options:
+-- NHC-Options:
+-- Includes:
+  Include-Dirs:           include
+-- C-Sources:
+-- Extra-Libraries:
+-- Extra-Lib-Dirs:
+  CC-Options:             -DHAVE_REGEX_H
+-- LD-Options:
+-- Frameworks:

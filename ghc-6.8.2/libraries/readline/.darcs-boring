@@ -1,0 +1,14 @@
+^dist(/|$)
+^setup(/|$)
+^GNUmakefile$
+^Makefile.local$
+^.depend(.bak)?$
+^autom4te.cache(/|$)
+^config.mk$
+^config.log$
+^config.status$
+^configure$
+^include/HsReadlineConfig.h$
+^include/HsReadlineConfig.h.in$
+^include/HsReadlineConfig.h.in~$
+^readline.buildinfo$

@@ -1,0 +1,1500 @@
+<?xml version="1.0" encoding="iso-8859-1"?>
+<sect1 id="release-6-8-1">
+  <title>Release notes for version 6.8.1</title>
+
+  <para>
+    The significant changes to the various parts of the compiler are
+    listed in the following sections.
+  </para>
+
+  <para>
+    The major changes in this release are adding
+    Haskell Program Coverage (hpc) support to the compiler,
+    adding a debugger to GHCi, the first phase of the base package
+    split, and pointer tagging in the code generator (which should mean
+    most code improves by 10-15%, and as a result the compiler is also
+    faster).
+  </para>
+
+  <sect2>
+    <title>User-visible compiler changes</title>
+    <itemizedlist>
+      <listitem>
+        <para>
+          The GHC version numbering policy has been changed so 6.8.1 is
+          the first release in this branch; see
+          <xref linkend="version-numbering"/> for details.
+        </para>
+      </listitem>
+      <listitem>
+        <para>
+          Registerised builds with gcc >= 4.2 now work.
+        </para>
+      </listitem>
+      <listitem>
+        <para>
+          While older releases did mostly work on Windows Vista, 6.8.1
+          fixes some issues, e.g. Windows used to think that cabal Setup
+          programs were installers and refused to run them. However,
+          Win9x support has now officially been dropped, as we are not
+          able to test on that platform.
+        </para>
+      </listitem>
+      <listitem>
+        <para>
+          Haskell Program Coverage
+          Adding hpc tools, as a single program
+          GHC now comes with &ldquo;Haskell Program Coverage&rdquo;,
+          a code coverage tool. This is in the form of a new
+          <option>-fhpc</option> flag and an <literal>hpc</literal>
+          program. See <xref linkend="hpc"/> for more details.
+        </para>
+      </listitem>
+      <listitem>
+        <para>
+          There is the beginnings of support for
+          &ldquo;associated types&rdquo;
+          in GHC. However, this is incomplete and not a supported
+          feature.
+        </para>
+      </listitem>
+      <listitem>
+        <para>
+          There is the beginnings of support for
+          &ldquo;nested data parallelism&rdquo;
+          in GHC. However, this is incomplete and not a supported
+          feature.
+        </para>
+      </listitem>
+      <listitem>
+        <para>
+          It is now possible to derive class instances with standalone
+          top-level declarations, rather than having to attach a
+          deriving clause to the datatype declaration. The syntax is
+<programlisting>
+deriving instance Cxt => Head</programlisting>
+          For more details see <xref linkend="stand-alone-deriving"/>.
+        </para>
+      </listitem>
+      <listitem>
+        <para>
+          GHC now does left-to-right
+          <link linkend="impredicative-polymorphism">impredicative
+          instantiation</link>, so for example
+<programlisting>
+runST $ foo</programlisting>
+          will now work. Don't rely on this, though, as it is subject
+          to change in the future!
+        </para>
+      </listitem>
+      <listitem>
+        <para>
+          A new extension <literal>OverloadedStrings</literal> means that
+          string literals have type
+<programlisting>
+Data.String.IsString t => t</programlisting>
+          where <literal>Data.String.IsString</literal> is a new class
+          with a single method
+<programlisting>
+fromString :: String -> a</programlisting>
+        </para>
+      </listitem>
+      <listitem>
+        <para>
+          There is a new record field disambiguation extension, enabled
+          by <literal>-fdisambiguate-record-fields</literal>, which
+          allows normally-ambiguous field names to be used when it is
+          clear which is meant due to the use of a constructor.
+          See <xref linkend="disambiguate-fields"/> for more details.
+        </para>
+      </listitem>
+      <listitem>
+        <para>
+          There are also new flags
+          <literal>-frecord-puns</literal> and
+          <literal>-frecord-dot-dot</literal> for record punninng, but
+          these do not work correctly yet, and so are not supported.
+        </para>
+      </listitem>
+      <listitem>
+        <para>
+          GHC now has an <option>--info</option> flag which prints
+          information about the settings used to build the compiler.
+          The information is in a machine-parsable (Haskell) format.
+          For example,
+<programlisting>
+$ ghc --info           
+ [("Project name","The Glorious Glasgow Haskell Compilation System")
+ ,("Project version","6.8.1")
+ ,("Booter version","6.6")
+ ,("Stage","2")
+ ,("Interface file version","6")
+ ,("Have interpreter","YES")
+ ,("Object splitting","NO")
+ ,("Have native code generator","YES")
+ ,("Support SMP","YES")
+ ,("Unregisterised","NO")
+ ,("Tables next to code","YES")
+ ,("Win32 DLLs","")
+ ,("RTS ways"," debug  thr thr_p thr_debug")
+ ,("Leading underscore","NO")
+ ]</programlisting>
+        </para>
+      </listitem>
+      <listitem>
+        <para>
+          The runtime system now has an <option>--info</option> flag which
+          prints various information about the way it was compiled. Thus
+          you can give <option>+RTS --info</option> flags to any Haskell
+          program, e.g.
+<programlisting>
+$ darcs +RTS --info
+ [("GHC RTS", "Yes")
+ ,("GHC version", "6.8.1")
+ ,("RTS way", "rts_thr")
+ ,("Host platform", "x86_64-unknown-linux")
+ ,("Build platform", "x86_64-unknown-linux")
+ ,("Target platform", "x86_64-unknown-linux")
+ ,("Compiler unregisterised", "NO")
+ ,("Tables next to code", "YES")
+ ]</programlisting>
+        </para>
+      </listitem>
+      <listitem>
+        <para>
+          GHC now accepts <option>-XFoo</option> and
+          <option>-XNoFoo</option>
+          flags, where
+          <literal>Foo</literal> is any extension that can be listed
+          in a <literal>LANGUAGE</literal> pragma. As a result the
+          following flags are now deprecated:
+          <itemizedlist>
+            <listitem>
+              <para>
+                <option>-fth</option>
+                (use <option>-XTemplateHaskell</option>)
+              </para>
+            </listitem>
+            <listitem>
+              <para>
+                <option>-ffi</option>, <option>-fffi</option>
+                (use <option>-XForeignFunctionInterface</option>)
+              </para>
+            </listitem>
+            <listitem>
+              <para>
+                <option>-farrows</option>
+                (use <option>-XArrows</option>)
+              </para>
+            </listitem>
+            <listitem>
+              <para>
+                <option>-fgenerics</option>
+                (use <option>-XGenerics</option>)
+              </para>
+            </listitem>
+            <listitem>
+              <para>
+                <option>-fimplicit-prelude</option>
+                (use <option>-XImplicitPrelude</option>)
+              </para>
+            </listitem>
+            <listitem>
+              <para>
+                <option>-fbang-patterns</option>
+                (use <option>-XBangPatterns</option>)
+              </para>
+            </listitem>
+            <listitem>
+              <para>
+                <option>-fmonomorphism-restriction</option>
+                (use <option>-XMonomorphismRestriction</option>)
+              </para>
+            </listitem>
+            <listitem>
+              <para>
+                <option>-fmono-pat-binds</option>
+                (use <option>-XMonoPatBinds</option>)
+              </para>
+            </listitem>
+            <listitem>
+              <para>
+                <option>-fextended-default-rules</option>
+                (use <option>-XExtendedDefaultRules</option>)
+              </para>
+            </listitem>
+            <listitem>
+              <para>
+                <option>-fimplicit-params</option>
+                (use <option>-XImplicitParams</option>)
+              </para>
+            </listitem>
+            <listitem>
+              <para>
+                <option>-fscoped-type-variables</option>
+                (use <option>-XScopedTypeVariables</option>)
+              </para>
+            </listitem>
+            <listitem>
+              <para>
+                <option>-fparr</option>
+                (use <option>-XPArr</option>)
+              </para>
+            </listitem>
+            <listitem>
+              <para>
+                <option>-fallow-overlapping-instances</option>
+                (use <option>-XOverlappingInstances</option>)
+              </para>
+            </listitem>
+            <listitem>
+              <para>
+                <option>-fallow-undecidable-instances</option>
+                (use <option>-XUndecidableInstances</option>)
+              </para>
+            </listitem>
+            <listitem>
+              <para>
+                <option>-fallow-incoherent-instances</option>
+                (use <option>-XIncoherentInstances</option>)
+              </para>
+            </listitem>
+          </itemizedlist>
+        </para>
+      </listitem>
+      <listitem>
+        <para>
+          GHC now has a <option>--supported-languages</option> flag
+          which lists the strings it understands as a <option>-X</option>
+          flag and in a <literal>LANGUAGE</literal> pragma.
+          You can prepend <literal>NO</literal> to any of the strings.
+          <literal>LANGUAGE</literal> pragmas also only turn on exactly
+          what you asked for now; many of them used to just enable
+          <option>-fglasgow-exts</option> before.
+        </para>
+      </listitem>
+      <listitem>
+        <para>
+          GHC now understands <literal>GENERATED</literal> pragmas, which
+          are used to
+          indicate to tools like HPC where some tool-generated code
+          came from. They look like
+<programlisting>
+{-# GENERATED "SourceFile" 12:3-14:8 #-} expr</programlisting>
+        </para>
+      </listitem>
+      <listitem>
+        <para>
+          GHC now has a <option>--print-docdir</option> flag which
+          prints to stdout where GHC believes its documentation is
+          located.
+        </para>
+      </listitem>
+      <listitem>
+        <para>
+          The <option>-O</option> no longer enables
+          <option>-fvia-C</option>.
+        </para>
+      </listitem>
+      <listitem>
+        <para>
+          There is a new flag <option>-fobject-code</option>, which
+          uses the default of <option>-fasm</option> or
+          <option>-fvia-C</option>, and <option>-fbyte-code</option>,
+          which only works in GHCi and sets byte-code as the target.
+        </para>
+      </listitem>
+      <listitem>
+        <para>
+          The warning for importing <literal>T(..)</literal> when
+          <literal>T</literal> is an abstract type used to be enabled
+          only by <option>-W</option> or <option>-Wall</option>.
+          It no has its own flag <option>-fwarn-dodgy-imports</option>.
+        </para>
+      </listitem>
+      <listitem>
+        <para>
+          A new flag <option>-fwarn-tabs</option> warns if there are tab
+          characters in your source files.
+        </para>
+      </listitem>
+      <listitem>
+        <para>
+          A new flag <option>-fwarn-implicit-prelude</option> warns if
+          your module implicitly imports the <literal>Prelude</literal>.
+        </para>
+      </listitem>
+      <listitem>
+        <para>
+          A new flag <option>-fwarn-monomorphism-restriction</option>
+          warns if the monomorphism restriction applies to your code.
+        </para>
+      </listitem>
+      <listitem>
+        <para>
+          The &ldquo;missing type-signature&rdquo; warning now tells you
+          what type GHC inferred for the function.
+        </para>
+      </listitem>
+      <listitem>
+        <para>
+          The <option>-w</option> flag now turns off
+          <emphasis>all</emphasis> options,
+          not just those that are enabled by <option>-Wall</option>.
+        </para>
+      </listitem>
+      <listitem>
+        <para>
+          A new flag <option>-Wwarn</option> makes warnings just warn
+          (the default). It can be used to override <option>-Werror</option>.
+        </para>
+      </listitem>
+      <listitem>
+        <para>
+          The
+          <option>-keep-hc-file</option>,
+          <option>-keep-s-file</option> and
+          <option>-keep-raw-s-file</option> flags can now have an
+          <literal>s</literal> appended to their name (which reads better
+          when using <option>--make</option>). None of them, nor
+          <option>-keep-tmp-files</option>, can have any other suffix.
+        </para>
+      </listitem>
+      <listitem>
+        <para>
+          There is a new flag <option>-fspec-threshold</option> which
+          subsumes the now-deprecated
+          <option>-fliberate-case-threshold</option>.
+        </para>
+      </listitem>
+      <listitem>
+        <para>
+          A new flag <option>-fprint-explicit-foralls</option> controls
+          whether or not GHC prints explicit <literal>forall</literal>s
+          when printing types.
+        </para>
+      </listitem>
+      <listitem>
+        <para>
+          A new flag <option>-ddump-to-file</option> allows you to
+          specify that the output of the various ddump flags should
+          be put in a given file.
+        </para>
+      </listitem>
+      <listitem>
+        <para>
+          A new flag <option>-ddump-rule-firings</option> makes GHC
+          print out when its <literal>RULE</literal>s fire.
+        </para>
+      </listitem>
+      <listitem>
+        <para>
+          A new flag <option>-ddump-mod-cycles</option>, used with the
+          <option>-M</option> mode, make GHC print out any module import
+          loops.
+        </para>
+      </listitem>
+      <listitem>
+        <para>
+          The <option>-fasm</option> flag no longer takes an argument
+          (which it always used to ignore anyway).
+        </para>
+      </listitem>
+      <listitem>
+        <para>
+          The new <option>-fhardwire-lib-paths</option> flag means
+          the path to libraries are baked in, using the
+          <option>-rpath</option> linker option.
+        </para>
+      </listitem>
+      <listitem>
+        <para>
+          A new RTS flag
+          <option>+RTS --install-signal-handlers=&gt;yes|no&lt;</option>
+          tells the RTS whether or not to install signal handlers (default
+          is yes). When making a DLL you will probably want to set this to
+          no.
+        </para>
+      </listitem>
+      <listitem>
+        <para>
+          When using runghc you can now leave a space after the
+          <option>-f</option> argument telling it where to find GHC.
+          You can now use <option>--</option> to separate the
+          <option>-f</option> argument from the GHC arguments, and the
+          GHC arguments from the program to run.
+        </para>
+      </listitem>
+      <listitem>
+        <para>
+          ghc-pkg has a new command <literal>check</literal> which
+          prints a list of all packages that are broken and
+          which dependencies they are missing. Additionally, the
+          <literal>list</literal> command now puts braces around broken
+          packages.
+        </para>
+      </listitem>
+      <listitem>
+        <para>
+          ghc-pkg now has a new flag <option>--names-only</option>,
+          used in conjunction with <option>list --simple-output</option>,
+          which prints package names only, i.e. without their version
+          numbers.
+        </para>
+      </listitem>
+      <listitem>
+        <para>
+          Some parts of the documentation, notably the building guide,
+          have been moved to the wiki.
+        </para>
+      </listitem>
+      <listitem>
+        <para>
+          Linear implicit parameter support has been removed.
+        </para>
+      </listitem>
+      <listitem>
+        <para>
+          A new RTS flag <option>+RTS -xbXXXXX</option> hints to the OS that
+          we'd like the heap to start at address 0xXXXXX. This is mainly
+          of use to people debugging GHC.
+        </para>
+      </listitem>
+    </itemizedlist>
+  </sect2>
+
+  <sect2>
+    <title>Profiling changes</title>
+
+    <itemizedlist>
+      <listitem>
+        <para>
+          It is now possible to get basic per-constructor profiling
+          information from programs not compiled with
+          <option>-prof</option>, by using the <option>+RTS -hT</option>
+          flag. This is possible even when running code in GHCi.
+        </para>
+      </listitem>
+      <listitem>
+        <para>
+          There is now support in the run-time system for using
+          PAPI to do CPU performance counter measurements. This is
+          controlled via the <option>+RTS -aX</option> options.
+          Note that it must be enabled when the compiler is built, and
+          is still very experimental.
+        </para>
+      </listitem>
+      <listitem>
+        <para>
+          Ticky-ticky profiling, mainly for use by GHC developers,
+          has been revived. See <xref linkend="ticky-ticky"/> for
+          more information.
+        </para>
+      </listitem>
+      <listitem>
+        <para>
+          It is now possible to have the key on a different page in a
+          graph generated by <command>hp2ps</command>, meaning the
+          graph can be larger and the cost centre names longer.
+          The <option>+RTS -L</option> flag can be used to specify the
+          maximum length of a cost-centre stack name.
+        </para>
+      </listitem>
+      <listitem>
+        <para>
+          Uses of <literal>_scc_</literal> now give a deprecated warning.
+          Use <literal>SCC</literal> pragmas instead.
+        </para>
+      </listitem>
+    </itemizedlist>
+  </sect2>
+
+  <sect2>
+    <title>GHCi changes</title>
+
+    <itemizedlist>
+      <listitem>
+        <para>
+          GHCi now includes an interactive debugger. See
+          <xref linkend="ghci-debugger"/> for more information.
+        </para>
+      </listitem>
+      <listitem>
+        <para>
+          The GHCi startup banner has been replaced with a single line.
+          Avid fans of the banner can add
+<programlisting>
+putStrLn "   ___         ___ _"
+putStrLn "  / _ \\ /\\  /\\/ __(_)"
+putStrLn " / /_\\// /_/ / /  | |   GHC Interactive, for Haskell 98."
+putStrLn "/ /_\\\\/ __  / /___| |   http://www.haskell.org/ghc/"
+putStrLn "\\____/\\/ /_/\\____/|_|   Type :? for help."
+putStrLn ""</programlisting>
+          to their <filename>~/.ghci</filename>.
+        </para>
+      </listitem>
+      <listitem>
+        <para>
+          GHCi now has <literal>()</literal> as the first type in its
+          defaulting list. See <xref linkend="extended-default-rules"/>
+          for more information.
+        </para>
+      </listitem>
+      <listitem>
+        <para>
+          GHCi now treats <literal>import M</literal> at its prompt the
+          same as <literal>:module +M</literal>.
+        </para>
+      </listitem>
+      <listitem>
+        <para>
+          As well as <literal>:set -fno&lt;foo&gt;</literal>, you can now
+          also say <literal>:unset -f&lt;foo&gt;</literal>.
+        </para>
+      </listitem>
+    </itemizedlist>
+  </sect2>
+
+  <sect2>
+    <title>Boot Libraries</title>
+    <para>
+      These used to be called &ldquo;core libraries&rdquo;, but we now
+      call them &ldquo;boot libraries&rdquo; (or, more precisely,
+      &ldquo;GHC boot libraries&rdquo;) instead.
+    </para>
+
+    <para>
+      We now build the libraries with Cabal, rather than our own build
+      system, so it should no longer be possible for differences to creep
+      in between the libraries as built with GHC and as built with Cabal.
+    </para>
+
+    <para>
+      The following new boot libraries have been added:
+      <itemizedlist>
+        <listitem>
+          <para>hpc</para>
+        </listitem>
+      </itemizedlist>
+      The following boot libraries have been removed:
+      <itemizedlist>
+        <listitem>
+          <para>parsec</para>
+        </listitem>
+        <listitem>
+          <para>regex-base</para>
+        </listitem>
+        <listitem>
+          <para>regex-compat</para>
+        </listitem>
+        <listitem>
+          <para>regex-posix</para>
+        </listitem>
+        <listitem>
+          <para>stm</para>
+        </listitem>
+      </itemizedlist>
+      The following boot libraries are new, but composed of modules that
+      used to be in the base library:
+      <itemizedlist>
+        <listitem>
+          <para>array (<literal>Data.Array*</literal>)</para>
+        </listitem>
+        <listitem>
+          <para>bytestring (<literal>Data.ByteString*</literal>)</para>
+        </listitem>
+        <listitem>
+          <para>containers (<literal>Data.Graph</literal>,
+                            <literal>Data.IntMap</literal>,
+                            <literal>Data.IntSet</literal>,
+                            <literal>Data.Map</literal>,
+                            <literal>Data.Sequence</literal>,
+                            <literal>Data.Set</literal>,
+                            <literal>Data.Tree</literal>)</para>
+        </listitem>
+        <listitem>
+          <para>directory (<literal>System.Directory</literal>)</para>
+        </listitem>
+        <listitem>
+          <para>old-locale (<literal>System.Locale</literal>)</para>
+        </listitem>
+        <listitem>
+          <para>old-time (<literal>System.Time</literal>)</para>
+        </listitem>
+        <listitem>
+          <para>packedstring (<literal>Data.PackedString</literal>)</para>
+        </listitem>
+        <listitem>
+          <para>pretty (<literal>Text.PrettyPrint*</literal>)</para>
+        </listitem>
+        <listitem>
+          <para>process (<literal>System.Cmd</literal>,
+                         <literal>System.Process*</literal>)</para>
+        </listitem>
+        <listitem>
+          <para>random (<literal>System.Random</literal>)</para>
+        </listitem>
+      </itemizedlist>
+      Additionally, <literal>Control.Parallel*</literal> have been moved
+      to a new package &ldquo;parallel&rdquo; which is not a boot library.
+    </para>
+
+    <sect3>
+      <title>array</title>
+      <itemizedlist>
+        <listitem>
+          <para>
+            Version number 0.1 (new library, split off from base).
+          </para>
+        </listitem>
+        <listitem>
+          <para>
+            The <literal>newArray_</literal> method returns a
+            deterministic result in the <literal>ST</literal> monad, and
+            behaves as before in other contexts. The old
+            <literal>newArray_</literal> is now called
+            <literal>unsafeNewArray_</literal>; the
+            <literal>MArray</literal> class therefore has one more
+            method than before.
+          </para>
+        </listitem>
+        <listitem>
+          <para>
+            In order to avoid problems where unusual
+            <literal>Ix</literal> instances could cause the array code
+            to access memory it shouldn't, a number of changes have been
+            made:
+            <itemizedlist>
+              <listitem>
+                <para>
+                  A method
+<programlisting>
+numElements :: Ix i => a i e -> Int</programlisting>
+                  has been added to the <literal>IArray</literal> class.
+                </para>
+              </listitem>
+              <listitem>
+                <para>
+                  <literal>Data.Array.Base</literal> has a new function
+<programlisting>
+safeRangeSize :: Ix i => (i, i) -> Int</programlisting>
+                  which always returns a non-negative result.
+                </para>
+              </listitem>
+              <listitem>
+                <para>
+                  <literal>Data.Array.Base</literal> has a new function
+<programlisting>
+safeIndex :: Ix i => (i, i) -> Int -> i -> Int</programlisting>
+                  which only returns a result that is non-negative
+                  and not less than its second argument.
+                </para>
+              </listitem>
+              <listitem>
+                <para>
+                    The
+                    <literal>unsafeForeignPtrToStorableArray</literal>
+                    function now has an <literal>Ix i</literal>
+                    constraint.
+                </para>
+              </listitem>
+            </itemizedlist>
+          </para>
+        </listitem>
+      </itemizedlist>
+    </sect3>
+
+    <sect3>
+      <title>base</title>
+      <itemizedlist>
+        <listitem>
+          <para>
+            Version number 3.0 (was 2.1.1).
+          </para>
+        </listitem>
+        <listitem>
+          <para>
+            A new function
+<programlisting>
+System.Timeout.timeout :: Int -> IO a -> IO (Maybe a)</programlisting>
+            allows a computation to be timed out after a given number of
+            microseconds.
+          </para>
+        </listitem>
+        <listitem>
+          <para>
+            There is a new module <literal>Data.String</literal>, which
+            defines the new <literal>IsString(fromString)</literal> class.
+            This class is used by the new overloaded strings extension
+            (see <xref linkend="overloaded-strings"/>).
+          </para>
+        </listitem>
+        <listitem>
+          <para>
+            The <literal>Data.List</literal> module now exports a function
+<programlisting>
+stripPrefix :: Eq a => [a] -> [a] -> Maybe [a]</programlisting>
+            which drops the given prefix from a list.
+          </para>
+        </listitem>
+        <listitem>
+          <para>
+            The <literal>System.IO.Error</literal> module now exports
+            new functions <literal>ioeGetLocation</literal> and
+            <literal>ioeSetLocation</literal>,
+            for manipulating the &ldquo;location&rdquo; of an
+            <literal>IOError</literal>.
+          </para>
+        </listitem>
+        <listitem>
+          <para>
+            The functions
+                <literal>throwErrnoPath</literal>,
+                <literal>throwErrnoPathIf</literal>,
+                <literal>throwErrnoPathIf_</literal>,
+                <literal>throwErrnoPathIfNull</literal>,
+                <literal>throwErrnoPathIfMinus1</literal>,
+                <literal>throwErrnoPathIfMinus1_</literal>
+            have moved from <literal>unix:System.Posix.Error</literal> to
+            <literal>Foreign.C.Error</literal>.
+          </para>
+        </listitem>
+        <listitem>
+          <para>
+            The <literal>System.Posix.Signals</literal> module has moved
+            to the unix package.
+          </para>
+        </listitem>
+        <listitem>
+          <para>
+            The <literal>Text.Printf.printf</literal> function now handles
+            <itemizedlist>
+              <listitem>
+                <para>
+                  The
+                  <literal>Int8</literal>,
+                  <literal>Int16</literal>,
+                  <literal>Int32</literal>,
+                  <literal>Int64</literal>,
+                  <literal>Word</literal>,
+                  <literal>Word8</literal>,
+                  <literal>Word16</literal>,
+                  <literal>Word32</literal> and
+                  <literal>Word64</literal> types.
+                </para>
+              </listitem>
+              <listitem>
+                <para>
+                  The <literal>+</literal> flag.
+                </para>
+              </listitem>
+              <listitem>
+                <para>
+                  The
+                  <literal>X</literal>,
+                  <literal>E</literal> and
+                  <literal>G</literal> formatting characters.
+                </para>
+              </listitem>
+            </itemizedlist>
+          </para>
+        </listitem>
+        <listitem>
+          <para>
+            The hash functions in <literal>Data.HashTable</literal> have
+            been improved.
+          </para>
+        </listitem>
+        <listitem>
+          <para>
+            The Kleisli composition functions
+<programlisting>
+(&gt;=&gt;) :: (Monad m) =&gt; (a -> m b) -> (b -> m c) -> (a -> m c)
+(&lt;=&lt;) :: (Monad m) =&gt; (b -> m c) -> (a -> m b) -> (a -> m c)</programlisting>
+            together with the combinator
+<programlisting>
+forever :: (Monad m) =&gt; m a -> m ()</programlisting>
+            have been added to <literal>Control.Monad</literal>.
+          </para>
+        </listitem>
+        <listitem>
+          <para>
+            There is now a <literal>Monoid</literal> instance for the
+            <literal>Maybe</literal> type.
+          </para>
+        </listitem>
+        <listitem>
+          <para>
+            <literal>Data.Monoid</literal> now includes two types
+            <literal>First</literal> and <literal>Last</literal>, which
+            both newtype <literal>Maybe</literal> and return the first
+            and last <literal>Just</literal> respectively
+            when used a a <literal>Monoid</literal>.
+          </para>
+        </listitem>
+        <listitem>
+          <para>
+            <literal>Data.Monoid.Dual</literal> now derives
+            <literal>Eq</literal>,
+            <literal>Ord</literal>,
+            <literal>Read</literal>,
+            <literal>Show</literal> and
+            <literal>Bounded</literal>.
+          </para>
+        </listitem>
+        <listitem>
+          <para>
+            We no longer put
+            <literal>stdin</literal>,
+            <literal>stdout</literal> and
+            <literal>stderr</literal> into non-blocking mode, so piping
+            Haskell program output through programs like tee works
+            properly.
+          </para>
+        </listitem>
+        <listitem>
+          <para>
+            The type of <literal>Data.Generics.Schemes.synthesize</literal>
+            has been generalised from
+<programlisting>
+s -> (s -> s -> s) -> GenericQ (s -> s) -> GenericQ s</programlisting>
+            to
+<programlisting>
+s -> (t -> s -> s) -> GenericQ (s -> t) -> GenericQ t</programlisting>
+          </para>
+        </listitem>
+        <listitem>
+          <para>
+            <literal>GHC.Exts</literal> now exports
+            <literal>uncheckedShiftL64#</literal>,
+            <literal>uncheckedShiftRL64#</literal>,
+            <literal>uncheckedIShiftL64#</literal> and
+            <literal>uncheckedIShiftRA64#</literal>.
+          </para>
+        </listitem>
+        <listitem>
+          <para>
+            <literal>GHC.Exts</literal> no longer defines the
+            <literal>Splittable(split)</literal> class,
+            which used to be used for linear implicit parameters.
+          </para>
+        </listitem>
+        <listitem>
+          <para>
+            The new value <literal>GHC.Conc.numCapabilities :: Int</literal>
+            is the argument of the <literal>+RTS -N</literal> flag, i.e.
+            the number of Haskell threads that can run simultaneously.
+          </para>
+        </listitem>
+        <listitem>
+          <para>
+            The new function
+            <literal>GHC.Environment.getFullArgs</literal> returns the
+            complete arguments that the program was invoked with,
+            including any <literal>+RTS</literal> arguments etc.
+          </para>
+        </listitem>
+        <listitem>
+          <para>
+            <literal>GHC.Handle.openFd</literal> has been renamed to
+            <literal>GHC.Handle.fdToHandle'</literal>
+            to avoid confusion with
+            <literal>System.Posix.IO.openFd</literal>.
+          </para>
+        </listitem>
+      </itemizedlist>
+    </sect3>
+
+    <sect3>
+      <title>bytestring</title>
+      <itemizedlist>
+        <listitem>
+          <para>
+            Version number 0.9 (new library, split off from base).
+          </para>
+        </listitem>
+        <listitem>
+          <para>
+            <literal>Data.ByteString.packCStringLen</literal> is no
+            longer a pure function; its signature has changed from
+<programlisting>
+packCStringLen :: Foreign.C.String.CStringLen -> ByteString</programlisting>
+            to
+<programlisting>
+packCStringLen :: Foreign.C.String.CStringLen -> IO ByteString</programlisting>
+          </para>
+        </listitem>
+        <listitem>
+          <para>
+            The <literal>Data.ByteString.Base</literal> module has been
+            split in two. The unsafe functions are now in
+            <literal>Data.ByteString.Unsafe</literal> (now part of the
+            stable API), and the others are in
+            <literal>Data.ByteString.Internal</literal> (not part of the
+            stable API.
+          </para>
+        </listitem>
+        <listitem>
+          <para>
+            The internal lazy bytestring representation type has changed;
+            rather than
+<programlisting>
+newtype ByteString = LPS [Strict.ByteString]</programlisting>
+            it is now
+<programlisting>
+data ByteString = Empty | Chunk !Strict.ByteString ByteString</programlisting>
+          </para>
+        </listitem>
+      </itemizedlist>
+    </sect3>
+
+    <sect3>
+      <title>Cabal</title>
+      <itemizedlist>
+        <listitem>
+          <para>
+            Version number 1.2.2.0 (was 1.1.6.2).
+          </para>
+        </listitem>
+        <listitem>
+          <para>
+            Configurations have been implemented; these allow things to be
+            set conditionally in <filename>.cabal</filename> files.
+          </para>
+        </listitem>
+        <listitem>
+          <para>
+            A new <literal>--executable</literal> flag for the
+            <literal>haddock</literal> command also builds documentation
+            for executables.
+          </para>
+        </listitem>
+        <listitem>
+          <para>
+            A new <literal>--hyperlink-source</literal> flag for the
+            <literal>haddock</literal> command makes the docs link to
+            the source code, rendered by hscolour.
+          </para>
+        </listitem>
+        <listitem>
+          <para>
+            A new <literal>--html-location</literal> flag for the
+            <literal>haddock</literal> command allows you to say where
+            documentation for packages we depend on is.
+          </para>
+        </listitem>
+        <listitem>
+          <para>
+            A new field <literal>pkgconfig-depends</literal> allows you
+            to specify C libraries you use. The
+            <command>pkg-config</command> command is used to find what
+            C flags etc are needed to use this library.
+          </para>
+        </listitem>
+        <listitem>
+          <para>
+            A new field <literal>build-tools</literal> allows you to
+            specify tool dependencies such as <command>cpphs</command>.
+          </para>
+        </listitem>
+        <listitem>
+          <para>
+            The <literal>includes</literal> field now only specifes which
+            include files are automatically included when compiling the
+            package. A new <literal>install-includes</literal> field
+            determines which include files are also installed.
+          </para>
+        </listitem>
+        <listitem>
+          <para>
+            There are new flags <literal>--docdir</literal> and
+            <literal>--htmldir</literal> for the
+            <literal>configure</literal> command.
+          </para>
+        </listitem>
+        <listitem>
+          <para>
+            The <literal>configure</literal> command now has
+            <literal>--with-<replaceable>prog</replaceable></literal>,
+            <literal>--<replaceable>prog</replaceable>-option</literal>
+            and
+            <literal>--<replaceable>prog</replaceable>-options</literal>
+            flags for each program <replaceable>prog</replaceable>.
+          </para>
+        </listitem>
+        <listitem>
+          <para>
+            A new field <literal>cpp-options</literal> is used when
+            preprocessing Haskell modules.
+          </para>
+        </listitem>
+        <listitem>
+          <para>
+            Many bug fixes.
+          </para>
+        </listitem>
+        <listitem>
+          <para>
+            The Cabal API is not yet stable. There have been
+            many API changes.
+          </para>
+        </listitem>
+      </itemizedlist>
+    </sect3>
+
+    <sect3>
+      <title>containers</title>
+      <itemizedlist>
+        <listitem>
+          <para>
+            Version number 0.1 (new library, split off from base).
+          </para>
+        </listitem>
+        <listitem>
+          <para>
+            <literal>Data.Tree.Tree</literal> now has
+            <literal>Applicative</literal> and
+            <literal>Monad</literal> instances.
+          </para>
+        </listitem>
+        <listitem>
+          <para>
+            In <literal>Data.Map</literal> the old functions
+<programlisting>
+minView :: Monad m => Map k a -> m (Map k a, (k, a))
+maxView :: Monad m => Map k a -> m (Map k a, (k, a))</programlisting>
+            have been replaced with
+<programlisting>
+minView :: Monad m => Map k a -> m (a, Map k a)
+maxView :: Monad m => Map k a -> m (a, Map k a)
+minViewWithKey :: Monad m => Map k a -> m ((k, a), Map k a)
+maxViewWithKey :: Monad m => Map k a -> m ((k, a), Map k a)</programlisting>
+          </para>
+        </listitem>
+        <listitem>
+          <para>
+            In <literal>Data.Set</literal> the old functions
+<programlisting>
+minView :: Monad m => Set a -> m (Set a, a)
+maxView :: Monad m => Set a -> m (Set a, a)</programlisting>
+            have had their result orders reversed:
+<programlisting>
+maxView :: Monad m => Set a -> m (a, Set a)
+minView :: Monad m => Set a -> m (a, Set a)</programlisting>
+          </para>
+        </listitem>
+        <listitem>
+          <para>
+            The following are new functions in <literal>Data.IntMap</literal>:
+<programlisting>
+maxView                 :: Monad m => IntMap a -> m (a, IntMap a)
+minView                 :: Monad m => IntMap a -> m (a, IntMap a)
+findMin                 :: IntMap a -> a
+findMax                 :: IntMap a -> a
+deleteMin               :: IntMap a -> IntMap a
+deleteMax               :: IntMap a -> IntMap a
+deleteFindMin           :: IntMap a -> (a, IntMap a)
+deleteFindMax           :: IntMap a -> (a, IntMap a)
+updateMin               :: (a -> a) -> IntMap a -> IntMap a
+updateMax               :: (a -> a) -> IntMap a -> IntMap a
+updateMinWithKey        :: (Key -> a -> a) -> IntMap a -> IntMap a
+updateMaxWithKey        :: (Key -> a -> a) -> IntMap a -> IntMap a
+minViewWithKey          :: (Monad m) => IntMap a -> m ((Key, a), IntMap a)
+maxViewWithKey          :: (Monad m) => IntMap a -> m ((Key, a), IntMap a)</programlisting>
+          </para>
+        </listitem>
+        <listitem>
+          <para>
+            The following are new functions in <literal>Data.IntSet</literal>:
+<programlisting>
+findMin       :: IntSet -> Int
+findMax       :: IntSet -> Int
+deleteMin     :: IntSet -> IntSet
+deleteMax     :: IntSet -> IntSet
+deleteFindMin :: IntSet -> (Int, IntSet)
+deleteFindMax :: IntSet -> (Int, IntSet)
+maxView       :: Monad m => IntSet -> m (Int, IntSet)
+minView       :: Monad m => IntSet -> m (Int, IntSet)</programlisting>
+          </para>
+        </listitem>
+      </itemizedlist>
+    </sect3>
+
+    <sect3>
+      <title>directory</title>
+      <itemizedlist>
+        <listitem>
+          <para>
+            Version number 1.0 (new library, split off from base).
+          </para>
+        </listitem>
+        <listitem>
+          <para>
+            The function
+<programlisting>
+makeRelativeToCurrentDirectory :: FilePath -> IO FilePath</programlisting>
+            has been moved from the filepath library to
+            <literal>System.Directory</literal>.
+          </para>
+        </listitem>
+      </itemizedlist>
+    </sect3>
+
+    <sect3>
+      <title>filepath</title>
+      <itemizedlist>
+        <listitem>
+          <para>
+            Version number 1.1 (was 1.0).
+          </para>
+        </listitem>
+        <listitem>
+          <para>
+            Removed <literal>makeRelativeToCurrentDirectory</literal>
+            (it has moved to <literal>directory:System.Directory</literal>).
+          </para>
+        </listitem>
+        <listitem>
+          <para>
+            A number of driver-related functions have been added:
+<programlisting>
+            splitDrive :: FilePath -> (FilePath, FilePath)
+            joinDrive  :: FilePath -> FilePath -> FilePath
+            takeDrive  :: FilePath -> FilePath
+            hasDrive   :: FilePath -> Bool
+            dropDrive  :: FilePath -> FilePath
+            isDrive    :: FilePath -> Bool</programlisting>
+          </para>
+        </listitem>
+      </itemizedlist>
+    </sect3>
+
+    <sect3>
+      <title>haskell98</title>
+      <itemizedlist>
+        <listitem>
+          <para>
+            Version number 1.0.1 (was 1.0).
+          </para>
+        </listitem>
+        <listitem>
+          <para>
+            No other change.
+          </para>
+        </listitem>
+      </itemizedlist>
+    </sect3>
+
+    <sect3>
+      <title>hpc</title>
+      <itemizedlist>
+        <listitem>
+          <para>
+            Version number 0.5 (new library).
+          </para>
+        </listitem>
+      </itemizedlist>
+    </sect3>
+
+    <sect3>
+      <title>old-locale</title>
+      <itemizedlist>
+        <listitem>
+          <para>
+            Version number 1.0 (new library, split off from base).
+          </para>
+        </listitem>
+        <listitem>
+          <para>
+            No other change.
+          </para>
+        </listitem>
+      </itemizedlist>
+    </sect3>
+
+    <sect3>
+      <title>old-time</title>
+      <itemizedlist>
+        <listitem>
+          <para>
+            Version number 1.0 (new library, split off from base).
+          </para>
+        </listitem>
+        <listitem>
+          <para>
+            No other change.
+          </para>
+        </listitem>
+      </itemizedlist>
+    </sect3>
+
+    <sect3>
+      <title>packedstring</title>
+      <itemizedlist>
+        <listitem>
+          <para>
+            Version number 0.1 (new library, split off from base).
+          </para>
+        </listitem>
+        <listitem>
+          <para>
+            There is now a <literal>Data</literal> instance for the
+            <literal>PackedString</literal> type.
+          </para>
+        </listitem>
+      </itemizedlist>
+    </sect3>
+
+    <sect3>
+      <title>pretty</title>
+      <itemizedlist>
+        <listitem>
+          <para>
+            Version number 1.0 (new library, split off from base).
+          </para>
+        </listitem>
+        <listitem>
+          <para>
+            No other change.
+          </para>
+        </listitem>
+      </itemizedlist>
+    </sect3>
+
+    <sect3>
+      <title>process</title>
+      <itemizedlist>
+        <listitem>
+          <para>
+            Version number 1.0 (new library, split off from base).
+          </para>
+        </listitem>
+        <listitem>
+          <para>
+            No other change.
+          </para>
+        </listitem>
+      </itemizedlist>
+    </sect3>
+
+    <sect3>
+      <title>random</title>
+      <itemizedlist>
+        <listitem>
+          <para>
+            Version number 1.0 (new library, split off from base).
+          </para>
+        </listitem>
+        <listitem>
+          <para>
+            No other change.
+          </para>
+        </listitem>
+      </itemizedlist>
+    </sect3>
+
+    <sect3>
+      <title>readline</title>
+      <itemizedlist>
+        <listitem>
+          <para>
+            Version number 1.0.1 (was 1.0).
+          </para>
+        </listitem>
+        <listitem>
+          <para>
+            No other change.
+          </para>
+        </listitem>
+      </itemizedlist>
+    </sect3>
+
+    <sect3>
+      <title>template-haskell</title>
+      <itemizedlist>
+        <listitem>
+          <para>
+            Version number 2.2 (was 2.1).
+          </para>
+        </listitem>
+        <listitem>
+          <para>
+            We now derive <literal>Data</literal> and
+            <literal>Typeable</literal> instances for all the TH types.
+          </para>
+        </listitem>
+        <listitem>
+          <para>
+            There is now a <literal>Functor</literal> instance for
+            <literal>Q</literal>, and <literal>Quasi</literal> instances
+            have a <literal>Functor</literal> constraint.
+          </para>
+        </listitem>
+      </itemizedlist>
+    </sect3>
+
+    <sect3>
+      <title>unix</title>
+      <itemizedlist>
+        <listitem>
+          <para>
+            Version number 2.2 (was 2.1).
+          </para>
+        </listitem>
+        <listitem>
+          <para>
+            <literal>System.Posix.Unistd</literal> now exports
+<programlisting>
+nanosleep :: Integer -> IO ()</programlisting>
+            (which throws an exception if the OS doesn't provide it).
+          </para>
+        </listitem>
+        <listitem>
+          <para>
+            <literal>System.Posix.Files</literal> now exports
+<programlisting>
+fileTypeModes        :: FileMode
+blockSpecialMode     :: FileMode
+characterSpecialMode :: FileMode
+namedPipeMode        :: FileMode
+regularFileMode      :: FileMode
+directoryMode        :: FileMode
+symbolicLinkMode     :: FileMode
+socketMode           :: FileMode</programlisting>
+            for use with functions like <literal>createDevice</literal>.
+          </para>
+        </listitem>
+        <listitem>
+          <para>
+            There is a new module
+            <literal>System.Posix.Semaphore</literal>
+            providing POSIX named semaphore support.
+          </para>
+        </listitem>
+        <listitem>
+          <para>
+            There is a new module
+            <literal>System.Posix.SharedMem</literal>
+            providing POSIX shared memory support.
+          </para>
+        </listitem>
+        <listitem>
+          <para>
+            <literal>System.Posix.Terminal</literal> now exports
+<programlisting>
+openPseudoTerminal :: IO (Fd, Fd)
+getSlaveTerminalName :: Fd -> IO FilePath</programlisting>
+          </para>
+        </listitem>
+        <listitem>
+          <para>
+            The functions
+                <literal>throwErrnoPath</literal>,
+                <literal>throwErrnoPathIf</literal>,
+                <literal>throwErrnoPathIf_</literal>,
+                <literal>throwErrnoPathIfNull</literal>,
+                <literal>throwErrnoPathIfMinus1</literal>,
+                <literal>throwErrnoPathIfMinus1_</literal>
+            have been removed from
+            <literal>System.Posix.Error</literal>; they are now
+            available from <literal>base:Foreign.C.Error</literal>.
+          </para>
+        </listitem>
+        <listitem>
+          <para>
+            The <literal>System.Posix.Signals</literal> module has
+            been moved here from the base package.
+          </para>
+        </listitem>
+      </itemizedlist>
+    </sect3>
+
+    <sect3>
+      <title>Win32</title>
+      <itemizedlist>
+        <listitem>
+          <para>
+            Version number 2.2 (was 2.1.1).
+          </para>
+        </listitem>
+        <listitem>
+          <para>
+            There is a new module
+            <literal>System.Win32.Security</literal>
+            providing POSIX shared memory support.
+          </para>
+        </listitem>
+      </itemizedlist>
+    </sect3>
+  </sect2>
+
+  <sect2>
+    <title>GHC As A Library</title>
+    <itemizedlist>
+      <listitem>
+        <para>
+          Version number 6.8.1.
+        </para>
+      </listitem>
+      <listitem>
+        <para>
+          The API should now be much more usable than in previous
+          releases.
+        </para>
+      </listitem>
+      <listitem>
+        <para>
+          There is a new function
+<programlisting>
+compileToCore :: Session -> FilePath -> IO (Maybe [CoreBind])</programlisting>
+          which compiles a file to core.
+        </para>
+      </listitem>
+      <listitem>
+        <para>
+          There is a new value <literal>defaultObjectTarget</literal>
+          that gives the <literal>HscTarget</literal> used by default.
+          This name is now preferred to <literal>defaultHscTarget</literal>.
+        </para>
+      </listitem>
+      <listitem>
+        <para>
+          The old
+<programlisting>
+data GhcMode
+  = BatchCompile
+  | Interactive
+  | OneShot
+  | JustTypecheck
+  | MkDepend</programlisting>
+          has now been refactored into
+<programlisting>
+data GhcMode
+  = CompManager -- ^ --make, GHCi, etc.
+  | OneShot     -- ^ ghc -c Foo.hs
+  | MkDepend    -- ^ ghc -M, see Finder for why we need this</programlisting>
+          and
+<programlisting>
+data GhcLink = NoLink | StaticLink</programlisting>
+          is now
+<programlisting>
+data GhcLink = NoLink | LinkBinary | LinkInMemory</programlisting>
+        </para>
+      </listitem>
+      <listitem>
+        <para>
+          The <literal>HsSyn</literal> types now include all of the
+          haddock comments.
+        </para>
+      </listitem>
+      <listitem>
+        <para>
+          As the GHC API exposes all the compiler internals there are
+          numerous other changes that is would be impractical to list,
+          but will have little effect on users of the API.
+        </para>
+      </listitem>
+    </itemizedlist>
+  </sect2>
+</sect1>
+

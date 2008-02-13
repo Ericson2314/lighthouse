@@ -1,0 +1,139 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.0 Transitional//EN">
+<HTML>
+  <head>
+    <title>Text.Regex.Lazy</title>
+  </head>
+<body>
+<h1><tt>Text.Regex.Lazy</tt></h1>
+<h2>Version 0.70 (2006-08-10)</h2>
+
+<h3>By Chris Kuklewicz (TextRegexLazy (at) personal (dot) mightyreason (dot) com)</h3>
+
+Changes from 0.66 to 0.70
+<ul>
+  <li> regex-tre added for libtre backend (Text.Regex.TRE), see http://laurikari.net/tre/
+  <li> regex-devel added for tests and benchmarks
+  <li> Text.Regex.*.Wrap APIs improved: the exported wrap* functions
+  never call fail or error under normal circumstances, and use Either
+  types to report errors.  Allocation failures are reported with fail.
+  <li> Text.Regex.*.(ByteString|String) all should export
+  compile/execute/regexec functions which report errors using Either.
+</ul>
+
+Changes from 0.55 to 0.66
+<ul>
+  <li> I broke this into many packages, regex-base for the interface and regex-pcre, regex-posix, regex-parsec, regex-dfa for the four backends and regex-compat to replace Text.Regex(.New)
+  <li> The top level Makefile now can drive setup and installation of all the packages at once.
+</ul>
+
+Changes from 0.44 to 0.55
+<ul>
+  <li> <b>JRegex has been assimilated: PCRE and PosixRE are here</b>.
+  The JRegex-style API rocks, see below and Context.hs and Example.hs
+  <li> Haddock seems to run via ./setup haddock, but the documentation is very thin
+  <li> ./setup test runs TestTestRegexLazy binary if uncommented in cabal file
+  <li> default is now to compile with -Wall -Werror -O2
+  <li> You may need to point the cabal file's "Extra-Lib-Dirs" to point to pcre.
+  <li> You may or may not need a "-lpcre" option to ghc when building
+  projects that depend on Text.Regex.Lazy now.
+</ul>
+
+Changes from 0.33 to 0.44
+<ul>
+  <li> Cabal
+  <li> Compile with -Wall -Werror
+  <li> Change DFAEngineFPS from Data.FastPackedString to Data.ByteString
+</ul>
+See the LICENSE file for details on copyright.  See README for building instructions.
+<br/>
+The new API is very close to JRegex and supports 4 backends:
+<ul>
+  <li> Posix, the standard c regex library
+  <li> PCRE, the <a href="http://www.pcre.org/">Perl Compatible Regular Expressions</a> c library
+  <li> Full, the lazy Parsec based library (see old api below)
+  <li> DFA, the fast lazy matching library (see old api below)
+</ul>
+And for all backends, there are two types that can be used as a source
+of regular expressions or to match a regular expression against:
+String, and ByteString.  The ByteString library will be in the next
+GHC and can be gotten
+from <a
+href="http://www.cse.unsw.edu.au/~dons/fps.html">http://www.cse.unsw.edu.au/~dons/fps.html</a>.
+<p>
+For simplest use of the new API: import Text.Regex.Lazy and one of
+<pre>
+import Text.Regex.PCRE((=~),(=~~))
+import Text.Regex.Parsec((=~),(=~~))
+import Text.Regex.DFA((=~),(=~~))
+import Text.Regex.PosixRE((=~),(=~~))
+import Text.Regex.TRE((=~),(=~~))
+</pre>
+The things you can demand of (=~) and (=~~) are all
+instance defined in Text.Regex.Impl.Context and they are used
+in <tt>Example.hs</tt> as well.
+<p>
+<p>
+You can redefine (=~) and (=~~) to use different options by using makeRegexOpts:
+<pre>
+(=~) :: (RegexMaker Regex CompOption ExecOption source,RegexContext Regex source1 target) => source1 -> source -> target
+(=~) x r = let q :: Regex
+               q = makeRegexOpts (some compoption) (some execoption) r
+           in match q x
+
+(=~~) ::(RegexMaker Regex CompOption ExecOption source,RegexContext Regex source1 target,Monad m) => source1 -> source -> m target
+(=~~) x r = let q :: Regex
+                q = makeRegexOpts (some compoption) (some execoption) r
+            in matchM q x
+</pre>
+There is a medium level API with functions compile/execute/regexec in
+all the Text.Regex.*.(String|ByteString) modules.  These allow for
+errors to be reported as Either types when compiling or running.
+<p>
+The low level APIs are in the Text.Regex.*.Wrap modules.  For the
+c-library backends these expose most of the c-api in wrap* functions
+that make the type more Haskell-like: CString and CStingLen and
+newtypes to specify compile and execute options.  The actual foreign
+calls are not exported; it does not export the raw c api.
+<p>
+Also, Text.Regex.PCRE.Wrap will let you query if it was compiled with
+UTF8 suppor: <tt>configUTF8 :: Bool</tt>.  But I do not provide a way
+to marshall to or from UTF8.  (If you have a UTF8 ByteString then you
+would probably be able to make it work, assuming the indices PCRE uses
+are in bytes, otherwise look at the wrap* functions which are a thin
+layer over the pcreapi).
+<p>
+
+<p>
+The old Text.Regex API is can be replaced. If you need to be drop in
+compatible with <tt>Text.Regex</tt> then you can
+import <tt>Text.Regex.New</tt> and report any infidelities as bugs.
+
+Some advantages of <tt>Text.Regex.Parsec</tt> over <tt>Text.Regex</tt>:
+<ul>
+  <li> It does not marshal to and from c-code arrays, so it is much
+       faster on large input strings.
+  <li> It consumes the input <tt>String</tt> in a mostly lazy manner.
+       This makes streaming from input to output possible.
+  <li> It performs sanity checks so that <tt>subRegex</tt>
+       and <tt>splitRegex</tt> don't loop or go crazy if the pattern
+       matches an empty string -- it will just return the input.
+  <li> If the <tt>String</tt> regex does not parse then you get a nicer error
+       message.
+</ul>
+<p>
+Internally it uses <tt>Parsec</tt> to turn the string regex into
+a <tt>Pattern</tt> data type, simplify the <tt>Pattern</tt>, then
+transform the <tt>Pattern</tt> into a <tt>Parsec</tt> parser that
+accepts matching strings and stores the sub-strings of parenthesized
+groups.
+<p>
+All of this was motivated by the inability to use <tt>Text.Regex</tt>
+to complete
+the <a
+href="http://shootout.alioth.debian.org/gp4/benchmark.php?test=regexdna&lang=all">regex-dna
+benchmark</a> on <a href="http://shootout.alioth.debian.org/">The
+Computer Language Shootout</a>.  The current entry there, by Don
+Stewart and Alson Kemp and Chris Kuklewicz, does not use this Parsec
+solution, but rather a custom DFA lexer from the CTK library.
+</body>
+</HTML>

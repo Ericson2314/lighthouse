@@ -1,0 +1,12 @@
+tar xjvf ghc-6.6.1-src.tar.bz2
+tar xjvf ghc-6.6.1-src-extralibs.tar.bz2 ghc-6.6.1/libraries/mtl
+cd ghc-6.6.1
+mv ../series .
+mv ../patches .
+quilt push -a
+autoreconf
+./configure --build=i386-unknown-xen
+<create mk/build.mk with SplitObjs = NO and GHCWithInterpter = NO>
+<create rts/house>
+make stage1
+

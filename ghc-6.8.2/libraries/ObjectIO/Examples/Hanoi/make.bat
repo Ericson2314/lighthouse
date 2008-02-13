@@ -1,0 +1,1 @@
+ghc Main.hs -package objectio -o Hanoi.exe -optl "-Wl,--subsystem,windows"

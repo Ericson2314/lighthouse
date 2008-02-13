@@ -1,0 +1,18 @@
+\begin{code}
+module TcSplice where
+import HsSyn	( HsSplice, HsBracket, HsExpr, LHsExpr, LHsDecl )
+import Name	( Name )
+import RdrName	( RdrName )
+import TcRnTypes( TcM, TcId )
+import TcType	( BoxyRhoType )
+
+tcSpliceExpr :: HsSplice Name
+	     -> BoxyRhoType
+	     -> TcM (HsExpr TcId)
+
+tcBracket :: HsBracket Name 
+	  -> BoxyRhoType
+	  -> TcM (LHsExpr TcId)
+
+tcSpliceDecls :: LHsExpr Name -> TcM [LHsDecl RdrName]
+\end{code}

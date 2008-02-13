@@ -1,0 +1,526 @@
+<?xml version="1.0" encoding="iso-8859-1"?>
+<!-- FFI docs as a chapter -->
+
+<chapter id="ffi">
+ <title>
+Foreign function interface (FFI)
+ </title>
+
+  <para>GHC (mostly) conforms to the Haskell 98 Foreign Function Interface
+  Addendum 1.0, whose definition is available from <ulink url="http://www.haskell.org/"><literal>http://www.haskell.org/</literal></ulink>.</para>
+
+  <para>To enable FFI support in GHC, give the <option>-fffi</option><indexterm><primary><option>-fffi</option></primary>
+    </indexterm> flag, or
+the <option>-fglasgow-exts</option><indexterm><primary><option>-fglasgow-exts</option></primary>
+    </indexterm> flag which implies <option>-fffi</option>
+.</para>
+
+  <para>GHC implements a number of GHC-specific extensions to the FFI
+    Addendum.  These extensions are described in <xref linkend="ffi-ghcexts" />, but please note that programs using
+    these features are not portable.  Hence, these features should be
+    avoided where possible.</para>
+
+  <para>The FFI libraries are documented in the accompanying library
+  documentation; see for example the
+    <ulink url="../libraries/base/Control-Concurrent.html"><literal>Foreign</literal></ulink> module.</para>
+
+  <sect1 id="ffi-ghcexts">
+    <title>GHC extensions to the FFI Addendum</title>
+
+    <para>The FFI features that are described in this section are specific to
+    GHC.  Your code will not be portable to other compilers if you use them.</para>
+
+    <sect2>
+      <title>Unboxed types</title>
+
+      <para>The following unboxed types may be used as basic foreign types
+      (see FFI Addendum, Section 3.2): <literal>Int#</literal>,
+      <literal>Word#</literal>, <literal>Char#</literal>,
+      <literal>Float#</literal>, <literal>Double#</literal>,
+      <literal>Addr#</literal>, <literal>StablePtr# a</literal>,
+      <literal>MutableByteArray#</literal>, <literal>ForeignObj#</literal>,
+      and <literal>ByteArray#</literal>.</para>
+    </sect2>
+
+    <sect2 id="ffi-newtype-io">
+      <title>Newtype wrapping of the IO monad</title>
+      <para>The FFI spec requires the IO monad to appear in various  places,
+      but it can sometimes be convenient to wrap the IO monad in a
+      <literal>newtype</literal>, thus:
+<programlisting>
+  newtype MyIO a = MIO (IO a)
+</programlisting>
+     (A reason for doing so might be to prevent the programmer from
+	calling arbitrary IO procedures in some part of the program.)
+</para>
+<para>The Haskell FFI already specifies that arguments and results of
+foreign imports and exports will be automatically unwrapped if they are 
+newtypes (Section 3.2 of the FFI addendum).  GHC extends the FFI by automatically unwrapping any newtypes that
+wrap the IO monad itself.
+More precisely, wherever the FFI specification requires an IO type, GHC will
+accept any newtype-wrapping of an IO type.  For example, these declarations are
+OK:
+<programlisting>
+   foreign import foo :: Int -> MyIO Int
+   foreign import "dynamic" baz :: (Int -> MyIO Int) -> CInt -> MyIO Int
+</programlisting>
+</para>
+      </sect2>
+  </sect1>
+
+  <sect1 id="ffi-ghc">
+    <title>Using the FFI with GHC</title>
+
+    <para>The following sections also give some hints and tips on the
+    use of the foreign function interface in GHC.</para>
+
+    <sect2 id="foreign-export-ghc">
+      <title>Using <literal>foreign export</literal> and <literal>foreign import ccall "wrapper"</literal> with GHC</title>
+
+      <indexterm><primary><literal>foreign export
+      </literal></primary><secondary>with GHC</secondary>
+      </indexterm>
+
+      <para>When GHC compiles a module (say <filename>M.hs</filename>)
+      which uses <literal>foreign export</literal> or 
+      <literal>foreign import "wrapper"</literal>, it generates two
+      additional files, <filename>M_stub.c</filename> and
+      <filename>M_stub.h</filename>.  GHC will automatically compile
+      <filename>M_stub.c</filename> to generate
+      <filename>M_stub.o</filename> at the same time.</para>
+
+      <para>For a plain <literal>foreign export</literal>, the file
+      <filename>M_stub.h</filename> contains a C prototype for the
+      foreign exported function, and <filename>M_stub.c</filename>
+      contains its definition.  For example, if we compile the
+      following module:</para>
+
+<programlisting>
+module Foo where
+
+foreign export ccall foo :: Int -> IO Int
+
+foo :: Int -> IO Int
+foo n = return (length (f n))
+
+f :: Int -> [Int]
+f 0 = []
+f n = n:(f (n-1))</programlisting>
+
+      <para>Then <filename>Foo_stub.h</filename> will contain
+      something like this:</para>
+
+<programlisting>
+#include "HsFFI.h"
+extern HsInt foo(HsInt a0);</programlisting>
+
+      <para>and <filename>Foo_stub.c</filename> contains the
+      compiler-generated definition of <literal>foo()</literal>.  To
+      invoke <literal>foo()</literal> from C, just <literal>#include
+      "Foo_stub.h"</literal> and call <literal>foo()</literal>.</para>
+
+      <para>The <filename>foo_stub.c</filename> and
+	<filename>foo_stub.h</filename> files can be redirected using the
+	<option>-stubdir</option> option; see <xref linkend="options-output"
+	  />.</para>
+
+      <para>When linking the program, remember to include
+        <filename>M_stub.o</filename> in the final link command line, or
+        you'll get link errors for the missing function(s) (this isn't
+        necessary when building your program with <literal>ghc
+        &ndash;&ndash;make</literal>, as GHC will automatically link in the
+        correct bits).</para>
+
+      <sect3 id="using-own-main"> 
+	<title>Using your own <literal>main()</literal></title>
+
+	<para>Normally, GHC's runtime system provides a
+	<literal>main()</literal>, which arranges to invoke
+	<literal>Main.main</literal> in the Haskell program.  However,
+	you might want to link some Haskell code into a program which
+	has a main function written in another language, say C.  In
+	order to do this, you have to initialize the Haskell runtime
+	system explicitly.</para>
+
+	<para>Let's take the example from above, and invoke it from a
+	standalone C program.  Here's the C code:</para>
+
+<programlisting>
+#include &lt;stdio.h&gt;
+#include "HsFFI.h"
+
+#ifdef __GLASGOW_HASKELL__
+#include "foo_stub.h"
+#endif
+
+#ifdef __GLASGOW_HASKELL__
+extern void __stginit_Foo ( void );
+#endif
+
+int main(int argc, char *argv[])
+{
+  int i;
+
+  hs_init(&amp;argc, &amp;argv);
+#ifdef __GLASGOW_HASKELL__
+  hs_add_root(__stginit_Foo);
+#endif
+
+  for (i = 0; i &lt; 5; i++) {
+    printf("%d\n", foo(2500));
+  }
+
+  hs_exit();
+  return 0;
+}</programlisting>
+
+	<para>We've surrounded the GHC-specific bits with
+	<literal>#ifdef __GLASGOW_HASKELL__</literal>; the rest of the
+	code should be portable across Haskell implementations that
+	support the FFI standard.</para>
+
+	<para>The call to <literal>hs_init()</literal>
+	initializes GHC's runtime system.  Do NOT try to invoke any
+	Haskell functions before calling
+	<literal>hs_init()</literal>: bad things will
+	undoubtedly happen.</para>
+
+	<para>We pass references to <literal>argc</literal> and
+	<literal>argv</literal> to <literal>hs_init()</literal>
+	so that it can separate out any arguments for the RTS
+	(i.e. those arguments between
+	<literal>+RTS...-RTS</literal>).</para>
+
+	<para>Next, we call
+	<function>hs_add_root</function><indexterm><primary><function>hs_add_root</function></primary>
+	</indexterm>, a GHC-specific interface which is required to
+	initialise the Haskell modules in the program.  The argument
+	to <function>hs_add_root</function> should be the name of the
+	initialization function for the "root" module in your program
+	- in other words, the module which directly or indirectly
+	imports all the other Haskell modules in the program.  In a
+	standalone Haskell program the root module is normally
+	<literal>Main</literal>, but when you are using Haskell code
+	from a library it may not be.  If your program has multiple
+	root modules, then you can call
+	<function>hs_add_root</function> multiple times, one for each
+	root.  The name of the initialization function for module
+	<replaceable>M</replaceable> is
+	<literal>__stginit_<replaceable>M</replaceable></literal>, and
+	it may be declared as an external function symbol as in the
+	code above.  Note that the symbol name should be transformed
+	according to the Z-encoding:</para>
+
+      <informaltable>
+	<tgroup cols="2" align="left" colsep="1" rowsep="1">
+	  <thead>
+	    <row>
+	      <entry>Character</entry>
+	      <entry>Replacement</entry>
+	    </row>
+	  </thead>
+	  <tbody>
+	    <row>
+	      <entry><literal>.</literal></entry>
+	      <entry><literal>zd</literal></entry>
+	    </row>
+	    <row>
+	      <entry><literal>_</literal></entry>
+	      <entry><literal>zu</literal></entry>
+	    </row>
+	    <row>
+	      <entry><literal>`</literal></entry>
+	      <entry><literal>zq</literal></entry>
+	    </row>
+	    <row>
+	      <entry><literal>Z</literal></entry>
+	      <entry><literal>ZZ</literal></entry>
+	    </row>
+	    <row>
+	      <entry><literal>z</literal></entry>
+	      <entry><literal>zz</literal></entry>
+	    </row>
+          </tbody>
+        </tgroup>
+      </informaltable>
+
+	<para>After we've finished invoking our Haskell functions, we
+	can call <literal>hs_exit()</literal>, which terminates the
+	RTS.</para>
+
+	<para>There can be multiple calls to
+	<literal>hs_init()</literal>, but each one should be matched
+	by one (and only one) call to
+	<literal>hs_exit()</literal><footnote><para>The outermost
+	<literal>hs_exit()</literal> will actually de-initialise the
+	system.  NOTE that currently GHC's runtime cannot reliably
+	re-initialise after this has happened.</para>
+	</footnote>.</para>
+
+	<para>NOTE: when linking the final program, it is normally
+	easiest to do the link using GHC, although this isn't
+	essential.  If you do use GHC, then don't forget the flag
+	<option>-no-hs-main</option><indexterm><primary><option>-no-hs-main</option></primary>
+	  </indexterm>, otherwise GHC will try to link
+	to the <literal>Main</literal> Haskell module.</para>
+      </sect3>
+
+      <sect3 id="ffi-library">
+        <title>Making a Haskell library that can be called from foreign
+          code</title>
+
+        <para>The scenario here is much like in <xref linkend="using-own-main"
+            />, except that the aim is not to link a complete program, but to
+          make a library from Haskell code that can be deployed in the same
+          way that you would deploy a library of C code.</para>
+
+        <para>The main requirement here is that the runtime needs to be
+          initialized before any Haskell code can be called, so your library
+          should provide initialisation and deinitialisation entry points,
+          implemented in C or C++.  For example:</para>
+
+<programlisting>
+ HsBool mylib_init(void){
+   int argc = ...
+   char *argv[] = ...
+
+   // Initialize Haskell runtime
+   hs_init(&amp;argc, &amp;argv);
+
+   // Tell Haskell about all root modules
+   hs_add_root(__stginit_Foo);
+
+   // do any other initialization here and
+   // return false if there was a problem
+   return HS_BOOL_TRUE;
+ }
+
+ void mylib_end(void){
+   hs_exit();
+ }
+</programlisting>
+
+        <para>The initialisation routine, <literal>mylib_init</literal>, calls
+          <literal>hs_init()</literal> and <literal>hs_add_root()</literal> as
+          normal to initialise the Haskell runtime, and the corresponding
+          deinitialisation function <literal>mylib_end()</literal> calls
+          <literal>hs_exit()</literal> to shut down the runtime.</para>
+      </sect3>
+
+      <sect3 id="hs-exit">
+        <title>On the use of <literal>hs_exit()</literal></title>
+
+        <para><literal>hs_exit()</literal> normally causes the termination of
+          any running Haskell threads in the system, and when
+          <literal>hs_exit()</literal> returns, there will be no more Haskell
+          threads running.  The runtime will then shut down the system in an
+          orderly way, generating profiling
+          output and statistics if necessary, and freeing all the memory it
+          owns.</para>
+
+        <para>It isn't always possible to terminate a Haskell thread forcibly:
+          for example, the thread might be currently executing a foreign call,
+          and we have no way to force the foreign call to complete.  What's
+          more, the runtime must
+          assume that in the worst case the Haskell code and runtime are about
+          to be removed from memory (e.g. if this is a <link linkend="win32-dlls">Windows DLL</link>,
+          <literal>hs_exit()</literal> is normally called before unloading the
+          DLL).  So <literal>hs_exit()</literal> <emphasis>must</emphasis> wait
+          until all outstanding foreign calls return before it can return
+          itself.</para>
+
+        <para>The upshot of this is that if you have Haskell threads that are
+          blocked in foreign calls, then <literal>hs_exit()</literal> may hang
+          (or possibly busy-wait) until the calls return.  Therefore it's a
+          good idea to make sure you don't have any such threads in the system
+          when calling <literal>hs_exit()</literal>.  This includes any threads
+          doing I/O, because I/O may (or may not, depending on the
+          type of I/O and the platform) be implemented using blocking foreign
+          calls.</para>
+
+        <para>The GHC runtime treats program exit as a special case, to avoid
+          the need to wait for blocked threads when a standalone
+          executable exits.  Since the program and all its threads are about to
+          terminate at the same time that the code is removed from memory, it
+          isn't necessary to ensure that the threads have exited first.
+          (Unofficially, if you want to use this fast and loose version of
+          <literal>hs_exit()</literal>, then call
+          <literal>shutdownHaskellAndExit()</literal> instead).</para> 
+      </sect3>
+    </sect2>
+    
+    <sect2 id="glasgow-foreign-headers">
+      <title>Using function headers</title>
+
+      <indexterm><primary>C calls, function headers</primary></indexterm>
+
+      <para>When generating C (using the <option>-fvia-C</option>
+      flag), one can assist the C compiler in detecting type
+      errors by using the <option>-&num;include</option> directive
+      (<xref linkend="options-C-compiler"/>) to provide
+      <filename>.h</filename> files containing function
+      headers.</para>
+
+      <para>For example,</para>
+
+<programlisting>
+#include "HsFFI.h"
+
+void         initialiseEFS (HsInt size);
+HsInt        terminateEFS (void);
+HsForeignObj emptyEFS(void);
+HsForeignObj updateEFS (HsForeignObj a, HsInt i, HsInt x);
+HsInt        lookupEFS (HsForeignObj a, HsInt i);
+</programlisting>
+
+      <para>The types <literal>HsInt</literal>,
+      <literal>HsForeignObj</literal> etc. are described in the H98 FFI
+      Addendum.</para>
+
+      <para>Note that this approach is only
+      <emphasis>essential</emphasis> for returning
+      <literal>float</literal>s (or if <literal>sizeof(int) !=
+      sizeof(int *)</literal> on your architecture) but is a Good
+      Thing for anyone who cares about writing solid code.  You're
+      crazy not to do it.</para>
+
+<para>
+What if you are importing a module from another package, and
+a cross-module inlining exposes a foreign call that needs a supporting
+<option>-&num;include</option>?  If the imported module is from the same package as
+the module being compiled, you should supply all the <option>-&num;include</option>
+that you supplied when compiling the imported module.  If the imported module comes
+from another package, you won't necessarily know what the appropriate 
+<option>-&num;include</option> options are; but they should be in the package 
+configuration, which GHC knows about.  So if you are building a package using
+        Cabal, remember to put all those include files in the package
+        description (see the <literal>includes</literal> field in the Cabal
+        documentation).</para>
+
+<para>
+It is also possible, according the FFI specification, to put the 
+<option>-&num;include</option> option in the foreign import 
+declaration itself:
+<programlisting>
+  foreign import "foo.h f" f :: Int -> IO Int
+</programlisting>
+When compiling this module, GHC will generate a C file that includes
+the specified <option>-&num;include</option>.  However, GHC
+<emphasis>disables</emphasis> cross-module inlining for such foreign
+calls, because it doesn't transport the <option>-&num;include</option>
+information across module boundaries.  (There is no fundamental reason for this;
+it was just tiresome to implement.  The wrapper, which unboxes the arguments
+etc, is still inlined across modules.)  So if you want the foreign call itself
+to be inlined across modules, use the command-line and package-configuration
+<option>-&num;include</option> mechanism.
+</para>
+
+      <sect3 id="finding-header-files">
+	<title>Finding Header files</title>
+
+	<para>Header files named by the <option>-&num;include</option>
+	option or in a <literal>foreign import</literal> declaration
+	are searched for using the C compiler's usual search path.
+	You can add directories to this search path using the
+	<option>-I</option> option (see <xref
+	linkend="c-pre-processor"/>).</para>
+
+	<para>Note: header files are ignored unless compiling via C.
+	If you had been compiling your code using the native code
+	generator (the default) and suddenly switch to compiling via
+	C, then you can get unexpected errors about missing include
+	files.  Compiling via C is enabled automatically when certain
+	options are given (eg. <option>-O</option> and
+	<option>-prof</option> both enable
+	<option>-fvia-C</option>).</para>
+      </sect3>
+
+    </sect2>
+
+    <sect2>
+      <title>Memory Allocation</title>
+
+      <para>The FFI libraries provide several ways to allocate memory
+      for use with the FFI, and it isn't always clear which way is the
+      best.  This decision may be affected by how efficient a
+      particular kind of allocation is on a given compiler/platform,
+      so this section aims to shed some light on how the different
+      kinds of allocation perform with GHC.</para>
+
+      <variablelist>
+	<varlistentry>
+	  <term><literal>alloca</literal> and friends</term>
+	  <listitem>
+	    <para>Useful for short-term allocation when the allocation
+	    is intended to scope over a given <literal>IO</literal>
+	    computation.  This kind of allocation is commonly used
+	    when marshalling data to and from FFI functions.</para>
+
+	    <para>In GHC, <literal>alloca</literal> is implemented
+	    using <literal>MutableByteArray#</literal>, so allocation
+	    and deallocation are fast: much faster than C's
+	    <literal>malloc/free</literal>, but not quite as fast as
+	    stack allocation in C.  Use <literal>alloca</literal>
+	    whenever you can.</para>
+	  </listitem>
+	</varlistentry>
+
+	<varlistentry>
+	  <term><literal>mallocForeignPtr</literal></term>
+	  <listitem>
+	    <para>Useful for longer-term allocation which requires
+	    garbage collection.  If you intend to store the pointer to
+	    the memory in a foreign data structure, then
+	    <literal>mallocForeignPtr</literal> is
+	    <emphasis>not</emphasis> a good choice, however.</para>
+
+	    <para>In GHC, <literal>mallocForeignPtr</literal> is also
+	    implemented using <literal>MutableByteArray#</literal>.
+	    Although the memory is pointed to by a
+	    <literal>ForeignPtr</literal>, there are no actual
+	    finalizers involved (unless you add one with
+	    <literal>addForeignPtrFinalizer</literal>), and the
+	    deallocation is done using GC, so
+	    <literal>mallocForeignPtr</literal> is normally very
+	    cheap.</para>
+	  </listitem>
+	</varlistentry>
+
+	<varlistentry>
+	  <term><literal>malloc/free</literal></term>
+	  <listitem>
+	    <para>If all else fails, then you need to resort to
+	    <literal>Foreign.malloc</literal> and
+	    <literal>Foreign.free</literal>.  These are just wrappers
+	    around the C functions of the same name, and their
+	    efficiency will depend ultimately on the implementations
+	    of these functions in your platform's C library.  We
+	    usually find <literal>malloc</literal> and
+	    <literal>free</literal> to be significantly slower than
+	    the other forms of allocation above.</para>
+	  </listitem>
+	</varlistentry>
+
+	<varlistentry>
+	  <term><literal>Foreign.Marshal.Pool</literal></term>
+	  <listitem>
+	    <para>Pools are currently implemented using
+	    <literal>malloc/free</literal>, so while they might be a
+	    more convenient way to structure your memory allocation
+	    than using one of the other forms of allocation, they
+	    won't be any more efficient.  We do plan to provide an
+	    improved-performance implementation of Pools in the
+	    future, however.</para>
+	  </listitem>
+	</varlistentry>
+      </variablelist>
+    </sect2>
+  </sect1>
+</chapter>
+
+<!-- Emacs stuff:
+     ;;; Local Variables: ***
+     ;;; mode: xml ***
+     ;;; sgml-parent-document: ("users_guide.xml" "book" "chapter") ***
+     ;;; End: ***
+ -->

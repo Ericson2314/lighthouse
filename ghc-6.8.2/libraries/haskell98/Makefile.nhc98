@@ -1,0 +1,19 @@
+THISPKG	= haskell98
+SEARCH	=
+EXTRA_H_FLAGS   =
+EXTRA_HBC_FLAGS =
+
+DIRS	=
+SRCS	= dummy-nhc.c
+
+# Here are the main rules.
+include ../Makefile.common
+
+# some extra rules
+extra:
+extracfiles:
+
+# Here are any extra dependencies.
+
+# C-files dependencies.
+

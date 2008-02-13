@@ -1,0 +1,16 @@
+\begin{code}
+module TcMatches where
+import HsSyn	( GRHSs, MatchGroup, HsWrapper )
+import Name	( Name )
+import TcType	( BoxyRhoType )
+import TcRnTypes( TcM, TcId )
+
+tcGRHSsPat    :: GRHSs Name
+	      -> BoxyRhoType
+	      -> TcM (GRHSs TcId)
+
+tcMatchesFun :: Name -> Bool
+	     -> MatchGroup Name
+	     -> BoxyRhoType
+	     -> TcM (HsWrapper, MatchGroup TcId)
+\end{code}

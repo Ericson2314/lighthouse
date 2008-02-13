@@ -1,0 +1,12 @@
+array
+base
+bytestring
+Cabal
+containers
+haskell98
+old-locale
+old-time
+packedstring
+pretty
+random
+template-haskell

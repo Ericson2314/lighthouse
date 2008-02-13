@@ -1,0 +1,14 @@
+*** ghc-pristine/libraries/fgl/fgl.cabal	2007-11-01 20:03:28.000000000 -0700
+--- ghc-xen/libraries/fgl/fgl.cabal	2007-11-14 18:21:13.000000000 -0800
+***************
+*** 37,40 ****
+  	Data.Graph.Inductive.Query.TransClos,
+  	Data.Graph.Inductive
+  build-depends:	base, mtl, containers, array
+! extensions: MultiParamTypeClasses, OverlappingInstances, FlexibleInstances
+--- 37,41 ----
+  	Data.Graph.Inductive.Query.TransClos,
+  	Data.Graph.Inductive
+  build-depends:	base, mtl, containers, array
+! extensions: MultiParamTypeClasses, OverlappingInstances, FlexibleInstances, CPP
+! ghc-options: -Dxen_HOST_OS

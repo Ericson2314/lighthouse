@@ -1,0 +1,2961 @@
+<?xml version="1.0" encoding="iso-8859-1"?>
+<!DOCTYPE article PUBLIC "-//OASIS//DTD DocBook XML V4.2//EN"
+   "http://www.oasis-open.org/docbook/xml/4.2/docbookx.dtd">
+
+<article>
+  <title>The <literal>Object I/O</literal> package: GUI library for Haskell</title>
+  <indexterm><primary>Object I/O</primary></indexterm>
+
+  <sect1 id="sec-Haskell-ObjectIO">
+    <title>Object I/O</title>
+    <indexterm><primary>Object I/O</primary></indexterm>
+
+    <para>The Original <literal>Object I/O</literal> library was
+    written in Clean from university of Nijmeegs.  At 12th
+    International Workshop on the Implementation of Functional
+    Languages Peter Achten and Simon Peyton Jones, presented, first
+    attempt to port library to Haskell.  Initial port has been very
+    simple, but support basic features of complete library.  I decided
+    to continue their work and now <literal>Object I/O</literal>
+    supports a large list of features: Windows, Dialogs, Various kind
+    of controls, Menus, Timers, Graphics and some other. In CVS
+    repository there are some interesting examples. Currently
+    <literal>Object I/O</literal> works only on Windows Platform but I
+    plan porting to GTK for the next release.</para>
+  </sect1>
+
+  <sect1 id="sec-ObjectIO-Basics">
+    <title>Basics</title>
+    <indexterm><primary>Basics</primary></indexterm>
+
+    <para>The central point of <literal>Object I/O</literal> are
+    various kinds of objects (devices) as Windows, Controls, Timers,
+    Menus and Process. Every object has it's own unique Id which may
+    be defined from user or may be automatically generated from the
+    system. Having object Id we may manage it, i.e. change it
+    attributes. For example: we may change the windows's title. The
+    most important attribute of the object is it's local state. It can
+    be data from various types who describe the current state of the
+    object. The object can also receive events. Every time an event is
+    received, a user defined function, named 'handler', is called.
+    The 'handler' takes current local state of the object and the
+    local state of process in which the object exists, and returns the
+    modified states.</para>
+  </sect1>
+
+  <sect1 id="sec-ObjectIO-Usage">
+    <title>Usage</title>
+    <indexterm><primary>Usage</primary></indexterm>
+
+    <para>To gain access to the library, just <literal>import
+    ObjectIO</literal> in your Haskell module and add the
+    <option>-package objectio</option> option to the command line.</para>
+
+    <para>The library contains a set of modules described in the next
+    chapters. Each module corresponds to a defined type of device. By
+    using this module you can avoid the import of every single module
+    i.e. to import all of them.</para>
+  </sect1>
+
+  <sect1 id="sec-ObjectIO-StdIOCommon">
+    <title>StdIOCommon</title>
+    <indexterm><primary>StdIOCommon</primary></indexterm>
+
+    <para>This module contains a set of data types and definitions of
+    functions that are used in the other modules.</para>
+
+    <para>General type constructors for composing context-independent
+    data structures.</para>
+
+<programlisting>infixr 9 :^:
+data    Tup     t1 t2                   = t1 :^: t2</programlisting>
+
+    <para>General type constructors for composing context-dependent
+    data structures.</para>
+
+<programlisting>infixr 9 :~:
+data    TupSt   t1 t2   ps      = (t1 ps) :~: (t2 ps)
+data    ListCS  t               ps      = ListCS [t ps]
+data    NilCS                   ps      = NilCS</programlisting>
+
+    <para>General type constructors for composing local and
+    context-dependent data structures.</para>
+
+<programlisting>infixr 9 :+:
+data    TupLS   t1 t2   ls      ps      = (t1 ls ps) :+: (t2 ls ps)
+data    ListLS  t       ls      ps      = ListLS [t ls ps]
+data    NilLS           ls      ps      = NilLS
+data    NewLS   t       ls      ps      = forall new . NewLS new (t  new     ps)
+data    AddLS   t       ls      ps      = forall add . AddLS add (t (add,ls) ps)</programlisting>
+
+<programlisting>data SelectState = Able | Unable deriving (Eq,Show)
+enabled :: SelectState -> Bool</programlisting>
+
+    <para>SelectState is similar to Bool but it shows whether an
+    object is enabled or disabled.</para>
+
+<programlisting>data MarkState = Mark | NoMark deriving (Eq,Show)
+marked :: MarkState -> Bool</programlisting>
+
+    <para>MarkState is similar to Bool but it shows whether the
+    <literal>CheckControl</literal> is marked.</para>
+
+<programlisting>class Toggle a where
+        toggle :: a -> a</programlisting>
+
+    <para><function>toggle</function> is a polymorphic version of
+    <function>not</function>. There are</para>
+
+<programlisting>instance Toggle Bool                    -- toggle b = not b
+instance Toggle SelectState
+instance Toggle MarkState</programlisting>
+
+    <para>Other type classes</para>
+
+<programlisting>class Zero a where
+        zero   :: a
+class One a where
+        one    :: a</programlisting>
+
+    <para>There are instances for Zero and One for some of the
+    following types.</para>
+
+<programlisting>type    Index = Int
+type    Title = String</programlisting>
+
+<programlisting>data    Vector2 = Vector2 {vx :: !Int, vy :: !Int}
+        deriving (Eq,Show)
+instance Zero Vector2 where
+instance Num Vector2 where</programlisting>
+
+    <para><emphasis>Note</emphasis> that (*), abs, signum and
+    fromInteger members of Num instance are undefined!!</para>
+
+<programlisting>class ToVector x where
+        toVector :: x -> Vector2</programlisting>
+
+    <para>ToVector allow coercion between Vector2 and Size and Point2
+    types.</para>
+
+<programlisting>data    Size = Size {w :: !Int, h :: !Int}
+        deriving (Eq,Show)
+instance Zero Size where                -- {w=0,h=0}
+instance ToVector Size where    -- {w,h}->{vx=w,vy=h}</programlisting>
+
+<programlisting>data    Point2    = Point2 {x :: !Int, y :: !Int}
+        deriving (Eq,Show)
+instance Zero Point2 where
+instance Num Point2 where
+instance ToVector Point2 where</programlisting>
+
+    <para><emphasis>Note</emphasis> that (*), abs, signum and
+    fromInteger members of Num instance are undefined!!</para>
+
+<programlisting>data    Rectangle = Rectangle {corner1 :: !Point2, corner2 :: !Point2}
+        deriving (Eq,Show)
+instance Zero Rectangle where</programlisting>
+
+<programlisting>rectangleSize :: Rectangle -> Size              -- {w=abs (@1.corner1-@1.corner2).x,
+                                                                                --  h=abs (@1.corner1-@1.corner2).y}
+movePoint :: Vector2 -> Point2 -> Point2        -- {vx,vy} {x,y} -> {vx+x,vy+y}</programlisting>
+
+<programlisting>data KeyboardState
+        = CharKey    Char       KeyState                        -- ASCII character input
+        | SpecialKey SpecialKey KeyState Modifiers      -- Special key input
+        | KeyLost                                                                       -- Key input lost while key was down
+        deriving (Eq,Show)
+data    KeyState
+        = KeyDown    IsRepeatKey                                        -- Key is down
+        | KeyUp                                                                         -- Key goes up
+        deriving (Eq,Show)
+type    IsRepeatKey                                                             -- Flag on key down:
+        = Bool                                                                          -- True iff key is repeating
+data    Key
+        = IsCharKey    Char
+        | IsSpecialKey SpecialKey</programlisting>
+
+    <para>KeyboardState is passed to keyboard handler for every
+    keyboard event.</para>
+
+<programlisting>getKeyboardStateKeyState:: KeyboardState -> KeyState</programlisting>
+
+    <para>getKeyboardStateKeyState gets KeyState from KeyboardState
+    (KeyUp if KeyboardState is KeyLost)</para>
+
+<programlisting>getKeyboardStateKey :: KeyboardState -> Maybe Key</programlisting>
+
+    <para>getKeyboardStateKey gets Key value from KeyboardState
+    (Nothing if KeyboardState is KeyLost)</para>
+
+<programlisting>data    MouseState
+        = MouseMove     Point2 Modifiers                -- Mouse is up     (position,modifiers)
+        | MouseDown     Point2 Modifiers Int            -- Mouse goes down (and nr down)
+        | MouseDrag     Point2 Modifiers                -- Mouse is down   (position,modifiers)
+        | MouseUp       Point2 Modifiers                -- Mouse goes up   (position,modifiers)
+        | MouseLost                                     -- Mouse input lost while mouse was down
+        deriving (Eq, Show)
+data    ButtonState
+        = ButtonStillUp                                 -- MouseMove
+        | ButtonDown                                    -- MouseDown _ _ 1
+        | ButtonDoubleDown                              --                       _ _ 2
+        | ButtonTripleDown                              --           _ _ >2
+        | ButtonStillDown                               -- MouseDrag
+        | ButtonUp                                      -- MouseUp/MouseLost
+        deriving (Eq, Show)
+type    MouseStateFilter =                              -- Predicate on MouseState:
+                MouseState -> Bool                      -- evaluate MouseFunction only if True</programlisting>
+
+<programlisting>getMouseStatePos :: MouseState -> Point2
+getMouseStateModifiers :: MouseState -> Modifiers
+getMouseStateButtonState:: MouseState   -> ButtonState</programlisting>
+
+<programlisting>data    SliderState
+        = SliderState
+                { sliderMin     :: !Int
+                , sliderMax     :: !Int
+                , sliderThumb   :: !Int
+                }
+        deriving (Eq, Show)</programlisting>
+
+<programlisting>data    UpdateState
+        = UpdateState
+                { oldFrame      :: !ViewFrame
+                , newFrame      :: !ViewFrame
+                , updArea       :: !UpdateArea
+                }
+        deriving (Show)
+type    ViewDomain = Rectangle
+type    ViewFrame  = Rectangle
+type    UpdateArea = [ViewFrame]</programlisting>
+
+<programlisting>rectangleToUpdateState :: Rectangle -> UpdateState</programlisting>
+
+<programlisting>viewDomainRange :: ViewDomain
+viewFrameRange :: ViewFrame</programlisting>
+
+    <para>viewDomainRange and viewFrameRange define the minimum and
+    maximum values for ViewDomains and ViewFrames.</para>
+
+<programlisting>data    Modifiers
+        = Modifiers
+                { shiftDown     :: !Bool                        -- True iff shift   down
+                , optionDown    :: !Bool                        -- True iff option  down
+                , commandDown   :: !Bool                        -- True iff command down
+                , controlDown   :: !Bool                        -- True iff control down
+                , altDown       :: !Bool                        -- True iff alt     down
+                }
+        deriving (Eq,Show)</programlisting>
+
+    <para>Modifiers indicates the meta keys that have been pressed
+    (True) or not (False).</para>
+
+<programlisting>noModifiers, shiftOnly, optionOnly, commandOnly, controlOnly, altOnly :: Modifiers</programlisting>
+
+    <para>These are constants that check which of the Modifiers are
+    pressed.</para>
+
+    <para>The layout language used for windows and controls.</para>
+<programlisting>type    ItemPos
+        =       ( ItemLoc
+                , ItemOffset
+                )
+data    ItemLoc
+ --     Absolute:
+        = Fix
+ --     Relative to corner:
+        | LeftTop
+        | RightTop
+        | LeftBottom
+        | RightBottom
+ --     Relative in next line:
+        | Left
+        | Center
+        | Right
+ --     Relative to other item:
+        | LeftOf  Id
+        | RightTo Id
+        | Above   Id
+        | Below   Id
+ --     Relative to previous item:
+        | LeftOfPrev
+        | RightToPrev
+        | AbovePrev
+        | BelowPrev
+        deriving (Eq,Show)
+type    ItemOffset = Vector2    -- A constant offset vector</programlisting>
+
+    <para>The Direction type.</para>
+
+<programlisting>data    Direction
+        = Horizontal
+        | Vertical
+        deriving Eq</programlisting>
+
+    <para>The CursorShape type.</para>
+
+<programlisting>data    CursorShape
+        = StandardCursor
+        | BusyCursor
+        | IBeamCursor
+        | CrossCursor
+        | FatCrossCursor
+        | ArrowCursor
+        | HiddenCursor
+        deriving Eq</programlisting>
+
+    <para>Document interface of interactive processes.</para>
+
+<programlisting>data    DocumentInterface
+        = NDI                                                   -- No       Document Interface
+        | SDI                                                   -- Single   Document Interface
+        | MDI                                                   -- Multiple Document Interface
+        deriving (Eq,Show)</programlisting>
+
+<programlisting>data    SliderMove
+        = SliderIncSmall
+        | SliderDecSmall
+        | SliderIncLarge
+        | SliderDecLarge
+        | SliderThumb Int
+        deriving Show</programlisting>
+
+    <para>Common error report types. See throwGUI</para>
+
+<programlisting>data    ErrorReport                                             -- Usual cause:
+        = ErrorViolateDI                                        -- Violation against DocumentInterface
+        | ErrorIdsInUse                                         -- Object contains Ids that are bound
+        | ErrorUnknownObject                            -- Object can not be found
+        | ErrorNotifierOpen                                     -- It was tried to open a second send notifier
+        | ErrorUnableReceiver
+        | ErrorDeadlock
+        | OtherError !String                            -- Other kind of error
+        deriving (Eq,Show)
+
+handleErrorReport :: Monad m => ErrorReport -> m a</programlisting>
+
+    <para><function>handleErrorReport</function> is a help function
+    that just calls <function>fail</function> with an appropriate
+    error message.  It can be used with
+    <function>catchGUI</function>. Example:</para>
+
+<programlisting>test1 :: GUI ps x
+test1 = . . .
+
+test :: GUI ps x
+test = catchGUI test1 handleErrorReport</programlisting>
+
+    <para><emphasis>Note:</emphasis> The Scheduler calls all object
+    callbacks in that way.</para>
+
+    <para>Monad extensions</para>
+
+<programlisting>class Monad m => IOMonad m where
+        liftIO :: IO a -> m a
+
+instance IOMonad IO where
+        liftIO f = f</programlisting>
+
+    <para><literal>IOMonad</literal> class is a simply way to call
+    <literal>IO</literal> monads from other <literal>IO</literal>-like
+    monads.</para>
+
+  </sect1>
+
+  <sect1 id="sec-ObjectIO-StdGUI">
+    <title>StdGUI</title>
+    <indexterm><primary>GUI monad</primary></indexterm>
+
+    <para>This module provides declaration of abstract <literal>GUI
+    monad</literal>.</para>
+
+<programlisting>data GUI ps x
+type GUIFun  ls ps = (ls,ps) -> GUI ps (ls,ps)
+type GUI2Fun ps = ps -> GUI ps ps</programlisting>
+
+    <para>where ps is a type of local process state. GUIFun and
+    GUI2Fun are additional types which describe state transforming GUI
+    actions, first with both local and process state and second only
+    with process state.  There are instances of Monad, IOMonad and
+    Functor type classes.</para>
+
+<programlisting>instance Monad (GUI ps)
+instance IOMonad (GUI ps)
+instance Functor (GUI ps)</programlisting>
+
+    <para>Each object event handler must be GUI monad action, usually
+    of GUIFun or GUI2Fun type.</para>
+
+  </sect1>
+
+  <sect1 id="sec-ObjectIO-StdId">
+    <title>StdId</title>
+    <indexterm><primary>Ids</primary></indexterm>
+
+    <para>Id generation routines.</para>
+
+<programlisting>openId     :: Ids m => m Id
+openIds    :: Ids m => Int -> m [Id]
+
+openR2Id   :: Ids m => m (R2Id m r)
+openR2Ids  :: Ids m => Int -> m (R2Id m r)
+
+openRId    :: Ids m => m (RId x)
+openRIds   :: Ids m => Int -> m [RId x]</programlisting>
+
+    <para>There is <literal>Ids</literal> type class, which allows the
+    functions to be called both from <literal>IO</literal> and
+    <literal>GUI</literal> monad.</para>
+
+    <para><function>openId</function> returns one new id</para>
+
+    <para><function>openIds</function> returns a list of N items
+    i.e. [id<subscript>1</subscript>,
+    id<subscript>2</subscript>..id<subscript>N</subscript>]</para>
+
+<programlisting>openIds 3 = [id<subscript>1</subscript>, id<subscript>2</subscript>, id<subscript>3</subscript>]</programlisting>
+
+    <para><function>openRId</function>, <function>openRIds</function>,
+    <function>openR2Id</function> and <function>openR2Ids</function>
+    are the same as openId and openIds but they return special
+    receiver and bi-receiver ids (see <xref
+    linkend="sec-ObjectIO-StdReceiver"/>).</para>
+  </sect1>
+
+  <sect1 id="sec-ObjectIO-StdWindow">
+    <title>StdWindow</title>
+    <indexterm><primary>Windows</primary></indexterm>
+
+    <para>In the Object I/O library there are two main window
+    types:</para>
+
+    <variablelist>
+      <varlistentry>
+        <term><literal>data     Dialog c ls ps = Dialog Title (c ls ps) [WindowAttribute ls ps]</literal></term>
+        <listitem>
+          <para>The dialogs are nonresizable modal or nonmodal
+          windows. They adjust their size to the common size of the
+          contained controls. They usually have two special buttons
+          called <literal>Ok</literal> and
+          <literal>Cancel</literal>. When the user presses Enter or
+          Esc keys, the dialog interprets this event as clicking on
+          <literal>Ok</literal> or <literal>Cancel</literal>. </para>
+        </listitem>
+      </varlistentry>
+      <varlistentry>
+        <term><literal>data     Window c ls ps = Window Title (c ls ps) [WindowAttribute ls ps]</literal></term>
+        <listitem>
+          <para>The windows are resizable and one can draw in the view
+          domain.This can be programmed as a Haskell's function. They
+          also can have vertical and horizontal scroll bars, which
+          extend logical view frame of the windows.</para>
+        </listitem>
+      </varlistentry>
+    </variablelist>
+
+    <para>Both windows and dialogs can contain various kinds of
+    controls but they can't contain other windows or dialogs.  The
+    type variable <literal>c</literal> mentioned above corresponds to
+    the type of the containing controls.</para>
+
+    <para>The type variables <literal>ls</literal> and
+    <literal>ps</literal> as usual define local state and process
+    state types.</para>
+
+    <para><literal>WindowAttribute</literal> defines a set of built-in
+    window attributes.</para>
+
+<programlisting>data    WindowAttribute ls ps                        -- Default:
+         --     Attributes for Windows and Dialogs:
+         =      WindowActivate   (GUIFun ls ps)              -- id
+         |      WindowClose      (GUIFun ls ps)              -- user can't close window
+         |      WindowDeactivate (GUIFun ls ps)              -- id
+         |      WindowHMargin    Int Int                     -- system dependent
+         |      WindowId         Id                          -- system defined id
+         |      WindowIndex      Int                         -- open front-most
+         |      WindowInit       (GUIFun ls ps)              -- no actions after opening window
+         |      WindowInitActive Id                          -- system dependent
+         |      WindowItemSpace  Int Int                     -- system dependent
+         |      WindowOuterSize  Size                        -- screen size
+         |      WindowPos        ItemPos                     -- system dependent
+         |      WindowViewSize   Size                        -- screen size
+         |      WindowVMargin    Int Int                     -- system dependent
+         --     Attributes for Dialog only:
+         |      WindowCancel     Id                          -- no cancel  (Custom)ButtonControl
+         |      WindowOk         Id                          -- no default (Custom)ButtonControl
+         --     Attributes for Windows only:
+         |      WindowCursor     CursorShape                 -- no change of cursor
+         |      WindowHScroll    ScrollFunction              -- no horizontal scrolling
+         |      WindowKeyboard   KeyboardStateFilter SelectState (KeyboardFunction ls ps) -- no keyboard input
+         |      WindowLook       Bool Look                   -- show system dependent background
+         |      WindowMouse      MouseStateFilter SelectState (MouseFunction ls ps) -- no mouse input
+         |      WindowOrigin     Point2                      -- left top of picture domain
+         |      WindowPen        [PenAttribute]              -- default pen attributes
+         |      WindowSelectState       SelectState          -- Able
+         |      WindowViewDomain        ViewDomain           -- {zero,max range}
+         |      WindowVScroll           ScrollFunction       -- no vertical scrolling</programlisting>
+
+    <sect2 id="sec-ObjectIO-StdWindow-WindowCreation">
+      <title>Windows creation.</title>
+
+        <para>If the user wants to define his/her own window types,
+        there are polymorphic creation functions.</para>
+
+<programlisting>class Windows wdef where
+        openWindow :: ls -> wdef ls ps -> ps -> GUI ps ps
+
+class Dialogs ddef where
+        openDialog :: ls -> ddef ls ps -> ps -> GUI ps ps
+        openModalDialog :: ls -> ddef ls ps -> ps -> GUI ps (ps, (Maybe ls))</programlisting>
+
+      <para>The user must define instances of Windows or Dialogs
+      classes for his/her own window or dialog types.  Built-in types
+      have instances defined as:</para>
+
+<programlisting>instance Controls c => Dialog (Dialog c)
+instance Controls c => Window (Window c)</programlisting>
+
+      <para>where <literal>Controls</literal> type class has instances
+      for all types of controls.</para>
+    </sect2>
+
+    <sect2 id="sec-ObjectIO-StdWindow-WindowDispose">
+      <title>Windows closing.</title>
+
+<programlisting>closeWindow :: Id -> GUI2Fun ps
+closeActiveWindow :: GUI2Fun ps</programlisting>
+
+      <variablelist>
+        <varlistentry>
+          <term><literal>closeWindow</literal></term>
+          <listitem>
+            <para>closes window with specified Id</para>
+          </listitem>
+        </varlistentry>
+        <varlistentry>
+          <term><literal>closeActiveWindow</literal></term>
+          <listitem>
+            <para>closes active window. Often we can use
+            <literal>closeActiveWindow</literal> together with
+            WindowClose attribute.  For example adding
+            <programlisting>WindowClose (noLS
+            closeActiveWindow)</programlisting> to the window
+            attributes list closes the window when the user clicks the
+            close button. </para>
+          </listitem>
+        </varlistentry>
+      </variablelist>
+    </sect2>
+
+    <sect2 id="sec-ObjectIO-StdWindow-ActiveWindow">
+      <title>Getting and setting active window</title>
+
+<programlisting>setActiveWindow :: Id -> GUI ps ()
+getActiveWindow :: GUI ps (Maybe Id)</programlisting>
+
+      <variablelist>
+        <varlistentry>
+          <term><literal>setActiveWindow</literal></term>
+          <listitem>
+            <para>activates window with specified Id</para>
+          </listitem>
+        </varlistentry>
+        <varlistentry>
+          <term><literal>getActiveWindow</literal></term>
+          <listitem>
+            <para>returns Id of active window if it exists.</para>
+          </listitem>
+        </varlistentry>
+      </variablelist>
+    </sect2>
+
+    <sect2 id="sec-ObjectIO-StdWindow-ActiveControl">
+      <title>Getting and setting active control inside a window</title>
+
+<programlisting>setActiveControl :: Id -> GUI ps ()
+getActiveControl :: GUI ps (Maybe Id)</programlisting>
+
+      <variablelist>
+        <varlistentry>
+          <term><literal>setActiveControl</literal></term>
+          <listitem>
+            <para>activates control with specified Id.</para>
+          </listitem>
+        </varlistentry>
+        <varlistentry>
+          <term><literal>getActiveControl</literal></term>
+          <listitem>
+            <para>returns Id of active control if it exists.</para>
+          </listitem>
+        </varlistentry>
+      </variablelist>
+    </sect2>
+
+    <sect2 id="sec-ObjectIO-StdWindow-StackOrder">
+      <title>Stacking order</title>
+
+<programlisting>stackWindow :: Id -> Id -> GUI ps ()
+getWindowStack :: GUI ps [(Id,WindowKind)]
+getWindowsStack :: GUI ps [Id]
+getDialogsStack :: GUI ps [Id]</programlisting>
+
+      <variablelist>
+        <varlistentry>
+          <term><literal>stackWindow</literal></term>
+          <listitem>
+            <para><literal>stackWindow id1 id2</literal> stacking
+            window with id1 before window with id2.</para>
+          </listitem>
+        </varlistentry>
+        <varlistentry>
+          <term><literal>getWindowStack</literal></term>
+          <listitem>
+            <para>returns list of window and dialog ids in stacking
+            order.</para>
+          </listitem>
+        </varlistentry>
+        <varlistentry>
+          <term><literal>getWindowsStack</literal></term>
+          <listitem>
+            <para>returns list of window ids in stacking order.</para>
+          </listitem>
+        </varlistentry>
+        <varlistentry>
+          <term><literal>getDialogsStack</literal></term>
+          <listitem>
+            <para>returns list of dialog ids in stacking order.</para>
+          </listitem>
+        </varlistentry>
+      </variablelist>
+    </sect2>
+
+    <sect2 id="sec-ObjectIO-StdWindow-Margins">
+      <title>Window margins</title>
+
+      <para>Getting values of default horizontal and vertical window
+      margins and control item space</para>
+
+<programlisting>getDefaultHMargin :: Bool -> GUI ps Int
+getDefaultVMargin :: Bool -> GUI ps Int
+getDefaultItemSpace :: GUI ps (Int,Int)</programlisting>
+
+        <para>Getting values of current horizontal and vertical window
+        margins and control item space</para>
+
+<programlisting>getWindowHMargin :: Id  -> GUI ps (Maybe (Int,Int))
+getWindowVMargin :: Id  -> GUI ps (Maybe (Int,Int))
+getWindowItemSpace :: Id -> GUI ps (Maybe (Int,Int))</programlisting>
+
+        <para>Current values are defined with
+        <literal>WindowHMargin</literal>,
+        <literal>WindowVMargin</literal>,
+        <literal>WindowItemSpace</literal></para>
+    </sect2>
+
+    <sect2 id="sec-ObjectIO-StdWindow-EnableDisable">
+      <title>Enable/Disable Window, Keyboard and Mouse</title>
+
+      <para>The following functions correspond to WindowSelectState
+      attribute:</para>
+
+<programlisting>enableWindow :: Id -> GUI ps ()
+disableWindow :: Id -> GUI ps ()
+getWindowSelectState :: Id -> GUI ps (Maybe SelectState)</programlisting>
+
+      <variablelist>
+        <varlistentry>
+          <term><literal>enableWindow</literal></term>
+          <listitem>
+            <para>enables window with specified Id</para>
+          </listitem>
+        </varlistentry>
+        <varlistentry>
+          <term><literal>disableWindow</literal></term>
+          <listitem>
+            <para>disables window with specified Id</para>
+          </listitem>
+        </varlistentry>
+        <varlistentry>
+          <term><literal>getWindowSelectState</literal></term>
+          <listitem>
+            <para>returns current select state</para>
+          </listitem>
+        </varlistentry>
+      </variablelist>
+      <para>The following functions correspond to WindowMouse attribute</para>
+
+<programlisting>enableWindowMouse  :: Id -> GUI ps ()
+disableWindowMouse :: Id -> GUI ps ()
+
+setWindowMouseSelectState :: SelectState -> Id -> GUI ps ()
+getWindowMouseSelectState :: Id -> GUI ps (Maybe SelectState)
+
+getWindowMouseStateFilter :: Id -> GUI ps (Maybe MouseStateFilter)
+setWindowMouseStateFilter :: Id -> MouseStateFilter -> GUI ps ()</programlisting>
+
+      <variablelist>
+        <varlistentry>
+          <term><literal>setWindowMouseSelectState</literal></term>
+          <listitem>
+            <para>set current select state for mouse events</para>
+          </listitem>
+        </varlistentry>
+        <varlistentry>
+          <term><literal>enableWindowMouse</literal></term>
+          <listitem>
+            <para>enables receiving mouse events for a window with a
+            specified Id <programlisting>enableWindowMouse =
+            setWindowMouseSelectState Able</programlisting></para>
+          </listitem>
+        </varlistentry>
+        <varlistentry>
+          <term><literal>disableWindowMouse</literal></term>
+          <listitem>
+            <para>disables receiving mouse events for a window with a
+            specified Id <programlisting>disableWindowMouse =
+            setWindowMouseSelectState Unable</programlisting></para>
+          </listitem>
+        </varlistentry>
+        <varlistentry>
+          <term><literal>getWindowSelectState</literal></term>
+          <listitem>
+            <para>returns current mouse select state</para>
+                </listitem>
+        </varlistentry>
+        <varlistentry>
+          <term><literal>getWindowMouseStateFilter</literal>, <literal>setWindowMouseStateFilter</literal></term>
+          <listitem>
+            <para>Receiving mouse event can be additionally disabled
+            with specified MouseStateFilter</para>
+          </listitem>
+        </varlistentry>
+      </variablelist>
+
+      <para>The following functions correspond to WindowKeyboard
+      attribute</para>
+
+<programlisting>enableWindowKeyboard  :: Id -> GUI ps ()
+disableWindowKeyboard :: Id -> GUI ps ()
+
+setWindowKeyboardSelectState :: SelectState -> Id -> GUI ps ()
+getWindowKeyboardSelectState :: Id -> GUI ps (Maybe SelectState)
+
+getWindowKeyboardStateFilter :: Id -> GUI ps (Maybe KeyboardStateFilter)
+setWindowKeyboardStateFilter :: Id -> KeyboardStateFilter -> GUI ps ()</programlisting>
+
+      <variablelist>
+        <varlistentry>
+          <term><literal>setWindowKeyboardSelectState</literal></term>
+          <listitem>
+            <para>sets current select state for keyboard events</para>
+          </listitem>
+        </varlistentry>
+        <varlistentry>
+          <term><literal>enableWindowKeyboard</literal></term>
+          <listitem>
+            <para>enables receiving keyboard events for a window with
+            a specified Id</para>
+<programlisting>enableWindowKeyboard = setWindowKeyboardSelectState Able</programlisting>
+          </listitem>
+        </varlistentry>
+        <varlistentry>
+          <term><literal>disableWindowKeyboard</literal></term>
+          <listitem>
+            <para>disables receiving keyboard events for a window with
+            a specified Id</para>
+<programlisting>disableWindowKeyboard = setWindowKeyboardSelectState Unable</programlisting>
+          </listitem>
+        </varlistentry>
+        <varlistentry>
+          <term><literal>getWindowKeyboard</literal></term>
+          <listitem>
+            <para>returns current keyboard select state</para>
+          </listitem>
+        </varlistentry>
+        <varlistentry>
+          <term><literal>getWindowKeyboardStateFilter</literal>, <literal>setWindowKeyboardStateFilter</literal></term>
+          <listitem>
+            <para>Receiving of keyboard event can be additionally
+            disabled with specified KeyboardStateFilter</para>
+          </listitem>
+        </varlistentry>
+      </variablelist>
+    </sect2>
+
+    <sect2 id="sec-ObjectIO-StdWindow-Drawing">
+      <title>Drawing</title>
+
+      <para>Every window can have its own WindowLook attribute, which
+      describes its Look function. The Look is defined as the type
+      <literal>SelectState -> UpdateState -> Draw ()</literal> and
+      this function is called every time when the window needs to be
+      redrawn</para> <para>The current look can be accessed by the
+      following functions:</para>
+
+<programlisting>setWindowLook :: Id -> Bool -> (Bool,Look) -> GUI ps ()
+getWindowLook :: Id -> GUI ps (Maybe (Bool,Look))</programlisting>
+
+      <para>Use <function>updateWindow</function> to force window
+      redrawing</para>
+
+<programlisting>updateWindow :: Id -> Maybe ViewFrame -> GUI ps ()</programlisting>
+
+      <para>We can also draw directly in the window with
+      <function>drawInWindow</function> function but in this case
+      everything displayed with <function>drawInWindow</function> will
+      be erased after the next updateWindow call.</para>
+
+<programlisting>drawInWindow :: Id -> Draw x -> GUI ps (Maybe x)</programlisting>
+
+      <para>See <xref linkend="sec-ObjectIO-StdPicture"/> for details
+      about drawing.</para>
+    </sect2>
+
+    <sect2 id="sec-ObjectIO-StdWindow-PosSize">
+      <title>Window positioning and window resizing</title>
+
+<programlisting>setWindowPos :: Id -> ItemPos -> GUI ps ()
+getWindowPos :: Id -> GUI ps (Maybe Vector2)</programlisting>
+
+      <variablelist>
+        <varlistentry>
+          <term><literal>setWindowPos</literal></term>
+          <listitem>
+            <para>positions the specified window to a given position</para>
+          </listitem>
+        </varlistentry>
+        <varlistentry>
+          <term><literal>getWindowPos</literal></term>
+          <listitem>
+            <para>returns current window position</para>
+          </listitem>
+        </varlistentry>
+      </variablelist>
+
+<programlisting>moveWindowViewFrame :: Id -> Vector2 -> GUI ps ()
+getWindowViewFrame :: Id -> GUI ps ViewFrame</programlisting>
+
+      <para><literal>ViewFrame</literal> is the current visible
+      <literal>Rectangle</literal> of the window. When there are
+      horizontal and vertical scroll bars, then the changing of the
+      scroller thumb changes the
+      ViewFrame.<literal>getWindowViewFrame</literal> returns the
+      current ViewFrame and <literal>moveWindowViewFrame</literal>
+      moves it through the specified vector.</para>
+
+<programlisting>setWindowViewSize :: Id -> Size -> GUI ps ()
+getWindowViewSize :: Id -> GUI ps Size</programlisting>
+
+      <para><literal>ViewSize</literal> is the current inner size of
+      the window (It doesn't include the title bar and the scrollers'
+      area). The above functions get/set the current ViewSize
+      value.</para>
+
+<programlisting>setWindowOuterSize :: Id -> Size -> GUI ps ()
+getWindowOuterSize :: Id -> GUI ps Size</programlisting>
+
+        <para><literal>OuterSize</literal> is the current full window
+        size. The above functions get/set the current OuterSize
+        value.</para>
+
+<programlisting>setWindowViewDomain :: Id -> ViewDomain -> GUI ps ()
+getWindowViewDomain :: Id -> GUI ps (Maybe ViewDomain)</programlisting>
+
+      <para><literal>ViewDomain</literal> is a
+      <literal>Rectangle</literal> which specifies the logical drawing
+      area of the window. The above functions get/set the current
+      ViewDomain value.</para>
+    </sect2>
+
+    <sect2 id="sec-ObjectIO-StdWindow-ScrollFunctions">
+      <title>Windows scrolling</title>
+
+<programlisting>setWindowScrollFunction :: Id -> Direction -> ScrollFunction -> GUI ps ()
+getWindowScrollFunction :: Id -> Direction -> GUI ps (Maybe ScrollFunction)</programlisting>
+
+      <para>The ScrollFunction describes the behaviour of the
+      horizontal or vertical (according to
+      <literal>Direction</literal> parameter) scroll bars.  The
+      ScrollFunction calculates the step by which ViewFrame is moved
+      inside the ViewDomain.</para>
+    </sect2>
+
+    <sect2 id="sec-ObjectIO-StdWindow-Cursor">
+      <title>Mouse cursor</title>
+
+<programlisting>setWindowCursor :: Id -> CursorShape -> GUI ps ()
+getWindowCursor :: Id -> GUI ps (Maybe CursorShape)</programlisting>
+
+      <para>The <literal>CursorShape</literal> describes the shape of
+      the mouse cursor when it is over the window.</para>
+    </sect2>
+
+    <sect2 id="sec-ObjectIO-StdWindow-Title">
+      <title>Window title</title>
+
+<programlisting>setWindowTitle :: Id -> Title -> GUI ps ()
+getWindowTitle :: Id -> GUI ps (Maybe Title)</programlisting>
+
+        <para><literal>Title</literal> is a string, which is displayed
+        at the top of the window. The title can also be defined with
+        the WindowTitle attribute.</para>
+    </sect2>
+
+    <sect2 id="sec-ObjectIO-StdWindow-OkCancel">
+      <title>Dialogs: Ok and Cancel buttons</title>
+
+<programlisting>getWindowOk :: Id -> GUI ps (Maybe Id)
+getWindowCancel :: Id -> GUI ps (Maybe Id)</programlisting>
+
+      <para>The above functions return Ids of Ok and Cancel buttons of
+      the specified dialog. These Ids must be defined with WindowOk
+      and WindowCancel attributes.</para>
+    </sect2>
+  </sect1>
+
+  <sect1 id="sec-ObjectIO-StdControl">
+    <title>StdControl</title>
+    <indexterm><primary>Controls</primary></indexterm>
+
+    <para>Object I/O library supports various kinds of built-in
+    controls which can be placed inside windows and dialogs.  In order
+    to define his/her own type controls, the user should give an
+    instance of Controls class (see <xref
+    linkend="sec-ObjectIO-StdWindow-WindowCreation"/>)</para>
+
+<programlisting>class Controls cdef where
+        controlToHandles :: cdef ls ps -> GUI ps [ControlState ls ps]
+
+instance Controls c => Controls (AddLS c)
+instance Controls c => Controls (NewLS c)
+instance Controls c => Controls (ListLS c)
+instance Controls NilLS
+instance (Controls c1,Controls c2) => Controls (TupLS c1 c2)</programlisting>
+
+    <para>For every user defined control we must have instance of
+    <literal>Controls</literal> class. Controls can be combined with
+    <literal>:+:</literal> (<literal>TupLS</literal> type) and ListLS
+    constructors. With AddLS and NewLS we can extend or change the
+    local state of a given group of controls. NilLS specifies empty
+    control.</para>
+
+    <para>Controls can be dynamically added to an existing window with
+    <literal>openControls</literal> function.</para>
+
+<programlisting>openControls :: Controls cdef => Id -> ls -> cdef ls ps -> GUI ps ()</programlisting>
+
+    <sect2 id="sec-ObjectIO-StdControl-Common">
+      <title>Common</title>
+
+      <para>Control attributes</para>
+
+<programlisting>data    ControlAttribute ls ps                      -- Default:
+ -- General control attributes:
+ =      ControlActivate     (GUIFun ls ps)          -- return
+ |      ControlDeactivate   (GUIFun ls ps)          -- return
+ |      ControlFunction (GUIFun ls ps)              -- (\st->return st)
+ |      ControlHide                                 -- initially visible
+ |      ControlId       Id                          -- no id
+ |      ControlKeyboard KeyboardStateFilter SelectState (KeyboardFunction ls ps)
+                                                                                                -- no keyboard input/overruled
+ |      ControlMinimumSize  Size                    -- zero
+ |      ControlModsFunction (ModifiersFunction ls ps)
+                                                                                                        -- ControlFunction
+ |      ControlMouse        MouseStateFilter    SelectState (MouseFunction ls ps)
+                                                                                        -- no mouse input/overruled
+ |      ControlPen          [PenAttribute]          -- default pen attributes
+ |      ControlPos          ItemPos                 -- (RightTo previous,zero)
+ |      ControlResize       ControlResizeFunction   -- no resize
+ |      ControlSelectState  SelectState             -- control Able
+ |      ControlTip          String                  -- no tip
+ |      ControlWidth        ControlWidth            -- system derived
+ --     For CompoundControls only:
+ |      ControlHMargin      Int Int                 -- system dependent
+ |      ControlHScroll      ScrollFunction          -- no horizontal scrolling
+ |      ControlItemSpace    Int Int                 -- system dependent
+ |      ControlLook         Bool Look               -- control is transparant
+ |      ControlOrigin       Point2                  -- Left top of ViewDomain
+ |      ControlOuterSize    Size                    -- enclose elements
+ |      ControlViewDomain   ViewDomain              -- {zero,max range}
+ |      ControlViewSize     Size                    -- enclose elements
+ |      ControlVMargin      Int Int                 -- system dependent
+ |      ControlVScroll      ScrollFunction          -- no vertical   scrolling
+
+
+type ControlResizeFunction =
+        Size ->                                                 -- current control outer size
+        Size ->                                                 -- old     parent  view  size
+        Size ->                                                 -- new     parent  view  size
+        Size                                                    -- new     control outer size
+
+data    RowsOrColumns
+ = Rows       Int
+ | Columns    Int
+
+data    ControlWidth                                -- The width of the control:
+ =      PixelWidth   Int                            -- the exact number of pixels
+ |      TextWidth    String                         -- the exact string width in dialog font
+ |      ContentWidth String                         -- width of the control as if string is its content</programlisting>
+
+      <sect3 id = "sec-StdControl-Utils">
+        <title>Utils</title>
+
+<programlisting>
+getParentWindowId :: Id -> GUI ps (Maybe Id)
+
+controlSize :: (Controls cdef) => cdef ls ps -> Bool -> Maybe (Int,Int) -> Maybe (Int,Int) -> Maybe (Int,Int) -> GUI ps Size</programlisting>
+
+        <variablelist>
+          <varlistentry>
+            <term><literal>getParentWindowId</literal></term>
+            <listitem>
+              <para>returns id of parent window of control with
+              specified Id</para>
+            </listitem>
+          </varlistentry>
+          <varlistentry>
+            <term><literal>controlSize</literal></term>
+            <listitem>
+              <para>giving horizontal and vertical margins and item
+              spaces calculates the size of the given control.</para>
+<programlisting>theSize &lt;- controlSize (ButtonControl "Ok" []) isWindow (Just (left, right)) (Just (top, bottom)) (Just (horz,vert))</programlisting>
+            </listitem>
+          </varlistentry>
+        </variablelist>
+      </sect3>
+
+      <sect3 id = "sec-StdControl-ShowState">
+        <title>Show/Hide controls</title>
+
+<programlisting>showControls :: [Id] -> GUI ps ()
+showControl :: Id -> GUI ps ()
+
+hideControls :: [Id] -> GUI ps ()
+hideControl :: Id -> GUI ps ()
+
+setControlsShowState :: Bool -> [Id] -> GUI ps ()
+
+getControlShowStates :: [Id] -> GUI ps [(Bool,Bool)]
+getControlShowState :: Id -> GUI ps (Bool,Bool)</programlisting>
+
+        <variablelist>
+          <varlistentry>
+            <term><literal>showControls</literal>,<literal>showControl</literal></term>
+            <listitem>
+              <para>shows a given control or a set of controls</para>
+            </listitem>
+          </varlistentry>
+          <varlistentry>
+            <term><literal>hideControls</literal>,<literal>hideControl</literal></term>
+            <listitem>
+              <para>hides a given control or a set of controls</para>
+            </listitem>
+          </varlistentry>
+          <varlistentry>
+            <term><literal>setControlsShowState</literal></term>
+            <listitem>
+              <para>shows or hides a given set of controls according
+              to the given boolean parameter</para>
+            </listitem>
+          </varlistentry>
+          <varlistentry>
+            <term><literal>getControlShowStates</literal>,<literal>getControlShowState</literal></term>
+            <listitem>
+              <para>returns current show state of the given control or
+              set of controls</para>
+            </listitem>
+          </varlistentry>
+        </variablelist>
+      </sect3>
+
+      <sect3 id = "sec-StdControl-SelectState">
+        <title>Enabling/Disabling of controls</title>
+
+<programlisting>enableControls :: [Id] -> GUI ps ()
+enableControl :: Id -> GUI ps ()
+
+disableControls :: [Id] -> GUI ps ()
+disableControl :: Id -> GUI ps ()
+
+getControlSelectStates :: [Id] -> GUI ps [(Bool,SelectState)]
+getControlSelectState :: Id -> GUI ps (Bool,SelectState)</programlisting>
+
+        <variablelist>
+          <varlistentry>
+            <term><literal>enableControls</literal>,<literal>enableControl</literal></term>
+            <listitem>
+              <para>enables given control or set of controls</para>
+            </listitem>
+          </varlistentry>
+          <varlistentry>
+            <term><literal>disableControls</literal>,<literal>disableControl</literal></term>
+            <listitem>
+              <para>disables given control or set of controls</para>
+            </listitem>
+          </varlistentry>
+          <varlistentry>
+            <term><literal>getControlSelectStates</literal>,<literal>getControlSelectState</literal></term>
+            <listitem>
+              <para>returns current select state of given control or
+              set of controls</para>
+            </listitem>
+          </varlistentry>
+        </variablelist>
+      </sect3>
+
+      <sect3 id = "sec-StdControl-ControlText">
+        <title>Getting and setting text of EditControl, TextControl and ButtonControl</title>
+
+<programlisting>setControlTexts :: [(Id,String)] -> GUI ps ()
+setControlText :: Id -> String -> GUI ps ()
+
+getControlTexts :: [Id] -> GUI ps [(Bool,Maybe String)]
+getControlText :: Id -> GUI ps (Bool,Maybe String)</programlisting>
+
+        <variablelist>
+          <varlistentry>
+            <term><literal>setControlTexts</literal>, <literal>setControlText</literal></term>
+            <listitem>
+              <para>Change the text of given control or set of
+              controls.</para>
+            </listitem>
+          </varlistentry>
+          <varlistentry>
+            <term><literal>getControlTexts</literal>, <literal>getControlText</literal></term>
+            <listitem>
+              <para>returns the text of given control or set of
+              controls.</para>
+            </listitem>
+          </varlistentry>
+        </variablelist>
+      </sect3>
+
+      <sect3 id="sec-StdControl-Drawing">
+        <title>Drawing in CustomControl, CustomButtonControl and CompoundControl</title>
+
+<programlisting>drawInControl :: Id -> Draw x -> GUI ps (Maybe x)
+
+updateControl :: Id -> Maybe ViewFrame -> GUI ps ()
+
+setControlLooks :: [(Id,Bool,(Bool,Look))] -> GUI ps ()
+setControlLook :: Id -> Bool -> (Bool,Look) -> GUI ps ()
+
+getControlLooks :: [Id] -> GUI ps [(Bool,Maybe (Bool,Look))]
+getControlLook :: Id -> GUI ps (Bool,Maybe (Bool,Look))</programlisting>
+
+        <variablelist>
+          <varlistentry>
+            <term><literal>setControlLooks</literal>, <literal>setControlLook</literal></term>
+            <listitem>
+              <para>change the Look of the corresponding control or
+              set of controls but redraw only if the first boolean
+              parameter is True</para>
+            </listitem>
+          </varlistentry>
+          <varlistentry>
+            <term><literal>getControlLooks</literal>, <literal>getControlLook</literal></term>
+            <listitem>
+              <para>returns current controls look</para>
+            </listitem>
+        </varlistentry>
+        <varlistentry>
+            <term><literal>drawInControl</literal></term>
+            <listitem>
+              <para>direct draw in control</para>
+            </listitem>
+          </varlistentry>
+          <varlistentry>
+            <term><literal>updateControl</literal></term>
+            <listitem>
+              <para>update look of control</para>
+            </listitem>
+          </varlistentry>
+        </variablelist>
+
+        <para>See <xref linkend="sec-ObjectIO-StdPicture"/> for
+        details about drawing.</para>
+      </sect3>
+
+      <sect3 id = "sec-StdControl-MoveSize">
+        <title>Positioning and resizing of controls</title>
+
+<programlisting>setControlPos :: Id -> [(Id,ItemPos)] -> GUI ps Bool
+
+getControlViewSizes :: [Id] -> GUI ps [(Bool,Size)]
+getControlViewSize :: Id -> GUI ps (Bool,Size)
+
+getControlOuterSizes :: [Id] -> GUI ps [(Bool,Size)]
+getControlOuterSize :: Id -> GUI ps (Bool,Size)
+
+getControlMinimumSizes :: [Id] -> GUI ps [(Bool,Maybe Size)]
+getControlMinimumSize :: Id -> GUI ps (Bool,Maybe Size)
+
+getControlResizes :: [Id] -> GUI ps [(Bool,Maybe ControlResizeFunction)]
+getControlResize :: Id -> GUI ps (Bool,Maybe ControlResizeFunction)</programlisting>
+
+        <variablelist>
+          <varlistentry>
+            <term><literal>setControlPos</literal></term>
+            <listitem>
+              <para>repositions control to given position</para>
+            </listitem>
+          </varlistentry>
+          <varlistentry>
+            <term><literal>getControlViewSizes</literal>, <literal>getControlViewSize</literal></term>
+            <listitem>
+              <para>returns current view size</para>
+            </listitem>
+          </varlistentry>
+          <varlistentry>
+            <term><literal>getControlOuterSizes</literal>, <literal>getControlOuterSize</literal></term>
+            <listitem>
+              <para>returns current view size including the size of
+              border</para>
+            </listitem>
+          </varlistentry>
+          <varlistentry>
+            <term><literal>getControlMinimumSizes</literal>, <literal>getControlMinimumSize</literal></term>
+            <listitem>
+              <para>returns the minimal valid size when
+              resizing</para>
+            </listitem>
+          </varlistentry>
+          <varlistentry>
+            <term><literal>getControlResizes</literal>, <literal>getControlResize</literal></term>
+            <listitem>
+              <para>returns the control resizing function. When the
+              parent window of a given control is resized, then the
+              control can be resized if it has a resize
+              function.</para>
+            </listitem>
+          </varlistentry>
+        </variablelist>
+      </sect3>
+    </sect2>
+
+    <sect2 id="sec-ObjectIO-StdControl-Button">
+      <title>ButtonControl</title>
+
+      <para>Data definition</para>
+
+<programlisting>data    ButtonControl ls ps
+ =      ButtonControl String                                                    [ControlAttribute ls ps]</programlisting>
+
+      <para><xref linkend="sec-StdControl-ControlText"/> describes how
+      to get or set the caption of a button</para>
+    </sect2>
+
+    <sect2 id="sec-ObjectIO-StdControl-Check">
+      <title>CheckControl</title>
+
+      <para>Data definition</para>
+
+<programlisting>data    CheckControl  ls ps
+  =     CheckControl  [CheckControlItem ps (ls,ps)]  RowsOrColumns              [ControlAttribute ls ps]
+
+type    CheckControlItem ps st = (String, Maybe ControlWidth, MarkState, st -> GUI ps st)</programlisting>
+
+      <para>Access functions:</para>
+
+<programlisting>setControlsMarkState :: MarkState -> Id -> [Index] -> GUI ps ()
+markCheckControlItems :: Id -> [Index] -> GUI ps ()
+unmarkCheckControlItems :: Id -> [Index] -> GUI ps ()
+
+getCheckControlItems :: [Id] -> GUI ps [(Bool,Maybe [String])]
+getCheckControlItem :: Id -> GUI ps (Bool,Maybe [String])
+
+getCheckControlSelections :: [Id] -> GUI ps [(Bool,Maybe [Index])]
+getCheckControlSelection :: Id -> GUI ps (Bool,Maybe [Index])</programlisting>
+
+      <variablelist>
+        <varlistentry>
+          <term><literal>setControlsMarkState</literal></term>
+          <listitem>
+            <para>This function is used for marking/unmarking of the
+            check control according to the MarkState value.</para>
+          </listitem>
+        </varlistentry>
+        <varlistentry>
+          <term><literal>markCheckControlItems</literal></term>
+          <listitem>
+            <para>This function is used for marking of check controls.
+<programlisting>markCheckControlItems = setControlsMarkState Mark</programlisting></para>
+          </listitem>
+        </varlistentry>
+        <varlistentry>
+          <term><literal>unmarkCheckControlItems</literal></term>
+          <listitem>
+            <para>This function is used for unmarking of check controls.
+<programlisting>unmarkCheckControlItems = setControlsMarkState Unmark</programlisting></para>
+          </listitem>
+        </varlistentry>
+        <varlistentry>
+          <term><literal>getCheckControlItems</literal>, <literal>getCheckControlItem</literal></term>
+          <listitem>
+            <para>returns the list of items for a given control or set of controls</para>
+          </listitem>
+        </varlistentry>
+        <varlistentry>
+          <term><literal>getCheckControlSelections</literal>, <literal>getCheckControlSelection</literal></term>
+          <listitem>
+            <para>returns a the list of indexes for selected items</para>
+          </listitem>
+        </varlistentry>
+      </variablelist>
+    </sect2>
+
+    <sect2 id="sec-ObjectIO-StdControl-Compound">
+      <title>CompoundControl</title>
+
+      <para>The compound control is a control that contains other
+      controls. It introduces a new layout scope like LayoutControl
+      (see <xref linkend="sec-ObjectIO-StdControl-Layout"/>) but it
+      provides programmers with a lot more functionality. Just like
+      the windows, the compound controls have a view domain and can
+      have its own Look function. If we add ControlHScroll or
+      ControlVScroll then the control will be decorated with scroll
+      bars.</para>
+
+      <para>Data definition</para>
+
+<programlisting>data    CompoundControl c ls ps
+ =      CompoundControl (c ls ps)                                               [ControlAttribute ls ps]</programlisting>
+
+<para>Access functions:</para>
+
+<programlisting>getControlViewFrame :: Id -> GUI ps (Bool,Maybe ViewFrame)
+getControlViewFrames :: [Id] -> GUI ps [(Bool,Maybe ViewFrame)]
+
+moveControlViewFrame :: Id -> Vector2 -> GUI ps ()
+
+setControlViewDomain :: Id -> ViewDomain -> GUI ps ()
+
+getControlViewDomain :: Id -> GUI ps (Bool,Maybe ViewDomain)
+getControlViewDomains :: [Id] -> GUI ps [(Bool,Maybe ViewDomain)]
+
+setControlScrollFunction :: Id -> Direction -> ScrollFunction -> GUI ps ()
+
+getControlScrollFunction ::   Id  -> GUI ps  (Bool,Maybe ((Direction,Maybe ScrollFunction),(Direction,Maybe ScrollFunction)))
+getControlScrollFunctions :: [Id] -> GUI ps [(Bool,Maybe ((Direction,Maybe ScrollFunction),(Direction,Maybe ScrollFunction)))]
+
+openCompoundControls :: Controls cdef => Id -> ls -> cdef ls ps -> GUI ps ()</programlisting>
+
+      <variablelist>
+        <varlistentry>
+          <term><literal>getControlViewFrames</literal>, <literal>getControlViewFrame</literal></term>
+          <listitem>
+            <para><literal>ViewFrame</literal> is the current visible
+            <literal>Rectangle</literal> of CompoundControl.  When
+            there are horizontal and vertical scroll bars then the
+            changing of the scroller thumb will change the
+            ViewFrame.</para>
+          </listitem>
+        </varlistentry>
+        <varlistentry>
+          <term><literal>moveControlViewFrame :: Id -> Vector2 -> GUI ps ()</literal></term>
+          <listitem>
+            <para>moves the <literal>ViewFrame</literal> of the
+            CompoundControl in the direction of the given
+            vector.</para>
+          </listitem>
+        </varlistentry>
+        <varlistentry>
+          <term><literal>getControlViewDomains</literal>, <literal>getControlViewDomain</literal></term>
+          <listitem>
+            <para><literal>ViewDomain</literal> is the
+            <literal>Rectangle</literal>, which specifies the logical
+            drawing area of the CompoundControl.</para>
+          </listitem>
+        </varlistentry>
+        <varlistentry>
+          <term><literal>setControlViewDomain :: Id -> ViewDomain -> GUI ps ()</literal></term>
+          <listitem>
+            <para>sets a new view domain of the CompoundControl.</para>
+          </listitem>
+        </varlistentry>
+        <varlistentry>
+          <term><literal>setControlScrollFunction :: Id -> Direction -> ScrollFunction -> GUI ps ()</literal></term>
+          <listitem>
+            <para>sets a new scroll function of the
+            CompoundControl.</para>
+          </listitem>
+        </varlistentry>
+        <varlistentry>
+          <term><literal>getControlScrollFunction</literal>, <literal>getControlScrollFunctions</literal></term>
+          <listitem>
+            <para>getControlScrollFunction(s) yields the
+            ScrollFunctions of the indicated CompoundControl.  If the
+            given control is not a CompoundControl, then Nothing is
+            returned.</para>
+          </listitem>
+        </varlistentry>
+        <varlistentry>
+          <term><literal>openCompoundControls :: Controls cdef => Id -> ls -> cdef ls ps -> GUI ps ()</literal></term>
+          <listitem>
+            <para><function>openCompoundControls</function> adds
+            controls to the indicated CompoundControl.</para>
+          </listitem>
+        </varlistentry>
+      </variablelist>
+
+      <para><xref linkend="sec-StdControl-Drawing"/> describes how to
+      draw inside the CompoundControl</para>
+    </sect2>
+
+    <sect2 id="sec-ObjectIO-StdControl-CustomButton">
+      <title>CustomButtonControl</title>
+
+      <para><literal>CustomButtonControl</literal> is like the
+      ButtonControl but has its own Look and doesn't accept the
+      ControlTitle attribute</para>
+
+<programlisting>data    CustomButtonControl ls ps
+ =      CustomButtonControl Size Look [ControlAttribute ls ps]</programlisting>
+
+      <para><xref linkend="sec-StdControl-Drawing"/> describes how to
+      draw inside the CustomButtonControl</para>
+    </sect2>
+
+    <sect2 id="sec-ObjectIO-StdControl-Custom">
+      <title>CustomControl</title>
+
+      <para><literal>CustomControl</literal> allows the programmer to
+      design his/her own controls.</para>
+
+<programlisting>data    CustomControl       ls ps
+ =      CustomControl Size Look [ControlAttribute ls ps]</programlisting>
+
+      <para><xref linkend="sec-StdControl-Drawing"/> describes how to
+      draw inside the CustomControl</para>
+    </sect2>
+
+    <sect2 id="sec-ObjectIO-StdControl-Edit">
+      <title>EditControl</title>
+
+      <para>Data definition</para>
+
+<programlisting>data EditControl   ls ps
+  =      EditControl   String ControlWidth NrLines [ControlAttribute ls ps]
+
+type NrLines = Int</programlisting>
+
+      <para>Access functions</para>
+
+<programlisting>setEditControlCursor :: Id -> Int -> GUI ps ()
+
+getControlNrLines :: [Id] -> GUI ps [(Bool,Maybe NrLines)]
+getControlNrLine :: Id -> GUI ps (Bool,Maybe NrLines)</programlisting>
+
+      <variablelist>
+        <varlistentry>
+          <term><literal>setEditControlCursor</literal></term>
+          <listitem>
+            <para>sets the cursor position</para>
+          </listitem>
+        </varlistentry>
+        <varlistentry>
+          <term><literal>getControlsNrLines</literal>, <literal>getControlNrLines</literal></term>
+          <listitem>
+            <para>returns the number of lines that can be seen (on the
+            screen at the moment) for a given control</para>
+          </listitem>
+        </varlistentry>
+      </variablelist>
+
+      <para><xref linkend="sec-StdControl-ControlText"/> describes how
+      to get or set the text of an edit control</para>
+    </sect2>
+
+    <sect2 id="sec-ObjectIO-StdControl-Layout">
+      <title>LayoutControl</title>
+
+      <para>The layout control is a control that contains other
+      controls. It introduces a new layout scope: i.e. the controls
+      inside it are positioned in relation to the bounds of the layout
+      control.</para>
+
+<programlisting>data    LayoutControl     c ls ps
+ =      LayoutControl     (c ls ps)                                             [ControlAttribute ls ps]</programlisting>
+    </sect2>
+
+    <sect2 id="sec-ObjectIO-StdControl-PopUp">
+      <title>PopUpControl</title>
+
+      <para>Data definition</para>
+
+<programlisting>data    PopUpControl    ls ps
+  =     PopUpControl    [PopUpControlItem ps (ls,ps)] Index                     [ControlAttribute ls ps]
+type    PopUpControlItem ps st = (String,                                st -> GUI ps st)</programlisting>
+
+      <para>Access functions</para>
+
+<programlisting>openPopUpControlItems :: Id -> Index -> [PopUpControlItem ps ps] -> GUI ps ()
+
+closePopUpControlItems :: Id -> [Index] -> GUI ps ()
+
+selectPopUpControlItem :: Id -> Index -> GUI ps ()
+
+getPopUpControlItems :: [Id] -> GUI ps [(Bool,Maybe [String])]
+getPopUpControlItem :: Id -> GUI ps (Bool,Maybe [String])
+
+getPopUpControlSelections :: [Id] -> GUI ps [(Bool,Maybe Index)]
+getPopUpControlSelection :: Id -> GUI ps (Bool,Maybe Index)</programlisting>
+
+      <variablelist>
+        <varlistentry>
+          <term><literal>openPopUpControlItems</literal></term>
+          <listitem>
+            <para><function>openPopUpControlItems</function> adds
+            items to the PopUpControl.</para>
+          </listitem>
+        </varlistentry>
+        <varlistentry>
+          <term><literal>closePopUpControlItems</literal></term>
+          <listitem>
+            <para>deletes a string in the list box of a popup
+            control.</para>
+          </listitem>
+        </varlistentry>
+        <varlistentry>
+          <term><literal>selectPopUpControlItem</literal></term>
+          <listitem>
+            <para>selects a string in the list box of a popup
+            control. If necessary, the list box scrolls the string
+            into view (if the list box is visible). Any previous
+            selection in the control is removed.</para>
+          </listitem>
+        </varlistentry>
+        <varlistentry>
+          <term><literal>getPopUpControlsItems</literal>, <literal>getPopUpControlItems</literal></term>
+          <listitem>
+            <para>returns a list of control items</para>
+          </listitem>
+        </varlistentry>
+        <varlistentry>
+          <term><literal>getPopUpControlsSelection</literal>, <literal>getPopUpControlSelection</literal></term>
+          <listitem>
+            <para>Call this function to determine which item in the
+            popup control is selected. It returns an index into the
+            list.</para>
+          </listitem>
+        </varlistentry>
+      </variablelist>
+    </sect2>
+
+    <sect2 id="sec-ObjectIO-StdControl-Radio">
+      <title>RadioControl</title>
+
+      <para>Data definition</para>
+
+<programlisting>data    RadioControl    ls ps
+  =     RadioControl    [RadioControlItem ps (ls,ps)] RowsOrColumns Index       [ControlAttribute ls ps]
+
+type    RadioControlItem ps st = (String, Maybe ControlWidth,            st -> GUI ps st)</programlisting>
+
+      <para>Access functions</para>
+
+<programlisting>selectRadioControlItem :: Id -> Index -> GUI ps ()
+
+getRadioControlSelections :: [Id] -> GUI ps [(Bool,Maybe Index)]
+getRadioControlSelection :: Id -> GUI ps (Bool,Maybe Index)
+
+getRadioControlItems :: [Id] -> GUI ps [(Bool,Maybe [String])]
+getRadioControlItem :: Id -> GUI ps (Bool,Maybe [String])</programlisting>
+
+      <variablelist>
+        <varlistentry>
+          <term><literal>selectRadioControlItem</literal></term>
+          <listitem>
+            <para>sets a current selection of a radio control</para>
+          </listitem>
+        </varlistentry>
+        <varlistentry>
+          <term><literal>getRadioControlSelections</literal>, <literal>getRadioControlSelection</literal></term>
+          <listitem>
+            <para>returns the current control selection</para>
+          </listitem>
+        </varlistentry>
+        <varlistentry>
+          <term><literal>getRadioControlItems</literal>, <literal>getRadioControlItem</literal></term>
+          <listitem>
+            <para>returns the list of control items</para>
+          </listitem>
+        </varlistentry>
+      </variablelist>
+    </sect2>
+
+    <sect2 id="sec-ObjectIO-StdControl-Slider">
+      <title>SliderControl</title>
+
+      <para>Data definition</para>
+
+<programlisting>data    SliderControl   ls ps
+ =      SliderControl   Direction ControlWidth SliderState  (SliderAction  ls ps) [ControlAttribute ls ps]</programlisting>
+
+<para>Access functions</para>
+
+<programlisting>setSliderStates :: [(Id,IdFun SliderState)] -> GUI ps ()
+setSliderState :: Id -> IdFun SliderState -> GUI ps ()
+
+setSliderThumbs :: [(Id,Int)] -> GUI ps ()
+setSliderThumb :: Id -> Int -> GUI ps ()
+
+getSliderStates :: [Id] -> GUI ps [(Bool,Maybe SliderState)]
+getSliderState :: Id -> GUI ps (Bool,Maybe SliderState)
+
+getSliderDirections :: [Id] -> GUI ps [(Bool,Maybe Direction)]
+getSliderDirection :: Id -> GUI ps (Bool,Maybe Direction)</programlisting>
+
+      <variablelist>
+        <varlistentry>
+          <term><literal>setSliderStates</literal>, <literal>setSliderState</literal></term>
+          <listitem>
+            <para>changes the SliderState and redraws the settings of
+            the SliderControls.</para>
+          </listitem>
+        </varlistentry>
+        <varlistentry>
+          <term><literal>setSliderThumbs</literal>, <literal>setSliderThumb</literal></term>
+          <listitem>
+            <para>changes the thumb values of the SliderState of
+            SliderControl or a set of controls.</para>
+          </listitem>
+        </varlistentry>
+        <varlistentry>
+          <term><literal>getSliderStates</literal>, <literal>getSliderState</literal></term>
+          <listitem>
+            <para>gets a current SliderState.</para>
+          </listitem>
+        </varlistentry>
+        <varlistentry>
+          <term><literal>getSliderDirections</literal>, <literal>getSliderDirection</literal></term>
+          <listitem>
+            <para>gets the slider direction i. e. Horizontal or
+            Vertical.</para>
+          </listitem>
+        </varlistentry>
+      </variablelist>
+    </sect2>
+
+    <sect2 id="sec-ObjectIO-StdControl-Text">
+      <title>TextControl</title>
+
+      <para>This is a simple control that just displays its caption.
+      In <xref linkend="sec-StdControl-ControlText"/> is described how
+      to change the caption.</para>
+
+<programlisting>data    TextControl   ls ps
+ =      TextControl   String                                                    [ControlAttribute ls ps]</programlisting>
+    </sect2>
+
+
+    <sect2 id="sec-Object-StdControl-ControlClose">
+      <title>Controls closing</title>
+
+<programlisting>closeControls :: Id -> [Id] -> Bool -> GUI ps ()
+
+closeAllControls :: Id -> GUI ps ()</programlisting>
+
+      <variablelist>
+        <varlistentry>
+          <term><literal>closeControls</literal></term>
+          <listitem>
+            <para>closes the specified controls in the indicated
+            window.</para>
+          </listitem>
+        </varlistentry>
+        <varlistentry>
+          <term><literal>closeAllControls</literal></term>
+          <listitem>
+            <para>closes all controls in the indicated window.</para>
+          </listitem>
+        </varlistentry>
+      </variablelist>
+    </sect2>
+  </sect1>
+
+  <sect1 id="sec-ObjectIO-StdKey">
+    <title>StdKey</title>
+    <indexterm><primary>StdKey</primary></indexterm>
+
+    <para>Keyboard event handlers receive KeyboardState (see <xref
+    linkend="sec-ObjectIO-StdIOCommon"/> for definition) as a
+    parameter. When the special key (like F1, F2, PgUp, PgDn and
+    other) is pressed, then the KeyboardState contains a value of
+    <literal>SpecialKey</literal> type. Here is a list of all
+    predefined values:</para>
+
+<programlisting>backSpaceKey, beginKey, clearKey, deleteKey, downKey, endKey, enterKey,
+escapeKey, f1Key, f2Key, f3Key, f4Key, f5Key, f6Key, f7Key, f8Key,
+f9Key, f10Key, f11Key, f12Key, f13Key, f14Key, f15Key, helpKey,
+leftKey, pgDownKey, pgUpKey, rightKey, upKey :: SpecialKey</programlisting>
+  </sect1>
+
+  <sect1 id="sec-ObjectIO-StdPicture">
+    <title>StdPicture</title>
+    <indexterm><primary>Pictures</primary></indexterm>
+
+    <para>While drawing we need the current state called
+    <literal>Picture</literal> state.  The functions that are used for
+    drawing need a <literal>Picture</literal> state as an argument and
+    return the new updated state.  The Draw monad is defined so that
+    it would be easier for the user to write the functions.  The Draw
+    monad is in fact an IO monad, but it also takes care of the
+    management of the <literal>Picture</literal> state.  The
+    definition of Draw is abstract</para>
+
+<programlisting>newtype Draw
+
+instance Monad Draw
+instance Functor Draw
+instance IOMonad Draw</programlisting>
+
+    <para>See <xref linkend="sec-ObjectIO-StdIOCommon"/> for
+    definition of IOMonad class.</para>
+
+    <para>There are some basic objects related to the drawing:</para>
+
+    <sect2 id="sec-ObjectIO-StdPicture-Pen">
+      <title>Pen</title>
+
+<programlisting>data    PenAttribute                                    -- Default:
+        = PenSize       Int                             -- 1
+        | PenPos        Point2                          -- zero
+        | PenColour     Colour                          -- Black
+        | PenBack       Colour                          -- White
+        | PenFont       Font                            -- defaultFont
+
+setPenAttributes :: [PenAttribute] -> Draw ()
+getPenAttributes :: Draw [PenAttribute]
+
+setPenPos :: Point2 -> Draw ()
+getPenPos :: Draw Point2
+
+class MovePen f where
+        movePenPos :: f -> Draw ()
+
+instance MovePen Vector2
+instance MovePen Curve
+
+setPenSize :: Int -> Draw ()
+getPenSize :: Draw Int
+setDefaultPenSize :: Draw ()
+
+setPenColour :: Colour -> Draw ()
+getPenColour :: Draw Colour
+setDefaultPenColour :: Draw ()
+
+setPenBack :: Colour -> Draw ()
+getPenBack :: Draw Colour
+setDefaultPenBack :: Draw ()
+
+setPenFont :: Font -> Draw ()
+getPenFont :: Draw Font
+setDefaultPenFont :: Draw ()</programlisting>
+
+      <variablelist>
+        <varlistentry>
+          <term><literal>setPenPos</literal></term>
+          <listitem>
+            <para>corresponds to the PenPos attribute. The function
+            moves the pen to the given position.</para>
+          </listitem>
+        </varlistentry>
+        <varlistentry>
+          <term><literal>getPenPos</literal></term>
+          <listitem>
+            <para>corresponds to the PenPos attribute. The function
+            returns the current pen position.</para>
+          </listitem>
+        </varlistentry>
+        <varlistentry>
+          <term><literal>class MovePen</literal></term>
+          <listitem>
+            <para>With this class the pen position can be moved in the
+            direction of any linear graphical object.  There is
+            instances:</para>
+
+<programlisting>instance MovePen Vector2
+instance MovePen Oval</programlisting>
+
+            <para>where Oval is defined in <xref
+            linkend="sec-ObjectIO-StdPicture-Drawables"/>.</para>
+          </listitem>
+        </varlistentry>
+        <varlistentry>
+          <term><literal>setPenSize</literal></term>
+          <listitem>
+            <para>corresponds to the PenSize attribute. The function
+            sets the new pen size.</para>
+          </listitem>
+        </varlistentry>
+        <varlistentry>
+          <term><literal>getPenSize</literal></term>
+          <listitem>
+            <para>corresponds to the PenSize attribute. The function
+            returns the current pen size.</para>
+          </listitem>
+        </varlistentry>
+        <varlistentry>
+          <term><literal>setDefaultPenSize</literal></term>
+          <listitem>
+            <para>corresponds to the PenSize attribute. The function
+            sets the pen size to 1.</para>
+          </listitem>
+        </varlistentry>
+        <varlistentry>
+          <term><literal>setPenColour</literal></term>
+          <listitem>
+            <para>corresponds to the PenColour attribute. The function
+            sets the new pen colour.</para>
+                </listitem>
+        </varlistentry>
+        <varlistentry>
+          <term><literal>getPenColour</literal></term>
+          <listitem>
+            <para>corresponds to the PenColour attribute. The function
+            returns the current pen colour.</para>
+          </listitem>
+        </varlistentry>
+        <varlistentry>
+          <term><literal>setDefaultPenColour</literal></term>
+          <listitem>
+            <para>corresponds to the PenColour attribute. The function
+            sets the pen colour to Black.</para>
+          </listitem>
+        </varlistentry>
+        <varlistentry>
+          <term><literal>setPenBack</literal></term>
+          <listitem>
+            <para>corresponds to the PenBack attribute. The function
+            sets the new pen background colour.</para>
+          </listitem>
+        </varlistentry>
+        <varlistentry>
+          <term><literal>getPenBack</literal></term>
+          <listitem>
+            <para>corresponds to the PenBack attribute. The function
+            returns the current pen background colour.</para>
+          </listitem>
+        </varlistentry>
+        <varlistentry>
+          <term><literal>setDefaultPenBack</literal></term>
+          <listitem>
+            <para>corresponds to the PenBack attribute. The function
+            sets the pen background colour to White.</para>
+          </listitem>
+        </varlistentry>
+        <varlistentry>
+          <term><literal>setPenFont</literal></term>
+                <listitem>
+            <para>corresponds to the PenFont attribute. The function
+            sets the new pen font.</para>
+          </listitem>
+        </varlistentry>
+        <varlistentry>
+          <term><literal>getPenFont</literal></term>
+          <listitem>
+            <para>corresponds to the PenFont attribute. The function
+            returns the current pen font.</para>
+          </listitem>
+        </varlistentry>
+        <varlistentry>
+          <term><literal>setDefaultPenFont</literal></term>
+          <listitem>
+            <para>corresponds to the PenFont attribute. The function
+            sets the pen font to the system dependent default
+            font.</para>
+          </listitem>
+        </varlistentry>
+        <varlistentry>
+          <term><literal>setPenAttributes</literal></term>
+          <listitem>
+            <para>setups the pen attributes by a list of
+            values.</para>
+          </listitem>
+        </varlistentry>
+        <varlistentry>
+          <term><literal>getPenAttributes</literal></term>
+          <listitem>
+            <para>returns the current pen attributes as a list of
+            values.</para>
+          </listitem>
+        </varlistentry>
+      </variablelist>
+
+    </sect2>
+
+    <sect2 id="sec-ObjectIO-StdPicture-Font">
+      <title>Font</title>
+
+<programlisting>data Font -- abstract
+
+data    FontDef
+        = FontDef
+                { fName           :: !FontName          -- Name of the font
+                , fStyles         :: ![FontStyle]       -- Stylistic variations
+                , fSize           :: !FontSize          -- Size in points
+                }
+
+type    FontName  = String
+type    FontStyle = String
+type    FontSize  = Int
+
+data    FontMetrics
+        = FontMetrics
+                { fAscent         :: !Int               -- Distance between top    and base line
+                , fDescent        :: !Int               -- Distance between bottom and base line
+                , fLeading        :: !Int               -- Distance between two text lines
+                , fMaxWidth       :: !Int               -- Max character width including spacing
+                }
+
+openFont :: FontDef -> Draw (Maybe Font)
+openDefaultFont :: Draw Font
+openDialogFont :: Draw Font
+
+getFontNames :: Draw [FontName]
+
+getFontStyles :: FontName -> Draw [FontStyle]
+
+getFontSizes :: Int -> Int -> FontName -> Draw [FontSize]
+
+getFontDef :: Font -> FontDef
+
+getFontCharWidth :: Font -> Char -> Draw Int
+getFontCharWidths :: Font -> [Char] -> Draw [Int]
+getFontStringWidth :: Font -> String -> Draw Int
+getFontStringWidths :: Font -> [String] -> Draw [Int]
+getFontMetrics :: Font -> Draw FontMetrics
+
+getPenFontCharWidth :: Char -> Draw Int
+getPenFontCharWidths :: [Char] -> Draw [Int]
+getPenFontStringWidth :: String -> Draw Int
+getPenFontStringWidths :: [String] -> Draw [Int]
+getPenFontMetrics :: Draw FontMetrics</programlisting>
+
+      <variablelist>
+        <varlistentry>
+          <term><literal>openFont</literal></term>
+          <listitem>
+            <para>creates a font with name, size and styles defined in
+            the <literal>FontDef</literal> parameter.</para>
+          </listitem>
+        </varlistentry>
+        <varlistentry>
+          <term><literal>openDefaultFont</literal></term>
+          <listitem>
+            <para>creates the system dependent default font.</para>
+          </listitem>
+        </varlistentry>
+        <varlistentry>
+          <term><literal>openDialogFont</literal></term>
+          <listitem>
+            <para>creates a font with the same parameters that are
+            used for the system font for dialogs.</para>
+          </listitem>
+        </varlistentry>
+        <varlistentry>
+          <term><literal>getFontNames</literal></term>
+          <listitem>
+            <para>returns a list of names for all existing
+            fonts.</para>
+          </listitem>
+        </varlistentry>
+        <varlistentry>
+          <term><literal>getFontStyles</literal></term>
+          <listitem>
+            <para>returns a list of all existing styles for a given
+            font.</para>
+          </listitem>
+        </varlistentry>
+        <varlistentry>
+          <term><literal>getFontSizes sizeBound1 sizeBound2</literal></term>
+          <listitem>
+            <para>returns a list of all existing sizes between
+            sizeBound1 and sizeBound2 for a given font.</para>
+          </listitem>
+        </varlistentry>
+        <varlistentry>
+          <term><literal>getFontDef</literal></term>
+          <listitem>
+            <para>extracts the font definition from a given
+            font.</para>
+          </listitem>
+        </varlistentry>
+        <varlistentry>
+          <term><literal>getFontCharWidth</literal>, <literal>getFontCharWidths</literal></term>
+          <listitem>
+            <para>calculates the single char width(s) for a given
+            font</para>
+          </listitem>
+        </varlistentry>
+        <varlistentry>
+          <term><literal>getFontStringWidth</literal>, <literal>getFontStringWidths</literal></term>
+          <listitem>
+            <para>calculates the string width(s) for a given
+            font</para>
+          </listitem>
+        </varlistentry>
+        <varlistentry>
+                <term><literal>getFontMetrics</literal></term>
+          <listitem>
+            <para>returns FontMetrics data for a given font</para>
+          </listitem>
+        </varlistentry>
+        <varlistentry>
+          <term><literal>getPenFontCharWidth</literal>, <literal>getPenFontCharWidths</literal></term>
+          <listitem>
+            <para>calculates the single char width(s) for the active
+            font</para>
+          </listitem>
+        </varlistentry>
+        <varlistentry>
+          <term><literal>getPenFontStringWidth</literal>, <literal>getPenFontStringWidths</literal></term>
+          <listitem>
+            <para>calculates the string width(s) for the active
+            font</para>
+          </listitem>
+        </varlistentry>
+        <varlistentry>
+          <term><literal>getPenFontMetrics</literal></term>
+          <listitem>
+            <para>returns FontMetrics data for the active font</para>
+          </listitem>
+        </varlistentry>
+      </variablelist>
+    </sect2>
+
+    <sect2 id="sec-ObjectIO-StdPicture-Drawables">
+      <title>Drawables,Fillables and Hilites</title>
+
+      <para>Basic graphical objects such as line,circle and point are
+      defined in the system. The user can define his/her own shape
+      types.  There are three classes which allow user to define the
+      graphical view of his/her shapes.</para>
+
+<programlisting>class Drawables figure where
+        draw    :: figure -> Draw ()
+        drawAt  :: Point2 -> figure -> Draw ()
+        undraw  :: figure -> Draw ()
+        undrawAt:: Point2 -> figure -> Draw ()
+
+class Fillables figure where
+        fill    :: figure -> Draw ()
+        fillAt  :: Point2 -> figure -> Draw ()
+        unfill  :: figure -> Draw ()
+        unfillAt:: Point2 -> figure -> Draw ()
+
+class Hilites figure where
+        hilite  :: figure -> Draw ()
+        hiliteAt:: Point2 -> figure -> Draw ()</programlisting>
+
+      <para>This is a list of all built-in shapes.</para>
+
+<programlisting>data    Line2                                           -- A line connects two points
+        = Line2
+                { line_end1       :: !Point2            -- The first  point
+                , line_end2       :: !Point2            -- The second point
+                }
+data    Oval                                            -- An oval is a stretched unit circle
+        = Oval
+                { oval_rx         :: !Int               -- The horizontal radius (stretch)
+                , oval_ry         :: !Int               -- The vertical   radius (stretch)
+                }
+data    Curve                                           -- A curve is a slice of an oval
+        = Curve
+                { curve_oval      :: !Oval              -- The source oval
+                , curve_from      :: !Float             -- Starting angle (in radians)
+                , curve_to        :: !Float             -- Ending   angle (in radians)
+                , curve_clockwise :: !Bool              -- Direction: True iff clockwise
+                }
+data    Box                                             -- A box is a rectangle
+        = Box
+                { box_w           :: !Int               -- The width  of the box
+                , box_h           :: !Int               -- The height of the box
+                }
+data    Polygon                                         -- A polygon is an outline shape
+        = Polygon
+                { polygon_shape   :: ![Vector2]         -- The shape of the polygon
+                }</programlisting>
+
+      <para>Instances for Drawables:</para>
+
+<programlisting>instance Drawables Char
+instance Drawables String
+instance Drawables Vector2
+instance Drawables Rectangle
+instance Drawables Line2
+instance Drawables Oval
+instance Drawables Curve
+instance Drawables Box
+instance Drawables Polygon</programlisting>
+
+      <para>Instances for Fillables:</para>
+
+<programlisting>instance Fillables Rectangle
+instance Fillables Oval
+instance Fillables Curve
+instance Fillables Box
+instance Fillables Polygon</programlisting>
+
+      <para>Instances for Hilites:</para>
+
+<programlisting>instance Hilites Box where
+instance Hilites Rectangle where</programlisting>
+
+    </sect2>
+
+  </sect1>
+
+  <sect1 id="sec-ObjectIO-StdBitmap">
+    <title>StdBitmap</title>
+    <indexterm><primary>Bitmaps</primary></indexterm>
+
+<programlisting>data Bitmap     -- abstract
+
+openBitmap :: FilePath -> IO (Maybe Bitmap)
+disposeBitmap :: Bitmap -> IO ()
+
+getBitmapSize :: Bitmap -> Size
+resizeBitmap :: Size -> Bitmap -> Bitmap
+
+instance Drawables Bitmap</programlisting>
+
+    <variablelist>
+      <varlistentry>
+        <term><literal>openBitmap</literal></term>
+        <listitem>
+          <para>creates a bitmap from the given file name.</para>
+        </listitem>
+      </varlistentry>
+      <varlistentry>
+        <term><literal>disposeBitmap</literal></term>
+        <listitem>
+          <para><emphasis>Warning:</emphasis>Allways dispose of the
+          bitmap when it is no longer needed.</para>
+        </listitem>
+      </varlistentry>
+        <varlistentry>
+        <term><literal>getBitmapSize</literal></term>
+        <listitem>
+          <para>returns the current bitmap size.</para>
+        </listitem>
+      </varlistentry>
+      <varlistentry>
+        <term><literal>resizeBitmap</literal></term>
+        <listitem>
+          <para>resizes the bitmap. The resizing of the bitmap affects
+          only the data that is in the memory. The visual effect will
+          appear when the bitmap is displayed.</para>
+        </listitem>
+      </varlistentry>
+    </variablelist>
+
+  </sect1>
+
+  <sect1 id="sec-ObjectIO-StdProcess">
+    <title>StdProcess</title>
+    <indexterm><primary>Processes</primary></indexterm>
+
+    <para>In Object I/O there are multiple interactive processes. Each
+    process has its main window and works independently from the other
+    processes.</para>
+
+    <para><emphasis>Note:</emphasis> The interactive process isn't a
+    thread. The multiple processes just denote multiple main
+    windows.</para>
+
+    <para>The behaviour of the process is determined by document
+    interface (see <xref linkend="sec-ObjectIO-StdIOCommon"/> for
+    definition of DocumentInterface type):</para>
+
+    <itemizedlist>
+      <listitem>
+        <para>SDI process can have just one window</para>
+      </listitem>
+      <listitem>
+        <para>MDI process has one main window with multiple child windows</para>
+      </listitem>
+        <listitem>
+        <para>NDI process can't have windows. It can work only with dialogs</para>
+      </listitem>
+    </itemizedlist>
+
+    <para>The process is defined as type:</para>
+
+<programlisting>data Process
+        = forall ps . Process
+                        DocumentInterface       -- The process document interface
+                        ps                      -- The process private state
+                        (ProcessInit ps)        -- The process initialisation
+                        [ProcessAttribute ps]   -- The process attributes
+type    ProcessInit ps
+        = GUI2Fun ps
+
+data    ProcessAttribute ps                  -- Default:
+    = ProcessActivate   (GUI2Fun ps)        -- No action on activate
+    | ProcessDeactivate (GUI2Fun ps)        -- No action on deactivate
+    | ProcessClose      (GUI2Fun ps)        -- Process is closed
+--  Attributes for (M/S)DI process only:
+    | ProcessOpenFiles  (ProcessOpenFilesFunction ps)    -- Request to open files
+    | ProcessWindowPos  ItemPos              -- Platform dependent
+    | ProcessWindowSize Size                 -- Platform dependent
+    | ProcessWindowResize   (ProcessWindowResizeFunction ps) -- Platform dependent
+    | ProcessToolbar    [ToolbarItem ps]         -- Process has no toolbar
+ -- Attributes for MDI processes only:
+    | ProcessNoWindowMenu                    -- Process has WindowMenu
+
+type    ProcessWindowResizeFunction ps
+     =  Size                        -- Old ProcessWindow size
+     -> Size                        -- New ProcessWindow size
+     -> GUI2Fun ps
+
+type    ProcessOpenFilesFunction ps
+     =  [String]                    -- The file names to open
+     -> GUI2Fun ps
+
+data    ToolbarItem ps
+    = ToolbarItem Bitmap (Maybe String) (ps -> GUI ps ps)
+    | ToolbarSeparator
+
+class Processes pdef where
+        startProcesses :: pdef -> IO ()
+        openProcesses  :: pdef -> GUI ps ()
+
+instance Processes Process
+instance Processes pdef => Processes [pdef]
+
+startIO :: DocumentInterface -> ps -> ProcessInit ps -> [ProcessAttribute ps] -> IO ()
+
+closeProcess :: GUI2Fun ps
+
+getProcessWindowPos :: GUI ps Point2
+getProcessWindowSize :: GUI ps Size</programlisting>
+
+    <para>Process attributes</para>
+
+    <variablelist>
+      <varlistentry>
+        <term><literal>ProcessActivate</literal></term>
+        <listitem>
+          <para>describes a callback function, which will be called
+          each time the process is activated.</para>
+        </listitem>
+      </varlistentry>
+      <varlistentry>
+        <term><literal>ProcessDeactivate</literal></term>
+        <listitem>
+          <para>describes a callback function, which will be called
+          each time the process is deactivated.</para>
+        </listitem>
+      </varlistentry>
+      <varlistentry>
+        <term><literal>ProcessClose</literal></term>
+        <listitem>
+          <para>describes a callback function, which will be called
+          before the process is closed.</para>
+        </listitem>
+      </varlistentry>
+      <varlistentry>
+        <term><literal>ProcessOpenFiles</literal></term>
+        <listitem>
+          <para>describes a callback function, which will be called
+          when the user drags files from the Windows Explorer and
+          drops them over the process window (for (M/S)DI processes
+          only).</para>
+        </listitem>
+      </varlistentry>
+      <varlistentry>
+        <term><literal>ProcessWindowPos</literal></term>
+        <listitem>
+          <para>defines the position in which the main process window
+          will be created (for (M/S)DI processes only).</para>
+        </listitem>
+      </varlistentry>
+      <varlistentry>
+        <term><literal>ProcessWindowSize</literal></term>
+        <listitem>
+          <para>defines the size of the main process window when it is
+          created (for (M/S)DI processes only).</para>
+        </listitem>
+      </varlistentry>
+      <varlistentry>
+        <term><literal>ProcessWindowResize</literal></term>
+        <listitem>
+          <para>describes the callback function which will be called
+          when the user resizes the process window (for (M/S)DI
+          processes only).</para>
+        </listitem>
+      </varlistentry>
+      <varlistentry>
+        <term><literal>ProcessToolbar</literal></term>
+        <listitem>
+          <para>defines the process toolbar items (for (M/S)DI process
+          only).</para>
+        </listitem>
+      </varlistentry>
+      <varlistentry>
+        <term><literal>ProcessNoWindowMenu</literal></term>
+        <listitem>
+          <para>prevents the creation of a standard "Window" menu (for
+          MDI processes only).</para>
+        </listitem>
+      </varlistentry>
+    </variablelist>
+
+    <para>The processes can be created by <literal>Processes</literal>
+    class. This allows the user to define his/her own process types
+    instead of built-in types</para>
+
+    <variablelist>
+      <varlistentry>
+        <term><literal>startIO</literal></term>
+        <listitem>
+          <para>This is the standard way for a single processed
+          applications to run.</para>
+<programlisting>main = startIO SDI () init [ProcessClose closeProcess
+        where
+                init :: GUI2Fun ps
+                init = ...</programlisting>
+        </listitem>
+      </varlistentry>
+      <varlistentry>
+        <term><literal>closeProcess</literal></term>
+        <listitem>
+          <para>closes the current process</para>
+        </listitem>
+      </varlistentry>
+      <varlistentry>
+        <term><literal>getProcessWindowPos</literal></term>
+        <listitem>
+          <para>returns the system dependent position where the
+          process window is created</para>
+        </listitem>
+      </varlistentry>
+      <varlistentry>
+        <term><literal>getProcessWindowSize</literal></term>
+        <listitem>
+          <para>returns the system dependent size with which the
+          process window will be created.</para>
+        </listitem>
+      </varlistentry>
+    </variablelist>
+  </sect1>
+
+  <sect1 id="sec-ObjectIO-StdReceiver">
+    <title>StdReceiver</title>
+    <indexterm><primary>Receivers</primary></indexterm>
+
+    <para>The receiver is a component which allows the communication
+    between different interactive process or between different devices
+    (For example from Timer device to Menu device) by user defined
+    message events</para>
+
+    <para>There are two kinds of receivers:</para>
+    <itemizedlist>
+      <listitem>
+        <para>Uni-directional (defined as Receiver type) receivers
+        cannot respond to messages;</para>
+      </listitem>
+      <listitem>
+        <para>Bi-directional (defined as Receiver2 type) receivers
+        respond to messages and return a result.</para>
+      </listitem>
+    </itemizedlist>
+
+<programlisting>data    Receiver         m ls ps = Receiver (RId m) (ReceiverFunction m ls ps) [ReceiverAttribute ls ps]
+type    ReceiverFunction m ls ps = m -> GUIFun ls ps
+
+data    Receiver2         m r ls ps = Receiver2 (R2Id m r) (Receiver2Function m r ls ps) [ReceiverAttribute ls ps]
+type    Receiver2Function m r ls ps = m -> (ls,ps) -> GUI ps (r,(ls,ps))
+
+data    ReceiverAttribute ls ps                         -- Default:
+ =      ReceiverInit               (GUIFun ls ps)       -- no actions after opening receiver
+ |      ReceiverSelectState        SelectState          -- receiver Able
+
+class Receivers rdef where
+        openReceiver :: ls -> rdef ls ps -> ps -> GUI ps ps
+
+instance Receiver (Receiver  m)
+instance Receiver (Receiver2 m r)
+
+closeReceiver :: Id -> GUI ps ()
+
+getReceivers :: GUI ps [Id]
+
+enableReceivers :: [Id] -> GUI ps ()
+disableReceivers :: [Id] -> GUI ps ()
+getReceiverSelectState :: Id -> GUI ps (Maybe SelectState)
+
+asyncSend :: RId msg -> msg -> GUI ps ()
+syncSend :: RId msg -> msg -> ps -> GUI ps ps
+syncSend2 :: R2Id msg resp -> msg -> ps -> GUI ps (resp,ps)</programlisting>
+
+    <para>Receivers can be created <literal>Receivers</literal>
+    class. This allows user to define his/her own receiver types
+    instead of built-in types</para>
+
+    <variablelist>
+      <varlistentry>
+        <term><literal>closeReceiver</literal></term>
+        <listitem>
+          <para>closes the receiver with the specified id</para>
+        </listitem>
+      </varlistentry>
+      <varlistentry>
+        <term><literal>getReceivers</literal></term>
+        <listitem>
+          <para>returns the list of all existing receivers for an
+          active process</para>
+        </listitem>
+      </varlistentry>
+      <varlistentry>
+        <term><literal>enableReceivers</literal></term>
+        <listitem>
+          <para>enables message handling for the specified
+          receivers</para>
+        </listitem>
+        </varlistentry>
+        <varlistentry>
+        <term><literal>disableReceivers</literal></term>
+        <listitem>
+          <para>disables message handling for the specified receivers</para>
+        </listitem>
+      </varlistentry>
+      <varlistentry>
+        <term><literal>getReceiverSelectState</literal></term>
+        <listitem>
+          <para>returns the current select state for the specified
+          receiver.</para>
+        </listitem>
+      </varlistentry>
+        <varlistentry>
+        <term><literal>asyncSend</literal></term>
+        <listitem>
+          <para>sends an asynchronous message to the receiver.</para>
+        </listitem>
+      </varlistentry>
+      <varlistentry>
+        <term><literal>syncSend</literal></term>
+        <listitem>
+          <para>sends a synchronous message to the receiver.</para>
+        </listitem>
+      </varlistentry>
+      <varlistentry>
+        <term><literal>syncSend2</literal></term>
+        <listitem>
+          <para>sends a synchronous message to the bi-receiver and
+          returns the response from the receiver message
+          handler.</para>
+        </listitem>
+      </varlistentry>
+    </variablelist>
+  </sect1>
+
+  <sect1 id="sec-ObjectIO-MoreReceivers">
+    <title>StdControlReceiver, StdMenuReceiver, StdTimerReceiver</title>
+    <indexterm><primary>More receivers</primary></indexterm>
+
+    <para>Receivers can be inluded as a part of the definition of
+    windows, menus or timers. This is done with the following instance
+    definitions and allows inter device communication.</para>
+
+<programlisting>instance Controls (Receiver  m)
+instance Controls (Receiver2 m r)
+
+instance MenuElements (Receiver  m)
+instance MenuElements (Receiver2 m r)
+
+instance TimerElements (Receiver  m)
+instance TimerElements (Receiver2 m r)</programlisting>
+
+    <para>See <xref linkend="sec-ObjectIO-StdControl"/>, <xref
+    linkend="sec-ObjectIO-StdMenu"/> and <xref
+    linkend="sec-ObjectIO-StdTimer"/> for class definitions.</para>
+
+  </sect1>
+  
+  <sect1 id="sec-ObjectIO-StdMenu">
+    <title>StdMenu</title>
+    <indexterm><primary>Menus</primary></indexterm>
+
+    <sect2 id="sec-ObjectIO-StdMenu-Definition">
+      <title>Definition</title>
+
+<programlisting>--      Menus:
+
+data    Menu        m ls ps = Menu        Title         (m ls ps)        [MenuAttribute ls ps]
+data    PopUpMenu   m ls ps = PopUpMenu                 (m ls ps)
+
+
+--      Menu elements:
+
+data    MenuItem      ls ps = MenuItem    Title                            [MenuAttribute ls ps]
+data    MenuSeparator ls ps = MenuSeparator                                [MenuAttribute ls ps]
+data    RadioMenu     ls ps = RadioMenu   [MenuRadioItem (ls,ps) ps] Index [MenuAttribute ls ps]
+data    SubMenu     m ls ps = SubMenu     Title        (m ls ps)           [MenuAttribute ls ps]
+
+type    MenuRadioItem st ps = (Title,Maybe Id,Maybe Char,st -> GUI ps st)
+
+data    MenuAttribute ls ps                                                     -- Default:
+ --     Attributes for Menus and MenuElements:
+        =       MenuId                  Id                                      -- no Id
+        |       MenuSelectState         SelectState                             -- menu(item) Able
+ --     Attributes only for Menus:
+        |       MenuIndex               Int                                     -- at the end of the current menu list
+        |       MenuInit                (ps -> GUI ps ps)                       -- no actions after opening menu
+ --     Attributes ignored by (Sub)Menus:
+        |       MenuFunction            (GUIFun ls ps)                          -- return
+        |       MenuMarkState           MarkState                               -- NoMark
+        |       MenuModsFunction        (ModifiersFunction ls ps)               -- MenuFunction
+        |       MenuShortKey            Char                                    -- no ShortKey
+
+
+class MenuElements m where
+        menuElementToHandles    :: m ls ps -> GUI ps [MenuElementState ls ps]
+
+class PopUpMenuElements m where
+        popUpMenuElementToHandles :: m ls ps -> GUI ps [MenuElementState ls ps]
+
+class Menus mdef where
+        openMenu :: ls -> mdef ls ps -> ps -> GUI ps ps
+
+
+instance MenuElements m => MenuElements (AddLS m)
+instance MenuElements m => MenuElements (NewLS m)
+instance MenuElements m => MenuElements (ListLS m)
+instance MenuElements NilLS
+instance (MenuElements m1, MenuElements m2) => MenuElements (TupLS m1 m2)
+instance MenuElements m => MenuElements (SubMenu m)
+instance MenuElements m => Menus (Menu m)
+instance MenuElements RadioMenu
+instance MenuElements MenuItem
+instance MenuElements MenuSeparator
+
+instance PopUpMenuElements m => PopUpMenuElements (AddLS m)
+instance PopUpMenuElements m => PopUpMenuElements (NewLS m)
+instance PopUpMenuElements m => PopUpMenuElements (ListLS m)
+instance PopUpMenuElements NilLS
+instance (PopUpMenuElements m1, PopUpMenuElements m2) => PopUpMenuElements (TupLS m1 m2)
+instance PopUpMenuElements m => Menus (PopUpMenu m)
+instance PopUpMenuElements RadioMenu
+instance PopUpMenuElements MenuItem
+instance PopUpMenuElements MenuSeparator</programlisting>
+
+      <para>There are two kinds of menus:</para>
+
+      <itemizedlist>
+        <listitem>
+          <para>the standard menus (Menu type) are usually placed at
+          the top of the process window and can be selected at any
+          time;</para>
+        </listitem>
+        <listitem>
+          <para>the popup menus (PopUpMenu type) can be created and
+          shown at any time as a response to any other event (usually
+          to the click of the right mouse button).</para>
+        </listitem>
+      </itemizedlist>
+      <para>The menus have four kinds of items:</para>
+      <itemizedlist>
+        <listitem>
+          <para>the simple menu item (MenuItem type) is just an item
+          with a specified title and an event handler which is called
+          when the item is clicked;</para>
+        </listitem>
+        <listitem>
+          <para>the menu separator (MenuSeparator type) is
+          nonselectable item which can be used to separate menu items
+          in different groups;</para>
+        </listitem>
+        <listitem>
+          <para>the radio menu (RadioMenu type) is a group of items
+          which can be used as <literal>RadioControl</literal>;</para>
+        </listitem>
+        <listitem>
+          <para>the sub menu (SubMenu type) item is an item which
+          shows a sub menu when the user selects it.</para>
+        </listitem>
+      </itemizedlist>
+      <para>The menu items can be combined with :+: (TupLS type) and
+      ListLS constructors.  The local state for a given group of items
+      can be extended and changed by AddLS and NewLS
+      constructors. NilLS specifies an empty menu.</para>
+    </sect2>
+
+    <sect2 id="sec-ObjectIO-StdMenu-MenuAccess">
+      <title>Menu access functions</title>
+
+<programlisting>closeMenu :: Id -> GUI ps ()
+
+enableMenuSystem :: GUI ps ()
+disableMenuSystem :: GUI ps ()
+
+enableMenus :: [Id] -> GUI ps ()
+disableMenus :: [Id] -> GUI ps ()
+getMenuSelectState :: Id -> GUI ps (Maybe SelectState)
+
+openMenuElements :: MenuElements m => Id -> Index -> ls -> m ls ps -> GUI ps ()
+openSubMenuElements :: MenuElements m => Id -> Index -> ls -> m ls ps -> GUI ps ()
+openRadioMenuItems :: Id -> Index -> [MenuRadioItem ps ps] -> GUI ps ()
+
+closeMenuElements :: Id -> [Id] -> GUI ps ()
+closeMenuIndexElements :: Id -> [Index] -> GUI ps ()
+closeSubMenuIndexElements :: Id -> [Index] -> GUI ps ()
+closeRadioMenuIndexElements :: Id -> [Index] -> GUI ps ()
+
+getMenus :: GUI ps [Id]
+
+getMenuPos :: Id -> GUI ps (Maybe Index)
+
+setMenuTitle :: Id -> Title -> GUI ps ()
+getMenuTitle :: Id -> GUI ps (Maybe Title)</programlisting>
+
+      <variablelist>
+        <varlistentry>
+          <term><literal>closeMenu</literal></term>
+          <listitem>
+            <para>closes the specified menu.</para>
+          </listitem>
+        </varlistentry>
+        <varlistentry>
+          <term><literal>enableMenuSystem</literal></term>
+          <listitem>
+            <para>enables all menus.</para>
+          </listitem>
+        </varlistentry>
+        <varlistentry>
+          <term><literal>disableMenuSystem</literal></term>
+          <listitem>
+            <para>disables all menus.</para>
+          </listitem>
+        </varlistentry>
+        <varlistentry>
+          <term><literal>enableMenus</literal></term>
+          <listitem>
+            <para>enables the menus with the specified Ids.</para>
+          </listitem>
+        </varlistentry>
+        <varlistentry>
+          <term><literal>disableMenus</literal></term>
+          <listitem>
+            <para>disables the menus with the specified Ids.</para>
+          </listitem>
+        </varlistentry>
+        <varlistentry>
+          <term><literal>getMenuSelectState</literal></term>
+          <listitem>
+            <para>returns <literal>SelectState</literal> of the
+            specified menu.</para>
+          </listitem>
+        </varlistentry>
+        <varlistentry>
+          <term><literal>openMenuElements</literal></term>
+          <listitem>
+            <para>dynamically creates additional elements to the
+            specified menu.</para>
+          </listitem>
+        </varlistentry>
+        <varlistentry>
+          <term><literal>openSubMenuElements</literal></term>
+          <listitem>
+            <para>dynamically creates additional elements to the
+            specified sub menu (here the Id is an Id of the sub
+            menu).</para>
+          </listitem>
+        </varlistentry>
+        <varlistentry>
+          <term><literal>openRadioMenuItems</literal></term>
+          <listitem>
+            <para>dynamically creates additional radio menu
+            elements.</para>
+          </listitem>
+        </varlistentry>
+        <varlistentry>
+          <term><literal>closeMenuElements</literal></term>
+          <listitem>
+            <para>closes the elements with specified Ids from the
+            specified menu.</para>
+          </listitem>
+        </varlistentry>
+        <varlistentry>
+          <term><literal>closeMenuIndexElements</literal></term>
+          <listitem>
+            <para>closes the elements with specified indexes from the
+            specified menu.</para>
+          </listitem>
+        </varlistentry>
+        <varlistentry>
+          <term><literal>closeSubMenuIndexElements</literal></term>
+          <listitem>
+            <para>closes the elements with specified indexes from the
+            specified sub menu.</para>
+          </listitem>
+        </varlistentry>
+        <varlistentry>
+          <term><literal>closeRadioMenuIndexElements</literal></term>
+          <listitem>
+            <para>closes the radio menu elements with specified
+            indexes from the specified menu.</para>
+          </listitem>
+        </varlistentry>
+        <varlistentry>
+          <term><literal>getMenus</literal></term>
+          <listitem>
+            <para>returns the list of ids of all existing menus for the current process.</para>
+          </listitem>
+        </varlistentry>
+        <varlistentry>
+          <term><literal>getMenuPos</literal></term>
+          <listitem>
+            <para>returns the menu item index from the item Id.</para>
+          </listitem>
+        </varlistentry>
+        <varlistentry>
+          <term><literal>setMenuTitle</literal></term>
+          <listitem>
+            <para>sets the menu title.</para>
+          </listitem>
+        </varlistentry>
+        <varlistentry>
+          <term><literal>getMenuTitle</literal></term>
+          <listitem>
+            <para>returns the menu title.</para>
+          </listitem>
+        </varlistentry>
+      </variablelist>
+    </sect2>
+
+    <sect2 id="sec-ObjectIO-StdMenu-MenuElementsAccess">
+      <title>Menu elements access functions</title>
+
+      <sect3 id="sec-ObjectIO-StdMenu-MenuElementsAccess1">
+        <title>Enable/Disable menu items</title>
+
+<programlisting>enableMenuElements :: [Id] -> GUI ps ()
+disableMenuElements :: [Id] -> GUI ps ()
+
+getMenuElementSelectStates :: Id -> [Id] -> GUI ps [(Bool,SelectState)]
+getMenuElementSelectState :: Id -> Id -> GUI ps (Bool,SelectState)</programlisting>
+      </sect3>
+
+      <sect3 id="sec-ObjectIO-StdMenu-MenuElementsAccess2">
+        <title>Mark/Unmark menu items</title>
+
+        <para>Just like CheckControl, the menu items also can be
+        checked and unchecked.</para>
+
+<programlisting>markMenuItems :: [Id] -> GUI ps ()
+unmarkMenuItems :: [Id] -> GUI ps ()
+
+getMenuElementMarkStates :: Id -> [Id] -> GUI ps [(Bool,MarkState)]
+getMenuElementMarkState :: Id -> Id -> GUI ps (Bool,MarkState)</programlisting>
+      </sect3>
+
+      <sect3 id="sec-ObjectIO-StdMenu-MenuElementsAccess3">
+        <title>Getting and setting of menu item titles</title>
+
+<programlisting>setMenuElementTitles :: [(Id,Title)] -> GUI ps ()
+
+getMenuElementTitles :: Id -> [Id] -> GUI ps [(Bool,Maybe String)]
+getMenuElementTitle :: Id -> Id -> GUI ps (Bool,Maybe String)</programlisting>
+      </sect3>
+      
+      <sect3 id="sec-ObjectIO-StdMenu-MenuElementsAccess4">
+        <title>Radio menu items selection</title>
+
+        <para>Radio menu is just like
+        <literal>RadioControl</literal>. Only one item from the radio
+        menu can be selected at a certain time.</para>
+
+<programlisting>selectRadioMenuItem :: Id -> Id -> GUI ps ()
+selectRadioMenuIndexItem :: Id -> Index -> GUI ps ()
+
+getSelectedRadioMenuItems :: Id -> [Id] -> GUI ps [(Index,Maybe Id)]
+getSelectedRadioMenuItem :: Id -> Id -> GUI ps (Index,Maybe Id)</programlisting>
+
+      </sect3>
+
+      <sect3 id="sec-ObjectIO-StdMenu-MenuElementsAccess5">
+        <title>Menu elements access functions</title>
+
+<programlisting>getMenuElementShortKeys :: Id -> [Id] -> GUI ps [(Bool,Maybe Char)]
+getMenuElementShortKey :: Id -> Id -> GUI ps (Bool,Maybe Char)</programlisting>
+
+        <variablelist>
+          <varlistentry>
+            <term><literal>getMenuElementShortKeys</literal>, <literal>getMenuElementShortKey</literal></term>
+            <listitem>
+              <para>returns the shortcut key associated with the menu
+              element.</para>
+            </listitem>
+          </varlistentry>
+        </variablelist>
+      </sect3>
+    </sect2>
+  </sect1>
+
+  <sect1 id="sec-ObjectIO-StdTimer">
+    <title>StdTimer</title>
+    <indexterm><primary>Timers</primary></indexterm>
+
+    <para>The timer is a device with a specified event handler, which
+    is called at a fixed time interval.</para>
+
+<programlisting>data Timer t ls ps = Timer TimerInterval (t ls ps) [TimerAttribute ls ps]
+
+type TimerInterval = Int
+
+data TimerAttribute ls ps                                       -- Default:
+        = TimerFunction         (TimerFunction ls ps)           -- \_ x->x
+        | TimerId               Id                              -- no Id
+        | TimerInit             (GUIFun ls ps)                  -- no actions after opening timer
+        | TimerSelectState      SelectState                     -- timer Able
+
+type TimerFunction ls ps = NrOfIntervals -> GUIFun ls ps
+type NrOfIntervals = Int
+
+class Timers tdef where
+        openTimer :: ls -> tdef ls ps -> ps -> GUI ps ps
+
+instance TimerElements t => Timers (Timer t)
+
+closeTimer :: Id -> GUI ps ()
+
+getTimers :: GUI ps [Id]
+
+enableTimer :: Id -> GUI ps ()
+disableTimer :: Id -> GUI ps ()
+getTimerSelectState :: Id -> GUI ps (Maybe SelectState)
+
+setTimerInterval :: Id -> TimerInterval -> GUI ps ()
+getTimerInterval :: Id -> GUI ps (Maybe TimerInterval)</programlisting>
+
+    <para>Timers can be created by <literal>Timers</literal>
+    class. This allows the user to define his/her own timer types
+    instead of built-in types</para>
+
+    <variablelist>
+      <varlistentry>
+        <term><literal>closeTimer</literal></term>
+        <listitem>
+          <para>closes the timer with the specified Id</para>
+        </listitem>
+      </varlistentry>
+      <varlistentry>
+        <term><literal>getTimers</literal></term>
+        <listitem>
+          <para>returns the list of Ids of all existing timers for the
+          current process.</para>
+        </listitem>
+      </varlistentry>
+      <varlistentry>
+        <term><literal>enableTimer</literal></term>
+        <listitem>
+          <para>enables the timer with the specified Id</para>
+        </listitem>
+      </varlistentry>
+      <varlistentry>
+        <term><literal>disableTimer</literal></term>
+        <listitem>
+          <para>disables the timer with the specified Id</para>
+        </listitem>
+        </varlistentry>
+        <varlistentry>
+        <term><literal>getTimerSelectState</literal></term>
+        <listitem>
+          <para>returns the current <literal>SelectState</literal> for
+          timer with the specified Id.  <literal>SelectState</literal>
+          can be changed by <function>enableTimer</function> and
+          <function>disableTimer</function> functions.</para>
+        </listitem>
+      </varlistentry>
+      <varlistentry>
+        <term><literal>setTimerInterval</literal></term>
+        <listitem>
+          <para>sets the timer interval</para>
+        </listitem>
+      </varlistentry>
+      <varlistentry>
+        <term><literal>getTimerInterval</literal></term>
+        <listitem>
+          <para>returns the current timer interval</para>
+        </listitem>
+      </varlistentry>
+    </variablelist>
+  </sect1>
+
+
+  <sect1 id="sec-ObjectIO-StdFileSelect">
+    <title>StdFileSelect</title>
+    <indexterm><primary>File selectors</primary></indexterm>
+
+<programlisting>selectInputFile :: ps -> GUI ps (Maybe FilePath, ps)
+
+selectOutputFile :: String -> String -> ps -> GUI ps (Maybe FilePath, ps)
+
+selectDirectory :: ps -> GUI ps (Maybe FilePath, ps)</programlisting>
+
+    <variablelist>
+      <varlistentry>
+        <term><literal>selectInputFile</literal></term>
+        <listitem>
+          <para>opens a dialog for file selecting and returns the
+          selected file name. If the file doesn't exist, the function
+          shows a popup message box with a warning message.</para>
+        </listitem>
+      </varlistentry>
+      <varlistentry>
+        <term><literal>selectOutputFile</literal></term>
+        <listitem>
+          <para>opens a dialog for file selecting and returns the
+          selected file name. If the file already exists, the function
+          shows a popup message box with a warning message.</para>
+        </listitem>
+      </varlistentry>
+      <varlistentry>
+        <term><literal>selectDirectory</literal></term>
+        <listitem>
+          <para>opens a dialog for directory selecting.</para>
+        </listitem>
+      </varlistentry>
+    </variablelist>
+  </sect1>
+
+  <sect1 id="sec-ObjectIO-StdSound">
+    <title>StdSound</title>
+    <indexterm><primary>Sound</primary></indexterm>
+
+    <para>Experimental feature! playSoundFile opens the sound file at
+    filename and plays it synchronously.  The Boolean result indicates
+    whether the sound file could be succesfully played.</para>
+
+<programlisting>playSoundFile :: FilePath -> IO Bool</programlisting>
+  </sect1>
+
+  <sect1 id="sec-ObjectIO-StdClipboard">
+    <title>StdClipboard</title>
+    <indexterm><primary>Clipboard</primary></indexterm>
+
+    <para>The current clipboard implementation supports only string
+    data type</para>
+
+<programlisting>data ClipboardItem
+        = ClipboardString String                -- Support for strings
+
+class Clipboard item where
+        toClipboard     :: item                 -> ClipboardItem
+        fromClipboard   :: ClipboardItem        -> Maybe item
+
+instance Clipboard String where
+        toClipboard string = ClipboardString string
+        fromClipboard (ClipboardString string) = Just string
+
+setClipboard :: [ClipboardItem] -> GUI ps ()
+
+getClipboard :: GUI ps [ClipboardItem]
+clipboardHasChanged :: GUI ps Bool</programlisting>
+  </sect1>
+
+  <index/>
+
+</article>

@@ -1,0 +1,13 @@
+*** ghc-pristine/libraries/packedstring/packedstring.cabal	2007-11-01 19:59:46.000000000 -0700
+--- ghc-xen/libraries/packedstring/packedstring.cabal	2007-11-14 18:28:46.000000000 -0800
+***************
+*** 11,14 ****
+  exposed-modules:
+      Data.PackedString
+  extensions: CPP
+! 
+--- 11,14 ----
+  exposed-modules:
+      Data.PackedString
+  extensions: CPP
+! ghc-options: -Dxen_HOST_OS

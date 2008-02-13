@@ -1,0 +1,694 @@
+<?xml version="1.0" encoding="iso-8859-1"?>
+<sect1 id="runtime-control">
+  <title>Running a compiled program</title>
+
+  <indexterm><primary>runtime control of Haskell programs</primary></indexterm>
+  <indexterm><primary>running, compiled program</primary></indexterm>
+  <indexterm><primary>RTS options</primary></indexterm>
+
+  <para>To make an executable program, the GHC system compiles your
+  code and then links it with a non-trivial runtime system (RTS),
+  which handles storage management, profiling, etc.</para>
+
+  <para>You have some control over the behaviour of the RTS, by giving
+  special command-line arguments to your program.</para>
+
+  <para>When your Haskell program starts up, its RTS extracts
+  command-line arguments bracketed between
+  <option>+RTS</option><indexterm><primary><option>+RTS</option></primary></indexterm>
+  and
+  <option>-RTS</option><indexterm><primary><option>-RTS</option></primary></indexterm>
+  as its own.  For example:</para>
+
+<screen>
+% ./a.out -f +RTS -p -S -RTS -h foo bar
+</screen>
+
+  <para>The RTS will snaffle <option>-p</option> <option>-S</option>
+  for itself, and the remaining arguments <literal>-f -h foo bar</literal>
+  will be handed to your program if/when it calls
+  <function>System.getArgs</function>.</para>
+
+  <para>No <option>-RTS</option> option is required if the
+  runtime-system options extend to the end of the command line, as in
+  this example:</para>
+
+<screen>
+% hls -ltr /usr/etc +RTS -A5m
+</screen>
+
+  <para>If you absolutely positively want all the rest of the options
+  in a command line to go to the program (and not the RTS), use a
+  <option>&ndash;&ndash;RTS</option><indexterm><primary><option>--RTS</option></primary></indexterm>.</para>
+
+  <para>As always, for RTS options that take
+  <replaceable>size</replaceable>s: If the last character of
+  <replaceable>size</replaceable> is a K or k, multiply by 1000; if an
+  M or m, by 1,000,000; if a G or G, by 1,000,000,000.  (And any
+  wraparound in the counters is <emphasis>your</emphasis>
+  fault!)</para>
+
+  <para>Giving a <literal>+RTS -f</literal>
+  <indexterm><primary><option>-f</option></primary><secondary>RTS option</secondary></indexterm> option
+  will print out the RTS options actually available in your program
+  (which vary, depending on how you compiled).</para>
+
+  <para>NOTE: since GHC is itself compiled by GHC, you can change RTS
+  options in the compiler using the normal
+  <literal>+RTS ... -RTS</literal>
+  combination.  eg. to increase the maximum heap
+  size for a compilation to 128M, you would add
+  <literal>+RTS -M128m -RTS</literal>
+  to the command line.</para>
+
+  <sect2 id="rts-optinos-environment">
+    <title>Setting global RTS options</title>
+
+    <indexterm><primary>RTS options</primary><secondary>from the environment</secondary></indexterm>
+    <indexterm><primary>environment variable</primary><secondary>for
+    setting RTS options</secondary></indexterm>
+
+    <para>RTS options are also taken from the environment variable
+    <envar>GHCRTS</envar><indexterm><primary><envar>GHCRTS</envar></primary>
+      </indexterm>.  For example, to set the maximum heap size
+    to 128M for all GHC-compiled programs (using an
+    <literal>sh</literal>-like shell):</para>
+
+<screen>
+   GHCRTS='-M128m'
+   export GHCRTS
+</screen>
+
+    <para>RTS options taken from the <envar>GHCRTS</envar> environment
+    variable can be overridden by options given on the command
+    line.</para>
+
+  </sect2>
+
+  <sect2 id="rts-options-misc">
+    <title>Miscellaneous RTS options</title>
+
+    <variablelist>
+     <varlistentry>
+       <term><option>-V<replaceable>secs</replaceable></option>
+       <indexterm><primary><option>-V</option></primary><secondary>RTS
+       option</secondary></indexterm></term>
+       <listitem>
+         <para>Sets the interval that the RTS clock ticks at.  The
+         runtime uses a single timer signal to count ticks; this timer
+         signal is used to control the context switch timer (<xref
+         linkend="using-concurrent" />) and the heap profiling
+         timer <xref linkend="rts-options-heap-prof" />.  Also, the
+         time profiler uses the RTS timer signal directly to record
+         time profiling samples.</para>
+
+         <para>Normally, setting the <option>-V</option> option
+         directly is not necessary: the resolution of the RTS timer is
+         adjusted automatically if a short interval is requested with
+         the <option>-C</option> or <option>-i</option> options.
+         However, setting <option>-V</option> is required in order to
+         increase the resolution of the time profiler.</para>
+
+         <para>Using a value of zero disables the RTS clock
+         completely, and has the effect of disabling timers that
+         depend on it: the context switch timer and the heap profiling
+         timer.  Context switches will still happen, but
+         deterministically and at a rate much faster than normal.
+         Disabling the interval timer is useful for debugging, because
+         it eliminates a source of non-determinism at runtime.</para>
+       </listitem>
+     </varlistentry>
+
+     <varlistentry>
+       <term><option>--install-signal-handlers=<replaceable>yes|no</replaceable></option>
+       <indexterm><primary><option>--install-signal-handlers</option></primary><secondary>RTS
+       option</secondary></indexterm></term>
+       <listitem>
+         <para>If yes (the default), the RTS installs signal handlers to catch
+         things like ctrl-C. This option is primarily useful for when
+         you are using the Haskell code as a DLL, and want to set your
+         own signal handlers.</para>
+       </listitem>
+     </varlistentry>
+    </variablelist>
+  </sect2>
+
+  <sect2 id="rts-options-gc">
+    <title>RTS options to control the garbage collector</title>
+
+    <indexterm><primary>garbage collector</primary><secondary>options</secondary></indexterm>
+    <indexterm><primary>RTS options</primary><secondary>garbage collection</secondary></indexterm>
+
+    <para>There are several options to give you precise control over
+    garbage collection.  Hopefully, you won't need any of these in
+    normal operation, but there are several things that can be tweaked
+    for maximum performance.</para>
+
+    <variablelist>
+
+      <varlistentry>
+	<term>
+          <option>-A</option><replaceable>size</replaceable>
+          <indexterm><primary><option>-A</option></primary><secondary>RTS option</secondary></indexterm>
+          <indexterm><primary>allocation area, size</primary></indexterm>
+        </term>
+	<listitem>
+	  <para>&lsqb;Default: 256k&rsqb; Set the allocation area size
+          used by the garbage collector.  The allocation area
+          (actually generation 0 step 0) is fixed and is never resized
+          (unless you use <option>-H</option>, below).</para>
+
+	  <para>Increasing the allocation area size may or may not
+          give better performance (a bigger allocation area means
+          worse cache behaviour but fewer garbage collections and less
+          promotion).</para>
+
+	  <para>With only 1 generation (<option>-G1</option>) the
+          <option>-A</option> option specifies the minimum allocation
+          area, since the actual size of the allocation area will be
+          resized according to the amount of data in the heap (see
+          <option>-F</option>, below).</para>
+	</listitem>
+      </varlistentry>
+
+      <varlistentry>
+	<term>
+          <option>-c</option>
+          <indexterm><primary><option>-c</option></primary><secondary>RTS option</secondary></indexterm>
+          <indexterm><primary>garbage collection</primary><secondary>compacting</secondary></indexterm>
+          <indexterm><primary>compacting garbage collection</primary></indexterm>
+        </term>
+	<listitem>
+	  <para>Use a compacting algorithm for collecting the oldest
+	  generation.  By default, the oldest generation is collected
+	  using a copying algorithm; this option causes it to be
+	  compacted in-place instead.  The compaction algorithm is
+	  slower than the copying algorithm, but the savings in memory
+	  use can be considerable.</para>
+
+	  <para>For a given heap size (using the <option>-H</option>
+	  option), compaction can in fact reduce the GC cost by
+	  allowing fewer GCs to be performed.  This is more likely
+	  when the ratio of live data to heap size is high, say
+	  &gt;30&percnt;.</para>
+
+	  <para>NOTE: compaction doesn't currently work when a single
+	  generation is requested using the <option>-G1</option>
+	  option.</para>
+	</listitem>
+      </varlistentry>
+
+      <varlistentry>
+	<term><option>-c</option><replaceable>n</replaceable></term>
+
+	<listitem>
+	  <para>&lsqb;Default: 30&rsqb; Automatically enable
+	  compacting collection when the live data exceeds
+	  <replaceable>n</replaceable>&percnt; of the maximum heap size
+	  (see the <option>-M</option> option).  Note that the maximum
+	  heap size is unlimited by default, so this option has no
+	  effect unless the maximum heap size is set with
+	  <option>-M</option><replaceable>size</replaceable>. </para>
+	</listitem>
+      </varlistentry>
+
+      <varlistentry>
+	<term>
+          <option>-F</option><replaceable>factor</replaceable>
+          <indexterm><primary><option>-F</option></primary><secondary>RTS option</secondary></indexterm>
+          <indexterm><primary>heap size, factor</primary></indexterm>
+        </term>
+	<listitem>
+
+	  <para>&lsqb;Default: 2&rsqb; This option controls the amount
+          of memory reserved for the older generations (and in the
+          case of a two space collector the size of the allocation
+          area) as a factor of the amount of live data.  For example,
+          if there was 2M of live data in the oldest generation when
+          we last collected it, then by default we'll wait until it
+          grows to 4M before collecting it again.</para>
+
+	  <para>The default seems to work well here.  If you have
+          plenty of memory, it is usually better to use
+          <option>-H</option><replaceable>size</replaceable> than to
+          increase
+          <option>-F</option><replaceable>factor</replaceable>.</para>
+
+	  <para>The <option>-F</option> setting will be automatically
+          reduced by the garbage collector when the maximum heap size
+          (the <option>-M</option><replaceable>size</replaceable>
+          setting) is approaching.</para>
+	</listitem>
+      </varlistentry>
+
+      <varlistentry>
+	<term>
+          <option>-G</option><replaceable>generations</replaceable>
+          <indexterm><primary><option>-G</option></primary><secondary>RTS option</secondary></indexterm>
+          <indexterm><primary>generations, number of</primary></indexterm>
+        </term>
+	<listitem>
+	  <para>&lsqb;Default: 2&rsqb; Set the number of generations
+          used by the garbage collector.  The default of 2 seems to be
+          good, but the garbage collector can support any number of
+          generations.  Anything larger than about 4 is probably not a
+          good idea unless your program runs for a
+          <emphasis>long</emphasis> time, because the oldest
+          generation will hardly ever get collected.</para>
+
+	  <para>Specifying 1 generation with <option>+RTS -G1</option>
+          gives you a simple 2-space collector, as you would expect.
+          In a 2-space collector, the <option>-A</option> option (see
+          above) specifies the <emphasis>minimum</emphasis> allocation
+          area size, since the allocation area will grow with the
+          amount of live data in the heap.  In a multi-generational
+          collector the allocation area is a fixed size (unless you
+          use the <option>-H</option> option, see below).</para>
+	</listitem>
+      </varlistentry>
+
+      <varlistentry>
+	<term>
+          <option>-H</option><replaceable>size</replaceable>
+          <indexterm><primary><option>-H</option></primary><secondary>RTS option</secondary></indexterm>
+          <indexterm><primary>heap size, suggested</primary></indexterm>
+        </term>
+	<listitem>
+	  <para>&lsqb;Default: 0&rsqb; This option provides a
+          &ldquo;suggested heap size&rdquo; for the garbage collector.  The
+          garbage collector will use about this much memory until the
+          program residency grows and the heap size needs to be
+          expanded to retain reasonable performance.</para>
+
+	  <para>By default, the heap will start small, and grow and
+          shrink as necessary.  This can be bad for performance, so if
+          you have plenty of memory it's worthwhile supplying a big
+          <option>-H</option><replaceable>size</replaceable>.  For
+          improving GC performance, using
+          <option>-H</option><replaceable>size</replaceable> is
+          usually a better bet than
+          <option>-A</option><replaceable>size</replaceable>.</para>
+	</listitem>
+      </varlistentry>
+
+      <varlistentry>
+	<term>
+	  <option>-I</option><replaceable>seconds</replaceable>
+	  <indexterm><primary><option>-I</option></primary>
+	    <secondary>RTS option</secondary>
+	  </indexterm>
+	  <indexterm><primary>idle GC</primary>
+	  </indexterm>
+	  </term>
+	<listitem>
+	  <para>(default: 0.3) In the threaded and SMP versions of the RTS (see
+	    <option>-threaded</option>, <xref linkend="options-linker" />), a
+	    major GC is automatically performed if the runtime has been idle
+	    (no Haskell computation has been running) for a period of time.
+	    The amount of idle time which must pass before a GC is performed is
+	    set by the <option>-I</option><replaceable>seconds</replaceable>
+	    option.  Specifying <option>-I0</option> disables the idle GC.</para>
+
+	  <para>For an interactive application, it is probably a good idea to
+	    use the idle GC, because this will allow finalizers to run and
+	    deadlocked threads to be detected in the idle time when no Haskell
+	    computation is happening.  Also, it will mean that a GC is less
+	    likely to happen when the application is busy, and so
+	    responsiveness may be improved.   However, if the amount of live data in
+	    the heap is particularly large, then the idle GC can cause a
+	    significant delay, and too small an interval could adversely affect
+	    interactive responsiveness.</para>
+
+	  <para>This is an experimental feature, please let us know if it
+	    causes problems and/or could benefit from further tuning.</para>
+	</listitem>
+      </varlistentry>
+
+      <varlistentry>
+	<term>
+         <option>-k</option><replaceable>size</replaceable>
+         <indexterm><primary><option>-k</option></primary><secondary>RTS option</secondary></indexterm>
+         <indexterm><primary>stack, minimum size</primary></indexterm>
+        </term>
+	<listitem>
+	  <para>&lsqb;Default: 1k&rsqb; Set the initial stack size for
+          new threads.  Thread stacks (including the main thread's
+          stack) live on the heap, and grow as required.  The default
+          value is good for concurrent applications with lots of small
+          threads; if your program doesn't fit this model then
+          increasing this option may help performance.</para>
+
+	  <para>The main thread is normally started with a slightly
+          larger heap to cut down on unnecessary stack growth while
+          the program is starting up.</para>
+	</listitem>
+      </varlistentry>
+
+      <varlistentry>
+	<term>
+          <option>-K</option><replaceable>size</replaceable>
+          <indexterm><primary><option>-K</option></primary><secondary>RTS option</secondary></indexterm>
+          <indexterm><primary>stack, maximum size</primary></indexterm>
+        </term>
+	<listitem>
+	  <para>&lsqb;Default: 8M&rsqb; Set the maximum stack size for
+          an individual thread to <replaceable>size</replaceable>
+          bytes.  This option is there purely to stop the program
+          eating up all the available memory in the machine if it gets
+          into an infinite loop.</para>
+	</listitem>
+      </varlistentry>
+
+      <varlistentry>
+	<term>
+          <option>-m</option><replaceable>n</replaceable>
+          <indexterm><primary><option>-m</option></primary><secondary>RTS option</secondary></indexterm>
+          <indexterm><primary>heap, minimum free</primary></indexterm>
+        </term>
+	<listitem>
+	  <para>Minimum &percnt; <replaceable>n</replaceable> of heap
+          which must be available for allocation.  The default is
+          3&percnt;.</para>
+	</listitem>
+      </varlistentry>
+
+      <varlistentry>
+	<term>
+          <option>-M</option><replaceable>size</replaceable>
+          <indexterm><primary><option>-M</option></primary><secondary>RTS option</secondary></indexterm>
+          <indexterm><primary>heap size, maximum</primary></indexterm>
+        </term>
+	<listitem>
+	  <para>&lsqb;Default: unlimited&rsqb; Set the maximum heap size to
+          <replaceable>size</replaceable> bytes.  The heap normally
+          grows and shrinks according to the memory requirements of
+          the program.  The only reason for having this option is to
+          stop the heap growing without bound and filling up all the
+          available swap space, which at the least will result in the
+          program being summarily killed by the operating
+          system.</para>
+
+	  <para>The maximum heap size also affects other garbage
+	  collection parameters: when the amount of live data in the
+	  heap exceeds a certain fraction of the maximum heap size,
+	  compacting collection will be automatically enabled for the
+	  oldest generation, and the <option>-F</option> parameter
+	  will be reduced in order to avoid exceeding the maximum heap
+	  size.</para>
+	</listitem>
+      </varlistentry>
+
+      <varlistentry>
+	<term>
+          <option>-s</option><replaceable>file</replaceable>
+          <indexterm><primary><option>-s</option></primary><secondary>RTS option</secondary></indexterm>
+        </term>
+	<term>
+          <option>-S</option><replaceable>file</replaceable>
+          <indexterm><primary><option>-S</option></primary><secondary>RTS option</secondary></indexterm>
+        </term>
+	<listitem>
+	  <para>Write modest (<option>-s</option>) or verbose
+          (<option>-S</option>) garbage-collector statistics into file
+          <replaceable>file</replaceable>. The default
+          <replaceable>file</replaceable> is
+          <filename><replaceable>program</replaceable>.stat</filename>. The
+          <replaceable>file</replaceable> <constant>stderr</constant>
+          is treated specially, with the output really being sent to
+          <constant>stderr</constant>.</para>
+
+	  <para>This option is useful for watching how the storage
+          manager adjusts the heap size based on the current amount of
+          live data.</para>
+	</listitem>
+      </varlistentry>
+
+      <varlistentry>
+	<term>
+          <option>-t<replaceable>file</replaceable></option>
+          <indexterm><primary><option>-t</option></primary><secondary>RTS option</secondary></indexterm>
+        </term>
+	<listitem>
+	  <para>Write a one-line GC stats summary after running the
+	  program.  This output is in the same format as that produced
+	  by the <option>-Rghc-timing</option> option.</para>
+
+	  <para>As with <option>-s</option>, the default
+          <replaceable>file</replaceable> is
+          <filename><replaceable>program</replaceable>.stat</filename>. The
+          <replaceable>file</replaceable> <constant>stderr</constant>
+          is treated specially, with the output really being sent to
+          <constant>stderr</constant>.</para>
+	</listitem>
+      </varlistentry>
+    </variablelist>
+
+  </sect2>
+
+  <sect2>
+    <title>RTS options for profiling and parallelism</title>
+
+    <para>The RTS options related to profiling are described in <xref
+    linkend="rts-options-heap-prof"/>, those for concurrency in
+      <xref linkend="using-concurrent" />, and those for parallelism in
+      <xref linkend="parallel-options"/>.</para>
+  </sect2>
+
+  <sect2 id="rts-options-debugging">
+    <title>RTS options for hackers, debuggers, and over-interested
+    souls</title>
+
+    <indexterm><primary>RTS options, hacking/debugging</primary></indexterm>
+
+    <para>These RTS options might be used (a)&nbsp;to avoid a GHC bug,
+    (b)&nbsp;to see &ldquo;what's really happening&rdquo;, or
+    (c)&nbsp;because you feel like it.  Not recommended for everyday
+    use!</para>
+
+    <variablelist>
+
+      <varlistentry>
+	<term>
+          <option>-B</option>
+          <indexterm><primary><option>-B</option></primary><secondary>RTS option</secondary></indexterm>
+        </term>
+	<listitem>
+	  <para>Sound the bell at the start of each (major) garbage
+	  collection.</para>
+
+	  <para>Oddly enough, people really do use this option!  Our
+          pal in Durham (England), Paul Callaghan, writes: &ldquo;Some
+          people here use it for a variety of
+          purposes&mdash;honestly!&mdash;e.g., confirmation that the
+          code/machine is doing something, infinite loop detection,
+          gauging cost of recently added code. Certain people can even
+          tell what stage &lsqb;the program&rsqb; is in by the beep
+          pattern. But the major use is for annoying others in the
+          same office&hellip;&rdquo;</para>
+	</listitem>
+      </varlistentry>
+
+      <varlistentry>
+	<term>
+          <option>-D</option><replaceable>num</replaceable>
+          <indexterm><primary>-D</primary><secondary>RTS option</secondary></indexterm>
+        </term>
+	<listitem>
+	  <para>An RTS debugging flag; varying quantities of output
+          depending on which bits are set in
+          <replaceable>num</replaceable>.  Only works if the RTS was
+          compiled with the <option>DEBUG</option> option.</para>
+	</listitem>
+      </varlistentry>
+
+      <varlistentry>
+	<term>
+          <option>-r</option><replaceable>file</replaceable>
+          <indexterm><primary><option>-r</option></primary><secondary>RTS option</secondary></indexterm>
+          <indexterm><primary>ticky ticky profiling</primary></indexterm>
+          <indexterm><primary>profiling</primary><secondary>ticky ticky</secondary></indexterm>
+        </term>
+	<listitem>
+	  <para>Produce &ldquo;ticky-ticky&rdquo; statistics at the
+          end of the program run.  The <replaceable>file</replaceable>
+          business works just like on the <option>-S</option> RTS
+          option (above).</para>
+
+	  <para>&ldquo;Ticky-ticky&rdquo; statistics are counts of
+          various program actions (updates, enters, etc.)  The program
+          must have been compiled using
+          <option>-ticky</option><indexterm><primary><option>-ticky</option></primary></indexterm>
+          (a.k.a. &ldquo;ticky-ticky profiling&rdquo;), and, for it to
+          be really useful, linked with suitable system libraries.
+          Not a trivial undertaking: consult the installation guide on
+          how to set things up for easy &ldquo;ticky-ticky&rdquo;
+          profiling.  For more information, see <xref
+          linkend="ticky-ticky"/>.</para>
+	</listitem>
+      </varlistentry>
+
+      <varlistentry>
+	<term>
+          <option>-xc</option>
+          <indexterm><primary><option>-xc</option></primary><secondary>RTS option</secondary></indexterm>
+        </term>
+	<listitem>
+	  <para>(Only available when the program is compiled for
+	  profiling.)  When an exception is raised in the program,
+	  this option causes the current cost-centre-stack to be
+	  dumped to <literal>stderr</literal>.</para>
+
+	  <para>This can be particularly useful for debugging: if your
+	  program is complaining about a <literal>head []</literal>
+	  error and you haven't got a clue which bit of code is
+	  causing it, compiling with <literal>-prof
+	  -auto-all</literal> and running with <literal>+RTS -xc
+	  -RTS</literal> will tell you exactly the call stack at the
+	  point the error was raised.</para>
+
+	  <para>The output contains one line for each exception raised
+	  in the program (the program might raise and catch several
+	  exceptions during its execution), where each line is of the
+	  form:</para>
+
+<screen>
+&lt; cc<subscript>1</subscript>, ..., cc<subscript>n</subscript> &gt;
+</screen>
+	  <para>each <literal>cc</literal><subscript>i</subscript> is
+	  a cost centre in the program (see <xref
+	  linkend="cost-centres"/>), and the sequence represents the
+	  &ldquo;call stack&rdquo; at the point the exception was
+	  raised.  The leftmost item is the innermost function in the
+	  call stack, and the rightmost item is the outermost
+	  function.</para>
+
+	</listitem>
+      </varlistentry>
+
+      <varlistentry>
+	<term>
+          <option>-Z</option>
+          <indexterm><primary><option>-Z</option></primary><secondary>RTS option</secondary></indexterm>
+        </term>
+	<listitem>
+	  <para>Turn <emphasis>off</emphasis> &ldquo;update-frame
+          squeezing&rdquo; at garbage-collection time.  (There's no
+          particularly good reason to turn it off, except to ensure
+          the accuracy of certain data collected regarding thunk entry
+          counts.)</para>
+	</listitem>
+      </varlistentry>
+    </variablelist>
+
+  </sect2>
+
+  <sect2 id="rts-hooks">
+    <title>&ldquo;Hooks&rdquo; to change RTS behaviour</title>
+
+    <indexterm><primary>hooks</primary><secondary>RTS</secondary></indexterm>
+    <indexterm><primary>RTS hooks</primary></indexterm>
+    <indexterm><primary>RTS behaviour, changing</primary></indexterm>
+
+    <para>GHC lets you exercise rudimentary control over the RTS
+    settings for any given program, by compiling in a
+    &ldquo;hook&rdquo; that is called by the run-time system.  The RTS
+    contains stub definitions for all these hooks, but by writing your
+    own version and linking it on the GHC command line, you can
+    override the defaults.</para>
+
+    <para>Owing to the vagaries of DLL linking, these hooks don't work
+    under Windows when the program is built dynamically.</para>
+
+    <para>The hook <literal>ghc_rts_opts</literal><indexterm><primary><literal>ghc_rts_opts</literal></primary>
+      </indexterm>lets you set RTS
+    options permanently for a given program.  A common use for this is
+    to give your program a default heap and/or stack size that is
+    greater than the default.  For example, to set <literal>-H128m
+    -K1m</literal>, place the following definition in a C source
+    file:</para>
+
+<programlisting>
+char *ghc_rts_opts = "-H128m -K1m";
+</programlisting>
+
+    <para>Compile the C file, and include the object file on the
+    command line when you link your Haskell program.</para>
+
+    <para>These flags are interpreted first, before any RTS flags from
+    the <literal>GHCRTS</literal> environment variable and any flags
+    on the command line.</para>
+
+    <para>You can also change the messages printed when the runtime
+    system &ldquo;blows up,&rdquo; e.g., on stack overflow.  The hooks
+    for these are as follows:</para>
+
+    <variablelist>
+
+      <varlistentry>
+	<term>
+          <function>void OutOfHeapHook (unsigned long, unsigned long)</function>
+          <indexterm><primary><function>OutOfHeapHook</function></primary></indexterm>
+        </term>
+	<listitem>
+	  <para>The heap-overflow message.</para>
+	</listitem>
+      </varlistentry>
+
+      <varlistentry>
+	<term>
+          <function>void StackOverflowHook (long int)</function>
+          <indexterm><primary><function>StackOverflowHook</function></primary></indexterm>
+        </term>
+	<listitem>
+	  <para>The stack-overflow message.</para>
+	</listitem>
+      </varlistentry>
+
+      <varlistentry>
+	<term>
+          <function>void MallocFailHook (long int)</function>
+          <indexterm><primary><function>MallocFailHook</function></primary></indexterm>
+        </term>
+	<listitem>
+	  <para>The message printed if <function>malloc</function>
+	  fails.</para>
+	</listitem>
+      </varlistentry>
+    </variablelist>
+
+    <para>For examples of the use of these hooks, see GHC's own
+    versions in the file
+    <filename>ghc/compiler/parser/hschooks.c</filename> in a GHC
+    source tree.</para>
+  </sect2>
+
+  <sect2>
+    <title>Getting information about the RTS</title>
+
+    <indexterm><primary>RTS</primary></indexterm>
+
+    <para>It is possible to ask the RTS to give some information about
+    itself. To do this, use the <option>--info</option> flag, e.g.</para>
+<screen>
+$ ./a.out +RTS --info
+ [("GHC RTS", "Yes")
+ ,("GHC version", "6.7")
+ ,("RTS way", "rts_p")
+ ,("Host platform", "x86_64-unknown-linux")
+ ,("Build platform", "x86_64-unknown-linux")
+ ,("Target platform", "x86_64-unknown-linux")
+ ,("Compiler unregisterised", "NO")
+ ,("Tables next to code", "YES")
+ ]
+</screen>
+    <para>The information is formatted such that it can be read as a
+    of type <literal>[(String, String)]</literal>.</para>
+  </sect2>
+</sect1>
+
+<!-- Emacs stuff:
+     ;;; Local Variables: ***
+     ;;; mode: xml ***
+     ;;; sgml-parent-document: ("users_guide.xml" "book" "chapter" "sect1") ***
+     ;;; End: ***
+ -->

@@ -1,0 +1,39 @@
+name:		QuickCheck
+version:	1.1.0.0
+license:	BSD3
+license-file:	LICENSE
+author:		Koen Classen and John Hughes
+maintainer:	libraries@haskell.org
+category:	Testing
+homepage:	http://www.math.chalmers.se/~rjmh/QuickCheck/
+synopsis:	Automatic testing of Haskell programs
+description:
+	A library for testing Haskell programs automatically.
+	The programmer provides a specification of the program, in
+	the form of properties which functions should satisfy, and
+	QuickCheck then tests that the properties hold in a large number
+	of randomly generated cases.  Specifications are expressed in
+	Haskell, using combinators defined in the QuickCheck library.
+	QuickCheck provides combinators to define properties, observe
+	the distribution of test data, and define test
+	data generators.
+build-type: Simple
+cabal-version: >=1.2
+
+flag split-base
+
+library
+  exposed-modules:
+          Debug.QuickCheck.Batch,
+          Debug.QuickCheck.Poly,
+          Debug.QuickCheck.Utils,
+          Debug.QuickCheck,
+          Test.QuickCheck.Batch,
+          Test.QuickCheck.Poly,
+          Test.QuickCheck.Utils,
+          Test.QuickCheck
+  if flag(split-base)
+    build-depends:	base >= 3, random
+  else
+    build-depends:	base < 3
+  extensions:	CPP

@@ -1,0 +1,5 @@
+buildable: @BUILD_PACKAGE_BOOL@
+cc-options: @READLINE_CFLAGS@
+ld-options: @READLINE_LDFLAGS@
+extra-libraries: @READLINE_LIBS@
+frameworks: @READLINE_FRAMEWORKS@

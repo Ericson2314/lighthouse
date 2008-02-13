@@ -1,0 +1,26 @@
+name:       containers
+version:    0.1.0.1
+license:    BSD3
+license-file:    LICENSE
+maintainer:    libraries@haskell.org
+synopsis:   Assorted concrete container types
+description:
+        This package contains efficient general-purpose implementations
+        of various basic immutable container types.  The declared cost of
+        each operation is either worst-case or amortized, but remains
+        valid even if structures are shared.
+build-type: Simple
+build-depends: base, array
+exposed-modules:
+        Data.Graph
+        Data.IntMap
+        Data.IntSet
+        Data.Map
+        Data.Sequence
+        Data.Set
+        Data.Tree
+include-dirs: include
+extensions: CPP
+-- We need this for Data deriving, but we can't just turn on that
+-- extension because we only try to do it when building with GHC.
+ghc-options: -fglasgow-exts

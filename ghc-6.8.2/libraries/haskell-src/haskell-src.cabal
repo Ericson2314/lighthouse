@@ -1,0 +1,33 @@
+name:		haskell-src
+version:	1.0.1.1
+license:	BSD3
+license-file:	LICENSE
+author:		Simon Marlow, Sven Panne and Noel Winstanley
+maintainer:	libraries@haskell.org
+category:	Language
+synopsis:	Manipulating Haskell source code
+description:
+	Facilities for manipulating Haskell source code:
+	an abstract syntax, lexer, parser and pretty-printer.
+build-type:     Simple
+cabal-version:  >=1.2
+
+flag split-base
+
+library
+  exposed-modules:
+        Language.Haskell.Lexer,
+        Language.Haskell.Parser,
+        Language.Haskell.ParseMonad,
+        Language.Haskell.Pretty,
+        Language.Haskell.Syntax,
+        Language.Haskell.ParseUtils
+  if flag(split-base)
+    build-depends:	base >= 3, pretty, array
+  else
+    build-depends:	base < 3
+  build-depends: haskell98
+  -- The dependency on Haskell 98 is only because
+  -- Happy generates a parser that imports Array
+  extensions:	CPP
+  nhc98-options:	-K11M
