@@ -348,7 +348,7 @@ time_str(void)
  * clean up for us.
  * -------------------------------------------------------------------------- */
 
-#if !defined(mingw32_HOST_OS)
+#if !defined(mingw32_HOST_OS) && !defined(house_HOST_OS)
 void
 resetNonBlockingFd(int fd)
 {
@@ -453,6 +453,7 @@ heapCheckFail( void )
 }
 #endif
 
+#ifndef house_HOST_OS
 /* 
  * It seems that pthreads and signals interact oddly in OpenBSD & FreeBSD
  * pthreads (and possibly others). When linking with -lpthreads, we
@@ -467,6 +468,7 @@ int genericRaise(int sig) {
         return raise(sig);
 #endif
 }
+#endif /* !house_HOST_OS */
 
 static void mkRtsInfoPair(char *key, char *val) {
     /* XXX should check for "s, \s etc in key and val */

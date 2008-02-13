@@ -95,6 +95,7 @@ static char par_debug_opts_flags[] = {
    Static function decls
    -------------------------------------------------------------------------- */
 
+#ifndef house_HOST_OS
 static int		/* return NULL on error */
 open_stats_file (
     I_ arg,
@@ -105,6 +106,7 @@ open_stats_file (
 
 static I_ decode(const char *s);
 static void bad_option(const char *s);
+#endif
 
 #if defined(GRAN)
 static void enable_GranSimLight(void);
@@ -324,6 +326,7 @@ void initRtsFlagsDefaults(void)
 #endif
 }
 
+#ifndef house_HOST_OS
 static const char *
 usage_text[] = {
 "",
@@ -1320,6 +1323,8 @@ error = rtsTrue;
     }
 }
 
+#endif /* !house_HOST_OS */
+
 #if defined(GRAN)
 
 static void
@@ -2293,6 +2298,7 @@ help_par_debug_options(nat n) {
 
 #endif /* PAR */
 
+#ifndef house_HOST_OS
 static void
 stats_fprintf(FILE *f, char *s, ...)
 {
@@ -2379,6 +2385,7 @@ bad_option(const char *s)
   errorBelch("bad RTS option: %s", s);
   stg_exit(EXIT_FAILURE);
 }
+#endif /* !house_HOST_OS */
 
 /* -----------------------------------------------------------------------------
    Getting/Setting the program's arguments.

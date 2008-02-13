@@ -6,12 +6,12 @@ TOP     = top
 #TOP	= /home/apt/projects/hOp
 #TOP	= /home/diatchki/src/hOp-2004-06-09
 
-GHCTOP  = $(TOP)/ghc-6.6.1
+GHCTOP  = $(TOP)/ghc-6.8.2
 
 CC	= gcc
 CFLAGS	= -Wall -Wno-unused-variable -O2 -I$(GHCTOP)/includes -I$(GHCTOP)/rts -fno-builtin
 #GHC     = $(GHCTOP)/compiler/stage1/ghc-inplace
-GHC     =  $(GHCTOP)/compiler/stage1/ghc-6.6.1 -B$(GHCTOP)
+GHC     =  $(GHCTOP)/compiler/stage1/ghc-6.8.2 -B$(GHCTOP)
 
 # Optimize? (Can be used for other options too, e.g. -prof)
 OPT     = -O

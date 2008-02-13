@@ -9,7 +9,11 @@
 #ifndef RTSFLAGS_H
 #define RTSFLAGS_H
 
+#ifdef house_HOST_OS
+typedef struct _IO_FILE FILE;
+#else
 #include <stdio.h>
+#endif
 
 /* For defaults, see the @initRtsFlagsDefaults@ routine. */
 

@@ -19,8 +19,7 @@
 
 #elif defined(house_HOST_OS)
 
-extern int signals_pending();
-extern void startSignalHandlers(Capability *cap);
+#include "house/Signals.h"
 
 #else /* PAR */
 

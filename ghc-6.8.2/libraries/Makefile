@@ -46,10 +46,10 @@ endif
 ifeq "$(Windows)" "YES"
 SUBDIRS += $(wildcard Win32)
 endif
-SUBDIRS += pretty hpc template-haskell Cabal random haskell98
+SUBDIRS += pretty hpc template-haskell random haskell98
 
 ifneq "$(HOSTPLATFORM)" "i386-unknown-house"
-SUBDIRS += readline filepath directory process
+SUBDIRS += Cabal readline filepath directory process
 endif
 
 # Set GhcBootLibs=YES from the command line to work with just the libraries

@@ -3,11 +3,11 @@
 # Usage: to be invoked from ghc using "ghc -pgml ldhouse"
 
 TOP=${TOP-top}
-GHCTOP="${GHCTOP-$TOP/ghc-6.6.1}"
+GHCTOP="${GHCTOP-$TOP/ghc-6.8.2}"
 SUPPORT="${SUPPORT-$TOP/support}"
 
-LDFLAGS1="-ufreeHaskellFunctionPtr -uErrorHdrHook -L$SUPPORT -L$GHCTOP/rts -L$GHCTOP/libraries/base -L$GHCTOP/libraries/base/cbits -L$GHCTOP/libraries/mtl -static -x -estart -Ttext 0x100000"
-LDFLAGS2="-lHSrts -lHSbase -lHSrts -lHSbase -lHSbase_cbits -lHSmtl -ltiny_gmp -ltiny_m -ltiny_c -ltiny_gcc"
+LDFLAGS1="-ufreeHaskellFunctionPtr -uErrorHdrHook -L$SUPPORT -L$GHCTOP/rts -L$GHCTOP/libraries/base/dist/build -L$GHCTOP/libraries/array/dist/build -L$GHCTOP/libraries/containers/dist/build -L$GHCTOP/libraries/mtl/dist/build -L$GHCTOP/libraries/packedstring/dist/build -L$GHCTOP/libraries/pretty/dist/build -static -x -estart -Ttext 0x100000"
+LDFLAGS2="-lHSrts -lHSbase-3.0.1.0 -lHSarray-0.1.0.0 -lHScontainers-0.1.0.1 -lHSmtl-1.1.0.0 -lHSpackedstring-0.1.0.0 -lHSpretty-1.0.0.0 -lHSbase-3.0.1.0 -lHSmtl-1.1.0.0 -ltiny_gmp -ltiny_m -ltiny_c -ltiny_gcc"
 
 #C_OBJS="cbits/start.o cbits/c_start.o cbits/gprintf.o cbits/gfx.o cbits/modules.o cbits/userspace.o cbits/fault.o cbits/util.o cbits/io.o cbits/video.o"
 
