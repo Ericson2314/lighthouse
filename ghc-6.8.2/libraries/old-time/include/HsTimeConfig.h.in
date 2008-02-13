@@ -4,6 +4,10 @@
    don't. */
 #undef HAVE_DECL_ALTZONE
 
+/* Define to 1 if you have the declaration of `tzname', and to 0 if you don't.
+   */
+#undef HAVE_DECL_TZNAME
+
 /* Define to 1 if you have the `ftime' function. */
 #undef HAVE_FTIME
 
