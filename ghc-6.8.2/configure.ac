@@ -845,7 +845,7 @@ dnl --------------------------------------------------------------
 if test x"$TargetPlatform" = x"i386-unknown-mingw32"; then
    GhcLibsWithUnix=NO
 else 
-  if test x"$TargetPlatform" = x"i386-unknown-xen"; then
+  if test x"$TargetPlatform" = x"i386-unknown-house"; then
      GhcLibsWithUnix=NO
   else
      GhcLibsWithUnix=YES
@@ -1000,14 +1000,14 @@ dnl    off_t, because it will affect the result of that test.
 AC_SYS_LARGEFILE
 
 dnl ** check for specific header (.h) files that we are interested in
-if test x"$TargetPlatform" = x"i386-unknown-xen"; then
+if test x"$TargetPlatform" = x"i386-unknown-house"; then
 AC_CHECK_HEADERS([bfd.h ctype.h dirent.h dlfcn.h errno.h fcntl.h grp.h limits.h locale.h nlist.h pwd.h sys/mman.h sys/resource.h sys/time.h sys/timeb.h sys/timers.h sys/times.h sys/utsname.h sys/wait.h time.h utime.h windows.h winsock.h])
 else
 AC_CHECK_HEADERS([bfd.h ctype.h dirent.h dlfcn.h errno.h fcntl.h grp.h limits.h locale.h nlist.h pthread.h pwd.h signal.h sys/mman.h sys/resource.h sys/time.h sys/timeb.h sys/timers.h sys/times.h sys/utsname.h sys/wait.h termios.h time.h utime.h windows.h winsock.h])
 fi
 
 
-if test x"$TargetPlatform" = x"i386-unknown-xen"; then
+if test x"$TargetPlatform" = x"i386-unknown-house"; then
 HaveReadlineReadlineH=NO
 HaveReadlineHistoyH=NO
 else
@@ -1112,7 +1112,7 @@ dnl ** For ghc/rts/gmp:
 AC_CHECK_FUNCS([getpagesize])
 
 dnl ** check whether this machine has gmp3 installed
-if test "$HostOS_CPP" = "xen"; then
+if test "$HostOS_CPP" = "house"; then
 HaveLibGmp=NO
 LibGmp=not-installed
 else
@@ -1175,7 +1175,7 @@ dnl ################################################################
 
 dnl ** check whether we need -ldl to get dlopen()
 
-if test "$HostOS_CPP" = "xen"; then
+if test "$HostOS_CPP" = "house"; then
 HaveLibDL=NO
 else
 AC_CHECK_LIB(dl, dlopen,
@@ -1236,7 +1236,7 @@ AC_COMPILE_IFELSE(
     [AC_MSG_RESULT(no)])
 
 dnl ** check for librt
-if test x"$TargetPlatform" = x"i386-unknown-xen"; then
+if test x"$TargetPlatform" = x"i386-unknown-house"; then
 AC_CHECK_LIB(rt, clock_gettime)
 AC_CHECK_FUNCS(clock_gettime timer_create timer_settime)
 FP_CHECK_TIMER_CREATE
