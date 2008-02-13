@@ -16,7 +16,7 @@ module Data.Graph.Inductive(
     module Data.Graph.Inductive.Graphviz,
     module Data.Graph.Inductive.NodeMap
 
-#ifndef xen_HOST_OS
+#ifndef house_HOST_OS
     -- * Version Information
     ,version
 #endif
@@ -31,7 +31,7 @@ import Data.Graph.Inductive.Query
 import Data.Graph.Inductive.Graphviz
 import Data.Graph.Inductive.NodeMap
 
-#ifndef xen_HOST_OS
+#ifndef house_HOST_OS
 -- | Version info
 version :: IO ()
 version = putStrLn "\nFGL - Functional Graph Library, April 2007"

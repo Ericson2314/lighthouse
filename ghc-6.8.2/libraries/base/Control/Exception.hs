@@ -131,7 +131,7 @@ import GHC.Exception 	as ExceptionBase hiding (catch)
 import GHC.Conc		( throwTo, ThreadId )
 import Data.IORef	( IORef, newIORef, readIORef, writeIORef )
 import Foreign.C.String ( CString, withCString )
-#ifndef xen_HOST_OS
+#ifndef house_HOST_OS
 import System.IO	( stdout, hFlush )
 #endif
 #endif
@@ -574,7 +574,7 @@ uncaughtExceptionHandler = unsafePerformIO (newIORef defaultHandler)
    where
       defaultHandler :: Exception -> IO ()
       defaultHandler ex = do
-#ifndef xen_HOST_OS
+#ifndef house_HOST_OS
          (hFlush stdout) `catchException` (\ _ -> return ())
 #endif
          let msg = case ex of

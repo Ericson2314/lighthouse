@@ -112,7 +112,7 @@ foreign import ccall unsafe "stackOverflow"
 -- try to flush stdout/stderr, but don't worry if we fail
 -- (these handles might have errors, and we don't want to go into
 -- an infinite loop).
-#ifdef xen_HOST_OS
+#ifdef house_HOST_OS
 cleanUp :: IO ()
 cleanUp = return ()
 #else

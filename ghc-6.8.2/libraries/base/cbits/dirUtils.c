@@ -7,7 +7,7 @@
 /* needed only for solaris2_HOST_OS */
 #include "ghcconfig.h"
 
-#ifndef xen_HOST_OS
+#ifndef house_HOST_OS
 
 // The following is required on Solaris to force the POSIX versions of
 // the various _r functions instead of the Solaris versions.

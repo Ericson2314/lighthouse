@@ -174,7 +174,7 @@ module Data.ByteString (
         useAsCString,           -- :: ByteString -> (CString    -> IO a) -> IO a
         useAsCStringLen,        -- :: ByteString -> (CStringLen -> IO a) -> IO a
 
-#ifndef xen_HOST_OS
+#ifndef house_HOST_OS
         -- * I\/O with 'ByteString's
 
         -- ** Standard input and output
@@ -211,7 +211,7 @@ import Prelude hiding           (reverse,head,tail,last,init,null
                                 ,dropWhile,span,break,elem,filter,maximum
                                 ,minimum,all,concatMap,foldl1,foldr1
                                 ,scanl,scanl1,scanr,scanr1,replicate
-#ifndef xen_HOST_OS
+#ifndef house_HOST_OS
                                 ,readFile,writeFile,appendFile
                                 ,getContents,getLine,putStr,putStrLn,interact
 #endif
@@ -246,7 +246,7 @@ import Foreign.Ptr
 import Foreign.Storable         (Storable(..))
 
 -- hGetBuf and hPutBuf not available in yhc or nhc
-#ifndef xen_HOST_OS
+#ifndef house_HOST_OS
 import System.IO                (stdin,stdout,hClose,hFileSize
                                 ,hGetBuf,hPutBuf,openBinaryFile
                                 ,Handle,IOMode(..))
@@ -262,12 +262,12 @@ import qualified System.IO      (hGetLine)
 
 #if defined(__GLASGOW_HASKELL__)
 
-#ifndef xen_HOST_OS
+#ifndef house_HOST_OS
 import System.IO                (hGetBufNonBlocking)
 #endif
 import System.IO.Error          (isEOFError)
 
-#ifndef xen_HOST_OS
+#ifndef house_HOST_OS
 import GHC.Handle
 #endif
 import GHC.Prim                 (Word#, (+#), writeWord8OffAddr#)
@@ -1717,7 +1717,7 @@ copy (PS x s l) = unsafeCreate l $ \p -> withForeignPtr x $ \f ->
 
 -- ---------------------------------------------------------------------
 -- line IO
-#ifndef xen_HOST_OS
+#ifndef house_HOST_OS
 
 -- | Read a line from stdin.
 getLine :: IO ByteString

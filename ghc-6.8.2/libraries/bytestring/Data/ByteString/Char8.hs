@@ -181,7 +181,7 @@ module Data.ByteString.Char8 (
         useAsCString,           -- :: ByteString -> (CString    -> IO a) -> IO a
         useAsCStringLen,        -- :: ByteString -> (CStringLen -> IO a) -> IO a
 
-#ifndef xen_HOST_OS
+#ifndef house_HOST_OS
         -- * I\/O with 'ByteString's
 
         -- ** Standard input and output
@@ -219,7 +219,7 @@ import Prelude hiding           (reverse,head,tail,last,init,null
                                 ,words,maximum,minimum,all,concatMap
                                 ,scanl,scanl1,scanr,scanr1
                                 ,foldl1,foldr1,replicate
-#ifndef xen_HOST_OS
+#ifndef house_HOST_OS
                                 ,appendFile,readFile,writeFile
                                 ,getContents,getLine,putStr,putStrLn,interact
 #endif
@@ -235,7 +235,7 @@ import Data.ByteString (empty,null,length,tail,init,append
                        ,concat,take,drop,splitAt,intercalate
                        ,sort,isPrefixOf,isSuffixOf,isInfixOf,isSubstringOf
                        ,findSubstring,findSubstrings,copy,group
-#ifndef xen_HOST_OS
+#ifndef house_HOST_OS
                        ,getLine, getContents, putStr, putStrLn, interact
                        ,hGetContents, hGet, hPut, hPutStr, hPutStrLn
                        ,hGetLine, hGetNonBlocking
@@ -253,7 +253,7 @@ import Data.ByteString.Unsafe (unsafePackAddress) -- for the rule
 
 import Data.Char    ( isSpace )
 import qualified Data.List as List (intersperse)
-#ifndef xen_HOST_OS
+#ifndef house_HOST_OS
 import System.IO                (openFile,hClose,hFileSize,IOMode(..))
 #endif
 #ifndef __NHC__
@@ -974,7 +974,7 @@ readInteger as
           combine2 b (n:m:ns) = let t = m*b + n in t `seq` (t : combine2 b ns)
           combine2 _ ns       = ns
 
-#ifndef xen_HOST_OS
+#ifndef house_HOST_OS
 -- | Read an entire file strictly into a 'ByteString'.  This is far more
 -- efficient than reading the characters into a 'String' and then using
 -- 'pack'.  It also may be more efficient than opening the file and

@@ -123,7 +123,7 @@ module Prelude (
     
     -- * Basic Input and output
     IO,
-#ifndef xen_HOST_OS
+#ifndef house_HOST_OS
     -- ** Simple I\/O operations
     -- All I/O functions defined here are character oriented.  The
     -- treatment of the newline character will vary on different systems.

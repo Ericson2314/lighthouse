@@ -19,7 +19,7 @@ module Text.ParserCombinators.Parsec.Prim
                    -- basic types
                    , Parser, GenParser
                    , runParser, parse
-#ifndef xen_HOST_OS
+#ifndef house_HOST_OS
                    , parseFromFile, parseTest
 #endif
                    
@@ -144,7 +144,7 @@ data State tok st       = State { stateInput :: [tok]
 -----------------------------------------------------------
 -- run a parser
 -----------------------------------------------------------
-#ifndef xen_HOST_OS
+#ifndef house_HOST_OS
 parseFromFile :: Parser a -> SourceName -> IO (Either ParseError a)
 parseFromFile p fname
     = do{ input <- readFile fname

@@ -173,7 +173,7 @@ module Data.ByteString.Lazy (
         copy,                   -- :: ByteString -> ByteString
 --        defrag,                -- :: ByteString -> ByteString
 
-#ifndef xen_HOST_OS
+#ifndef house_HOST_OS
         -- * I\/O with 'ByteString's
 
         -- ** Standard input and output
@@ -209,7 +209,7 @@ import Prelude hiding
     ,concat,any,take,drop,splitAt,takeWhile,dropWhile,span,break,elem,filter,maximum
     ,minimum,all,concatMap,foldl1,foldr1,scanl, scanl1, scanr, scanr1
     ,repeat, cycle, replicate, iterate
-#ifndef xen_HOST_OS
+#ifndef house_HOST_OS
     ,readFile,writeFile,appendFile,interact
     ,getContents,getLine,putStr,putStrLn
 #endif
@@ -226,7 +226,7 @@ import Data.Monoid              (Monoid(..))
 
 import Data.Word                (Word8)
 import Data.Int                 (Int64)
-#ifndef xen_HOST_OS
+#ifndef house_HOST_OS
 import System.IO                (Handle,stdin,stdout,openBinaryFile,IOMode(..)
                                 ,hClose,hWaitForInput,hIsEOF)
 #endif
@@ -1140,7 +1140,7 @@ copy cs = foldrChunks (Chunk . S.copy) Empty cs
 -- TODO defrag func that concatenates block together that are below a threshold
 -- defrag :: ByteString -> ByteString
 
-#ifndef xen_HOST_OS
+#ifndef house_HOST_OS
 
 -- ---------------------------------------------------------------------
 -- Lazy ByteString IO

@@ -41,7 +41,7 @@ module GHC.Conc
 	-- * Waiting
 	, threadDelay	  	-- :: Int -> IO ()
 	, registerDelay		-- :: Int -> IO (TVar Bool)
-#ifndef xen_HOST_OS
+#ifndef house_HOST_OS
 	, threadWaitRead	-- :: Int -> IO ()
 	, threadWaitWrite	-- :: Int -> IO ()
 #endif
@@ -82,7 +82,7 @@ module GHC.Conc
 	, asyncWriteBA  -- :: Int -> Int -> Int -> Int -> MutableByteArray# RealWorld -> IO (Int, Int)
 #endif
 
-#if !defined(mingw32_HOST_OS) && !defined(xen_HOST_OS)
+#if !defined(mingw32_HOST_OS) && !defined(house_HOST_OS)
         , signalHandlerLock
 #endif
 
@@ -96,7 +96,7 @@ module GHC.Conc
         ) where
 
 import System.Posix.Types
-#if !defined(mingw32_HOST_OS) && !defined(xen_HOST_OS)
+#if !defined(mingw32_HOST_OS) && !defined(house_HOST_OS)
 import System.Posix.Internals
 #endif
 import Foreign
@@ -648,7 +648,7 @@ asyncWriteBA fd isSock len off bufB =
 -- -----------------------------------------------------------------------------
 -- Thread IO API
 
-#ifndef xen_HOST_OS
+#ifndef house_HOST_OS
 -- | Block the current thread until data is available to read on the
 -- given file descriptor (GHC only).
 threadWaitRead :: Fd -> IO ()
@@ -804,7 +804,7 @@ atomicModifyIORef (IORef (STRef r#)) f = IO $ \s -> atomicModifyMutVar# r# f s
 foreign import ccall unsafe "getUSecOfDay" 
   getUSecOfDay :: IO USecs
 
-#ifndef xen_HOST_OS
+#ifndef house_HOST_OS
 prodding :: IORef Bool
 {-# NOINLINE prodding #-}
 prodding = unsafePerformIO (newIORef False)
@@ -815,7 +815,7 @@ prodServiceThread = do
   if (not (was_set)) then wakeupIOManager else return ()
 #endif
 
-#ifdef xen_HOST_OS
+#ifdef house_HOST_OS
 
 prodServiceThread :: IO ()
 prodServiceThread = return ()

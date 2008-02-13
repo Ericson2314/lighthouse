@@ -8,7 +8,7 @@
 /* #include "PosixSource.h" */
 #include "HsBase.h"
 
-#ifndef xen_HOST_OS
+#ifndef house_HOST_OS
 /*
  * inputReady(fd) checks to see whether input is available on the file
  * descriptor 'fd'.  Input meaning 'can I safely read at least a

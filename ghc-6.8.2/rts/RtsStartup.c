@@ -32,7 +32,7 @@
 #include "Trace.h"
 #include "RtsTypeable.h"
 #include "Stable.h"
-#ifndef xen_HOST_OS
+#ifndef house_HOST_OS
 #include "Hpc.h"
 #endif
 #include "FileLock.h"
@@ -356,7 +356,7 @@ hs_add_root(void (*init_root)(void))
     StgRun((StgFunPtr)stg_init, &cap->r);
 
     freeGroup_lock(bd);
-#ifndef xen_HOST_OS
+#ifndef house_HOST_OS
     startupHpc();
 #endif
     // This must be done after module initialisation.
@@ -457,7 +457,7 @@ hs_exit_(rtsBool wait_foreign)
     /* stop timing the shutdown, we're about to print stats */
     stat_endExit();
    
-#ifndef xen_HOST_OS
+#ifndef house_HOST_OS
     /* shutdown the hpc support (if needed) */
     exitHpc();
 #endif

@@ -19,7 +19,7 @@ module System.IO (
     IO,			       -- instance MonadFix
     fixIO,		       -- :: (a -> IO a) -> IO a
 
-#ifndef xen_HOST_OS
+#ifndef house_HOST_OS
     -- * Files and handles
 
     FilePath,		       -- :: String
@@ -172,7 +172,7 @@ import Data.List
 import Data.Maybe
 import Foreign.C.Error
 import Foreign.C.String
-#ifndef xen_HOST_OS
+#ifndef house_HOST_OS
 import System.Posix.Internals
 #endif
 #endif
@@ -187,7 +187,7 @@ import Hugs.Exception   as ExceptionBase
 #ifdef __GLASGOW_HASKELL__
 import GHC.Base
 import GHC.IOBase	-- Together these four Prelude modules define
-#ifndef xen_HOST_OS
+#ifndef house_HOST_OS
 import GHC.Handle	-- all the stuff exported by IO for the GHC version
 import GHC.IO
 #endif
@@ -247,7 +247,7 @@ import NHC.IOExtras (fixIO, hPutBuf, hGetBuf)
 import NHC.FFI (Ptr)
 #endif
 
-#ifndef xen_HOST_OS
+#ifndef house_HOST_OS
 -- -----------------------------------------------------------------------------
 -- Standard IO
 
@@ -417,7 +417,7 @@ fixIO k = do
 -- blackholing isn't enough.  In an infinite loop, GHC may run the IO
 -- computation a few times before it notices the loop, which is wrong.
 #endif
-#ifndef xen_HOST_OS
+#ifndef house_HOST_OS
 #if defined(__NHC__)
 -- Assume a unix platform, where text and binary I/O are identical.
 openBinaryFile = openFile

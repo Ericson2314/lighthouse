@@ -30,7 +30,7 @@ module Data.PackedString
 	packString,  -- :: String -> PackedString
 	unpackPS,    -- :: PackedString -> String
 
-#if !defined(__NHC__) && !defined(xen_HOST_OS)
+#if !defined(__NHC__) && !defined(house_HOST_OS)
 	-- * I\/O with @PackedString@s	
 	hPutPS,      -- :: Handle -> PackedString -> IO ()
 	hGetPS,      -- :: Handle -> Int -> IO PackedString
@@ -318,7 +318,7 @@ first_pos_that_satisfies pred ps len n =
 substrPS :: PackedString -> Int -> Int -> PackedString
 substrPS (PS ps) begin end = packString [ ps ! i | i <- [begin..end] ]
 
-#ifndef xen_HOST_OS
+#ifndef house_HOST_OS
 -- -----------------------------------------------------------------------------
 -- hPutPS
 

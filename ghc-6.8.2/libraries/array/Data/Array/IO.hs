@@ -24,7 +24,7 @@ module Data.Array.IO (
    -- * Overloaded mutable array interface
    module Data.Array.MArray,
 
-#ifndef xen_HOST_OS
+#ifndef house_HOST_OS
    -- * Doing I\/O with @IOUArray@s
    hGetArray,		-- :: Handle -> IOUArray Int Word8 -> Int -> IO Int
    hPutArray,		-- :: Handle -> IOUArray Int Word8 -> Int -> IO ()
@@ -46,7 +46,7 @@ import Foreign.C
 
 import GHC.Arr
 import GHC.IOBase
-#ifndef xen_HOST_OS
+#ifndef house_HOST_OS
 import GHC.Handle
 #endif
 #else
@@ -121,7 +121,7 @@ unsafeThawIOUArray arr = stToIO $ do
 -- ---------------------------------------------------------------------------
 -- hGetArray
 
-#ifndef xen_HOST_OS
+#ifndef house_HOST_OS
 -- | Reads a number of 'Word8's from the specified 'Handle' directly
 -- into an array.
 hGetArray
@@ -223,7 +223,7 @@ foreign import ccall unsafe "__hscore_memcpy_dst_off"
 foreign import ccall unsafe "__hscore_memcpy_src_off"
    memcpy_ba_baoff :: RawBuffer -> RawBuffer -> CInt -> CSize -> IO (Ptr ())
 
-#ifndef xen_HOST_OS
+#ifndef house_HOST_OS
 illegalBufferSize :: Handle -> String -> Int -> IO a
 illegalBufferSize handle fn sz = 
 	ioException (IOError (Just handle)

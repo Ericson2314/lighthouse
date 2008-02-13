@@ -155,7 +155,7 @@ module Data.ByteString.Lazy.Char8 (
         readInt,
         readInteger,
 
-#ifndef xen_HOST_OS
+#ifndef house_HOST_OS
 
         -- * I\/O with 'ByteString's
 
@@ -190,7 +190,7 @@ import Data.ByteString.Lazy
         (ByteString, fromChunks, toChunks
         ,empty,null,length,tail,init,append,reverse,transpose,cycle
         ,concat,take,drop,splitAt,intercalate,isPrefixOf,group,inits,tails,copy
-#ifndef xen_HOST_OS
+#ifndef house_HOST_OS
         ,hGetContents, hGet, hPut, getContents
         ,hGetNonBlocking
         ,putStr, putStrLn, interact
@@ -213,12 +213,12 @@ import Prelude hiding
         (reverse,head,tail,last,init,null,length,map,lines,foldl,foldr,unlines
         ,concat,any,take,drop,splitAt,takeWhile,dropWhile,span,break,elem,filter
         ,unwords,words,maximum,minimum,all,concatMap,scanl,scanl1,foldl1,foldr1
-#ifndef xen_HOST_OS
+#ifndef house_HOST_OS
         ,readFile,writeFile,appendFile,getContents,getLine,putStr,putStrLn,interact
 #endif
         ,replicate,zip,zipWith,unzip,notElem,repeat,iterate,cycle)
 
-#ifndef xen_HOST_OS
+#ifndef house_HOST_OS
 import System.IO            (hClose,openFile,IOMode(..))
 #endif
 #ifndef __NHC__
@@ -784,7 +784,7 @@ readInteger (Chunk c0 cs0) =
           end n c cs = let c' = chunk c cs
                         in c' `seq` (n, c')
 
-#ifndef xen_HOST_OS
+#ifndef house_HOST_OS
 -- | Read an entire file /lazily/ into a 'ByteString'. Use 'text mode'
 -- on Windows to interpret newlines
 readFile :: FilePath -> IO ByteString

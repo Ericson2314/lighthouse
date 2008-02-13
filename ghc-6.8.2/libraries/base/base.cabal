@@ -164,6 +164,6 @@ Library {
     -- XXX is there an extension for using # in varids?
     -- We need to set the package name to base (without a version number)
     -- as it's magic.
-    ghc-options: -fglasgow-exts -package-name base -Dxen_HOST_OS
+    ghc-options: -fglasgow-exts -package-name base -Dhouse_HOST_OS
     nhc98-options: -H4M -K3M
 }

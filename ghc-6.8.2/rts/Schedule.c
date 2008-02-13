@@ -171,7 +171,7 @@ rtsTime TimeOfLastYield;
 rtsBool emitSchedule = rtsTrue;
 #endif
 
-#if !defined(mingw32_HOST_OS) && !defined(xen_HOST_OS)
+#if !defined(mingw32_HOST_OS) && !defined(house_HOST_OS)
 #error "FOO!"
 #define FORKPROCESS_PRIMOP_SUPPORTED
 #endif
@@ -1012,7 +1012,7 @@ scheduleDetectDeadlock (Capability *cap, Task *task)
 	}
 #endif
 
-#if !defined(THREADED_RTS) && !defined(xen_HOST_OS)
+#if !defined(THREADED_RTS) && !defined(house_HOST_OS)
 	/* Probably a real deadlock.  Send the current main thread the
 	 * Deadlock exception.
 	 */

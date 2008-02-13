@@ -43,7 +43,7 @@ module Control.Concurrent (
 #ifdef __GLASGOW_HASKELL__
 	-- ** Waiting
 	threadDelay,		-- :: Int -> IO ()
-#ifndef xen_HOST_OS
+#ifndef house_HOST_OS
 	threadWaitRead,		-- :: Int -> IO ()
 	threadWaitWrite,	-- :: Int -> IO ()
 #endif
@@ -99,7 +99,7 @@ import Control.Exception as Exception
 #ifdef __GLASGOW_HASKELL__
 import GHC.Conc		( ThreadId(..), myThreadId, killThread, yield,
 			  threadDelay, 
-#ifndef xen_HOST_OS
+#ifndef house_HOST_OS
                           threadWaitRead, threadWaitWrite,
 #endif
 			  forkIO, childHandler )

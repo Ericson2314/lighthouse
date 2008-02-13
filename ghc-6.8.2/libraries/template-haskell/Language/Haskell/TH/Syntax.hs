@@ -59,7 +59,7 @@ import qualified Data.Generics as Generics
 import Data.IORef
 import GHC.IOBase	( unsafePerformIO )
 import Control.Monad (liftM)
-#ifndef xen_HOST_OS
+#ifndef house_HOST_OS
 import System.IO	( hPutStrLn, stderr )
 #endif
 import Data.Char        ( isAlpha )
@@ -104,7 +104,7 @@ instance Quasi IO where
                  ; writeIORef counter (n+1)
                  ; return (mkNameU s n) }
 
-#ifdef xen_HOST_OS
+#ifdef house_HOST_OS
   qReport True  msg = fail ("Template Haskell error: " ++ msg)
   qReport False msg = fail ("Template Haskell error: " ++ msg)
 #else

@@ -26,4 +26,4 @@ exposed-modules:
 	Text.ParserCombinators.Parsec
 build-depends:	base
 extensions:	ExistentialQuantification, PolymorphicComponents, CPP
-ghc-options: -Dxen_HOST_OS
+ghc-options: -Dhouse_HOST_OS

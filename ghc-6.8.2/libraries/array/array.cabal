@@ -24,5 +24,5 @@ other-modules:
     Data.Array.IO.Internals
 extensions: CPP
 include-dirs: include
-ghc-options: -fglasgow-exts -Dxen_HOST_OS
+ghc-options: -fglasgow-exts -Dhouse_HOST_OS
 

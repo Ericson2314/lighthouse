@@ -11,4 +11,4 @@ build-depends: base, array
 exposed-modules:
     Data.PackedString
 extensions: CPP
-ghc-options: -Dxen_HOST_OS
+ghc-options: -Dhouse_HOST_OS

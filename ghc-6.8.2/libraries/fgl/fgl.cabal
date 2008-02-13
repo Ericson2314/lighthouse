@@ -38,4 +38,4 @@ exposed-modules:
 	Data.Graph.Inductive
 build-depends:	base, mtl, containers, array
 extensions: MultiParamTypeClasses, OverlappingInstances, FlexibleInstances, CPP
-ghc-options: -Dxen_HOST_OS
+ghc-options: -Dhouse_HOST_OS

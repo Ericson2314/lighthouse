@@ -15,6 +15,6 @@ exposed-modules:
     Language.Haskell.TH
 -- We need to set the package name to template-haskell (without a
 -- version number) as it's magic.
-ghc-options: -package-name template-haskell -Dxen_HOST_OS
+ghc-options: -package-name template-haskell -Dhouse_HOST_OS
 extensions: CPP
 
