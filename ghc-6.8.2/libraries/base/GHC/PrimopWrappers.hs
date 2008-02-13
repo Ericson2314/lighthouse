@@ -113,6 +113,10 @@ narrow8Word# a1 = (GHC.Prim.narrow8Word#) a1
 narrow16Word# a1 = (GHC.Prim.narrow16Word#) a1
 {-# NOINLINE narrow32Word# #-}
 narrow32Word# a1 = (GHC.Prim.narrow32Word#) a1
+{-# NOINLINE int64ToInteger# #-}
+int64ToInteger# a1 = (GHC.Prim.int64ToInteger#) a1
+{-# NOINLINE word64ToInteger# #-}
+word64ToInteger# a1 = (GHC.Prim.word64ToInteger#) a1
 {-# NOINLINE plusInteger# #-}
 plusInteger# a1 a2 a3 a4 = (GHC.Prim.plusInteger#) a1 a2 a3 a4
 {-# NOINLINE minusInteger# #-}
@@ -599,10 +603,6 @@ reallyUnsafePtrEquality# a1 a2 = (GHC.Prim.reallyUnsafePtrEquality#) a1 a2
 dataToTag# a1 = (GHC.Prim.dataToTag#) a1
 {-# NOINLINE addrToHValue# #-}
 addrToHValue# a1 = (GHC.Prim.addrToHValue#) a1
-{-# NOINLINE mkApUpd0# #-}
-mkApUpd0# a1 = (GHC.Prim.mkApUpd0#) a1
-{-# NOINLINE newBCO# #-}
-newBCO# a1 a2 a3 a4 a5 a6 = (GHC.Prim.newBCO#) a1 a2 a3 a4 a5 a6
 {-# NOINLINE unpackClosure# #-}
 unpackClosure# a1 = (GHC.Prim.unpackClosure#) a1
 {-# NOINLINE getApStackVal# #-}

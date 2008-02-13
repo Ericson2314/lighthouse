@@ -142,6 +142,24 @@ module GHC.Prim (
 	narrow16Word#,
 	narrow32Word#,
 	
+-- * Int64#
+-- |Operations on 64-bit unsigned words. This type is only used 
+-- 	 if plain @Int\#@ has less than 64 bits. In any case, the operations
+-- 	 are not primops; they are implemented (if needed) as ccalls instead.
+
+
+	Int64#,
+	int64ToInteger#,
+	
+-- * Word64#
+-- |Operations on 64-bit unsigned words. This type is only used 
+-- 	 if plain @Word\#@ has less than 64 bits. In any case, the operations
+-- 	 are not primops; they are implemented (if needed) as ccalls instead.
+
+
+	Word64#,
+	word64ToInteger#,
+	
 -- * Integer#
 -- |Operations on arbitrary-precision integers. These operations are 
 -- implemented via the GMP package. An integer is represented as a pair
@@ -515,10 +533,7 @@ module GHC.Prim (
 -- |Support for the bytecode interpreter and linker.
 
 
-	BCO#,
 	addrToHValue#,
-	mkApUpd0#,
-	newBCO#,
 	unpackClosure#,
 	getApStackVal#,
 	
@@ -653,6 +668,12 @@ narrow32Int# :: Int# -> Int#
 narrow8Word# :: Word# -> Word#
 narrow16Word# :: Word# -> Word#
 narrow32Word# :: Word# -> Word#
+
+data Int64#
+int64ToInteger# :: Int64# -> (# Int#,ByteArr# #)
+
+data Word64#
+word64ToInteger# :: Word64# -> (# Int#,ByteArr# #)
 
 plusInteger# :: Int# -> ByteArr# -> Int# -> ByteArr# -> (# Int#,ByteArr# #)
 minusInteger# :: Int# -> ByteArr# -> Int# -> ByteArr# -> (# Int#,ByteArr# #)
@@ -819,11 +840,11 @@ indexStablePtrArray# :: ByteArr# -> Int# -> StablePtr# a
 indexInt8Array# :: ByteArr# -> Int# -> Int#
 indexInt16Array# :: ByteArr# -> Int# -> Int#
 indexInt32Array# :: ByteArr# -> Int# -> Int#
-indexInt64Array# :: ByteArr# -> Int# -> Int#
+indexInt64Array# :: ByteArr# -> Int# -> Int64#
 indexWord8Array# :: ByteArr# -> Int# -> Word#
 indexWord16Array# :: ByteArr# -> Int# -> Word#
 indexWord32Array# :: ByteArr# -> Int# -> Word#
-indexWord64Array# :: ByteArr# -> Int# -> Word#
+indexWord64Array# :: ByteArr# -> Int# -> Word64#
 
 -- |Read 8-bit character; offset in bytes.
 readCharArray# :: MutByteArr# s -> Int# -> State# s -> (# State# s,Char# #)
@@ -839,11 +860,11 @@ readStablePtrArray# :: MutByteArr# s -> Int# -> State# s -> (# State# s,StablePt
 readInt8Array# :: MutByteArr# s -> Int# -> State# s -> (# State# s,Int# #)
 readInt16Array# :: MutByteArr# s -> Int# -> State# s -> (# State# s,Int# #)
 readInt32Array# :: MutByteArr# s -> Int# -> State# s -> (# State# s,Int# #)
-readInt64Array# :: MutByteArr# s -> Int# -> State# s -> (# State# s,Int# #)
+readInt64Array# :: MutByteArr# s -> Int# -> State# s -> (# State# s,Int64# #)
 readWord8Array# :: MutByteArr# s -> Int# -> State# s -> (# State# s,Word# #)
 readWord16Array# :: MutByteArr# s -> Int# -> State# s -> (# State# s,Word# #)
 readWord32Array# :: MutByteArr# s -> Int# -> State# s -> (# State# s,Word# #)
-readWord64Array# :: MutByteArr# s -> Int# -> State# s -> (# State# s,Word# #)
+readWord64Array# :: MutByteArr# s -> Int# -> State# s -> (# State# s,Word64# #)
 
 -- |Write 8-bit character; offset in bytes.
 writeCharArray# :: MutByteArr# s -> Int# -> Char# -> State# s -> State# s
@@ -859,11 +880,11 @@ writeStablePtrArray# :: MutByteArr# s -> Int# -> StablePtr# a -> State# s -> Sta
 writeInt8Array# :: MutByteArr# s -> Int# -> Int# -> State# s -> State# s
 writeInt16Array# :: MutByteArr# s -> Int# -> Int# -> State# s -> State# s
 writeInt32Array# :: MutByteArr# s -> Int# -> Int# -> State# s -> State# s
-writeInt64Array# :: MutByteArr# s -> Int# -> Int# -> State# s -> State# s
+writeInt64Array# :: MutByteArr# s -> Int# -> Int64# -> State# s -> State# s
 writeWord8Array# :: MutByteArr# s -> Int# -> Word# -> State# s -> State# s
 writeWord16Array# :: MutByteArr# s -> Int# -> Word# -> State# s -> State# s
 writeWord32Array# :: MutByteArr# s -> Int# -> Word# -> State# s -> State# s
-writeWord64Array# :: MutByteArr# s -> Int# -> Word# -> State# s -> State# s
+writeWord64Array# :: MutByteArr# s -> Int# -> Word64# -> State# s -> State# s
 
 
 -- | An arbitrary machine address assumed to point outside
@@ -908,11 +929,11 @@ indexStablePtrOffAddr# :: Addr# -> Int# -> StablePtr# a
 indexInt8OffAddr# :: Addr# -> Int# -> Int#
 indexInt16OffAddr# :: Addr# -> Int# -> Int#
 indexInt32OffAddr# :: Addr# -> Int# -> Int#
-indexInt64OffAddr# :: Addr# -> Int# -> Int#
+indexInt64OffAddr# :: Addr# -> Int# -> Int64#
 indexWord8OffAddr# :: Addr# -> Int# -> Word#
 indexWord16OffAddr# :: Addr# -> Int# -> Word#
 indexWord32OffAddr# :: Addr# -> Int# -> Word#
-indexWord64OffAddr# :: Addr# -> Int# -> Word#
+indexWord64OffAddr# :: Addr# -> Int# -> Word64#
 
 -- |Reads 8-bit character; offset in bytes.
 readCharOffAddr# :: Addr# -> Int# -> State# s -> (# State# s,Char# #)
@@ -928,11 +949,11 @@ readStablePtrOffAddr# :: Addr# -> Int# -> State# s -> (# State# s,StablePtr# a #
 readInt8OffAddr# :: Addr# -> Int# -> State# s -> (# State# s,Int# #)
 readInt16OffAddr# :: Addr# -> Int# -> State# s -> (# State# s,Int# #)
 readInt32OffAddr# :: Addr# -> Int# -> State# s -> (# State# s,Int# #)
-readInt64OffAddr# :: Addr# -> Int# -> State# s -> (# State# s,Int# #)
+readInt64OffAddr# :: Addr# -> Int# -> State# s -> (# State# s,Int64# #)
 readWord8OffAddr# :: Addr# -> Int# -> State# s -> (# State# s,Word# #)
 readWord16OffAddr# :: Addr# -> Int# -> State# s -> (# State# s,Word# #)
 readWord32OffAddr# :: Addr# -> Int# -> State# s -> (# State# s,Word# #)
-readWord64OffAddr# :: Addr# -> Int# -> State# s -> (# State# s,Word# #)
+readWord64OffAddr# :: Addr# -> Int# -> State# s -> (# State# s,Word64# #)
 writeCharOffAddr# :: Addr# -> Int# -> Char# -> State# s -> State# s
 writeWideCharOffAddr# :: Addr# -> Int# -> Char# -> State# s -> State# s
 writeIntOffAddr# :: Addr# -> Int# -> Int# -> State# s -> State# s
@@ -944,11 +965,11 @@ writeStablePtrOffAddr# :: Addr# -> Int# -> StablePtr# a -> State# s -> State# s
 writeInt8OffAddr# :: Addr# -> Int# -> Int# -> State# s -> State# s
 writeInt16OffAddr# :: Addr# -> Int# -> Int# -> State# s -> State# s
 writeInt32OffAddr# :: Addr# -> Int# -> Int# -> State# s -> State# s
-writeInt64OffAddr# :: Addr# -> Int# -> Int# -> State# s -> State# s
+writeInt64OffAddr# :: Addr# -> Int# -> Int64# -> State# s -> State# s
 writeWord8OffAddr# :: Addr# -> Int# -> Word# -> State# s -> State# s
 writeWord16OffAddr# :: Addr# -> Int# -> Word# -> State# s -> State# s
 writeWord32OffAddr# :: Addr# -> Int# -> Word# -> State# s -> State# s
-writeWord64OffAddr# :: Addr# -> Int# -> Word# -> State# s -> State# s
+writeWord64OffAddr# :: Addr# -> Int# -> Word64# -> State# s -> State# s
 
 
 -- |A @MutVar\#@ behaves like a single-element mutable array.
@@ -1082,13 +1103,8 @@ dataToTag# :: a -> Int#
 tagToEnum# :: Int# -> a
 
 
--- |Primitive bytecode type.
-data BCO#
-
 -- |Convert an @Addr\#@ to a followable type.
 addrToHValue# :: Addr# -> (# a #)
-mkApUpd0# :: BCO# -> (# a #)
-newBCO# :: ByteArr# -> ByteArr# -> Array# a -> Int# -> ByteArr# -> State# s -> (# State# s,BCO# #)
 unpackClosure# :: a -> (# Addr#,Array# b,ByteArr# #)
 getApStackVal# :: a -> Int# -> (# Int#,b #)
 
