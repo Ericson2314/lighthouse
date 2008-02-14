@@ -341,11 +341,6 @@ main(int argc, char *argv[])
     closure_field(StgCatchSTMFrame, handler);
     closure_field(StgCatchSTMFrame, code);
 
-    closure_size(StgCatchRetryFrame);
-    closure_field(StgCatchRetryFrame, running_alt_code);
-    closure_field(StgCatchRetryFrame, first_code);
-    closure_field(StgCatchRetryFrame, alt_code);
-
     closure_field(StgTVarWatchQueue, closure);
     closure_field(StgTVarWatchQueue, next_queue_entry);
     closure_field(StgTVarWatchQueue, prev_queue_entry);

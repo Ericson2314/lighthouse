@@ -169,29 +169,6 @@ extern void stmAddInvariantToCheck(Capability *cap,
 extern StgBool stmCommitTransaction(Capability *cap, StgTRecHeader *trec);
 extern StgBool stmCommitNestedTransaction(Capability *cap, StgTRecHeader *trec);
 
-/*
- * Test whether the current transaction context is valid and, if so,
- * start the thread waiting for updates to any of the tvars it has
- * ready from and mark it as blocked.  It is an error to call stmWait
- * if the thread is already waiting.  
- */
-
-extern StgBool stmWait(Capability *cap,
-                       StgTSO *tso, 
-                       StgTRecHeader *trec);
-
-extern void stmWaitUnlock(Capability *cap, StgTRecHeader *trec);
-
-/*
- * Test whether the current transaction context is valid and, if so,
- * leave the thread waiting and mark it as blocked again.  If the
- * transaction context is no longer valid then stop the thread waiting
- * and leave it as unblocked.  It is an error to call stmReWait if the
- * thread is not waiting.
- */
-
-extern StgBool stmReWait(Capability *cap, StgTSO *tso);
-
 /*----------------------------------------------------------------------
 
    TVar management operations

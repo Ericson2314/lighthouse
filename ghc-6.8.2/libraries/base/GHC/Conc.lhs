@@ -95,6 +95,8 @@ module GHC.Conc
 #endif
         ) where
 
+import Prelude(undefined)
+
 import System.Posix.Types
 #if !defined(mingw32_HOST_OS) && !defined(house_HOST_OS)
 import System.Posix.Internals
@@ -414,7 +416,7 @@ atomically (STM m) = IO (\s -> (atomically# m) s )
 -- block the thread until one of the TVars that it has read from has been
 -- udpated. (GHC only)
 retry :: STM a
-retry = STM $ \s# -> retry# s#
+retry = undefined
 
 -- |Compose two alternative STM actions (GHC only).  If the first action
 -- completes without retrying then it forms the result of the orElse.
@@ -422,7 +424,7 @@ retry = STM $ \s# -> retry# s#
 -- tried in its place.  If both actions retry then the orElse as a
 -- whole retries.
 orElse :: STM a -> STM a -> STM a
-orElse (STM m) e = STM $ \s -> catchRetry# m (unSTM e) s
+orElse = undefined
 
 -- |Exception handling within STM actions.
 catchSTM :: STM a -> (Exception -> STM a) -> STM a

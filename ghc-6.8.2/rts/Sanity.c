@@ -134,7 +134,6 @@ checkStackFrame( StgPtr c )
     case UPDATE_FRAME:
       ASSERT(LOOKS_LIKE_CLOSURE_PTR(((StgUpdateFrame*)c)->updatee));
     case ATOMICALLY_FRAME:
-    case CATCH_RETRY_FRAME:
     case CATCH_STM_FRAME:
     case CATCH_FRAME:
       // small bitmap cases (<= 32 entries)
@@ -372,7 +371,6 @@ checkClosure( StgClosure* p )
     case STOP_FRAME:
     case CATCH_FRAME:
     case ATOMICALLY_FRAME:
-    case CATCH_RETRY_FRAME:
     case CATCH_STM_FRAME:
 	    barf("checkClosure: stack frame");
 

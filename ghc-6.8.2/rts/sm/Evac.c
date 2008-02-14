@@ -588,7 +588,6 @@ loop:
   case STOP_FRAME:
   case CATCH_FRAME:
   case CATCH_STM_FRAME:
-  case CATCH_RETRY_FRAME:
   case ATOMICALLY_FRAME:
     // shouldn't see these 
     barf("evacuate: stack frame at %p\n", q);

@@ -1271,20 +1271,6 @@ primop	AtomicallyOp "atomically#" GenPrimOp
    out_of_line = True
    has_side_effects = True
 
-primop  RetryOp "retry#" GenPrimOp
-   State# RealWorld -> (# State# RealWorld, a #)
-   with 
-   out_of_line = True
-   has_side_effects = True
-
-primop  CatchRetryOp "catchRetry#" GenPrimOp
-      (State# RealWorld -> (# State# RealWorld, a #) )
-   -> (State# RealWorld -> (# State# RealWorld, a #) )
-   -> (State# RealWorld -> (# State# RealWorld, a #) )
-   with 
-   out_of_line = True
-   has_side_effects = True
-
 primop  CatchSTMOp "catchSTM#" GenPrimOp
       (State# RealWorld -> (# State# RealWorld, a #) )
    -> (b -> State# RealWorld -> (# State# RealWorld, a #) )

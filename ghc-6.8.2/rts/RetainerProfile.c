@@ -1378,7 +1378,6 @@ retainStack( StgClosure *c, retainer c_child_r,
 	case STOP_FRAME:
 	case CATCH_FRAME:
 	case CATCH_STM_FRAME:
-	case CATCH_RETRY_FRAME:
 	case ATOMICALLY_FRAME:
 	case RET_SMALL:
 	    bitmap = BITMAP_BITS(info->i.layout.bitmap);

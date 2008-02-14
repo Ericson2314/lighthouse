@@ -498,7 +498,6 @@ typedef struct _RtsSymbolVal {
       SymX(errorBelch)				\
       SymX(blockAsyncExceptionszh_fast)		\
       SymX(catchzh_fast)			\
-      SymX(catchRetryzh_fast)			\
       SymX(catchSTMzh_fast)			\
       SymX(checkzh_fast)                        \
       SymX(closure_flags)                       \
@@ -592,7 +591,6 @@ typedef struct _RtsSymbolVal {
       SymX(resetNonBlockingFd)			\
       SymX(resumeThread)			\
       SymX(resolveObjs)                         \
-      SymX(retryzh_fast)                        \
       SymX(rts_apply)				\
       SymX(rts_checkSchedStatus)		\
       SymX(rts_eval)				\

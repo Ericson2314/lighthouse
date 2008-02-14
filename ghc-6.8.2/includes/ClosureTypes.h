@@ -90,8 +90,7 @@
 #define TREC_CHUNK              66
 #define TREC_HEADER             67
 #define ATOMICALLY_FRAME        68
-#define CATCH_RETRY_FRAME       69
-#define CATCH_STM_FRAME         70
-#define N_CLOSURE_TYPES         71
+#define CATCH_STM_FRAME         69
+#define N_CLOSURE_TYPES         70
 
 #endif /* CLOSURETYPES_H */

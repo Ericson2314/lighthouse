@@ -42,7 +42,6 @@ RTS_RET_INFO(stg_noupd_frame_info);
 RTS_RET_INFO(stg_catch_frame_info);
 RTS_RET_INFO(stg_catch_retry_frame_info);
 RTS_RET_INFO(stg_atomically_frame_info);
-RTS_RET_INFO(stg_atomically_waiting_frame_info);
 RTS_RET_INFO(stg_catch_stm_frame_info);
 
 RTS_ENTRY(stg_upd_frame_ret);
@@ -197,7 +196,6 @@ RTS_ENTRY(stg_blockAsyncExceptionszh_ret_ret);
 RTS_ENTRY(stg_catch_frame_ret);
 RTS_ENTRY(stg_catch_retry_frame_ret);
 RTS_ENTRY(stg_atomically_frame_ret);
-RTS_ENTRY(stg_atomically_waiting_frame_ret);
 RTS_ENTRY(stg_catch_stm_frame_ret);
 RTS_ENTRY(stg_catch_frame_ret);
 RTS_ENTRY(stg_catch_entry);

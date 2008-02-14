@@ -424,13 +424,6 @@ typedef struct {
   StgClosure *handler;
 } StgCatchSTMFrame;
 
-typedef struct {
-  StgHeader      header;
-  StgBool        running_alt_code;
-  StgClosure    *first_code;
-  StgClosure    *alt_code;
-} StgCatchRetryFrame;
-
 #if defined(PAR) || defined(GRAN)
 /*
   StgBlockingQueueElement is a ``collective type'' representing the types

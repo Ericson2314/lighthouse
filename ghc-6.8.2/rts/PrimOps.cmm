@@ -1006,42 +1006,6 @@ isCurrentThreadBoundzh_fast
 #define IF_NOT_REG_R1(x) x
 #endif
 
-// Catch retry frame ------------------------------------------------------------
-
-INFO_TABLE_RET(stg_catch_retry_frame, CATCH_RETRY_FRAME,
-#if defined(PROFILING)
-  W_ unused1, W_ unused2,
-#endif
-  W_ unused3, "ptr" W_ unused4, "ptr" W_ unused5)
-{
-   W_ r, frame, trec, outer;
-   IF_NOT_REG_R1(W_ rval;  rval = Sp(0);  Sp_adj(1); )
-
-   frame = Sp;
-   trec = StgTSO_trec(CurrentTSO);
-   ("ptr" outer) = foreign "C" stmGetEnclosingTRec(trec "ptr") [];
-   (r) = foreign "C" stmCommitNestedTransaction(MyCapability() "ptr", trec "ptr") [];
-   if (r != 0) {
-     /* Succeeded (either first branch or second branch) */
-     StgTSO_trec(CurrentTSO) = outer;
-     Sp = Sp + SIZEOF_StgCatchRetryFrame;
-     IF_NOT_REG_R1(Sp_adj(-1); Sp(0) = rval;)
-     jump %ENTRY_CODE(Sp(SP_OFF));
-   } else {
-     /* Did not commit: re-execute */
-     W_ new_trec;
-     ("ptr" new_trec) = foreign "C" stmStartTransaction(MyCapability() "ptr", outer "ptr") [];
-     StgTSO_trec(CurrentTSO) = new_trec;
-     if (StgCatchRetryFrame_running_alt_code(frame) != 0::I32) {
-       R1 = StgCatchRetryFrame_alt_code(frame);
-     } else {
-       R1 = StgCatchRetryFrame_first_code(frame);
-     }
-     jump stg_ap_v_fast;
-   }
-}
-
-
 // Atomically frame ------------------------------------------------------------
 
 INFO_TABLE_RET(stg_atomically_frame, ATOMICALLY_FRAME,
@@ -1105,35 +1069,6 @@ INFO_TABLE_RET(stg_atomically_frame, ATOMICALLY_FRAME,
       R1 = StgAtomicallyFrame_code(frame);
       jump stg_ap_v_fast;
     }
-  }
-}
-
-INFO_TABLE_RET(stg_atomically_waiting_frame, ATOMICALLY_FRAME,
-#if defined(PROFILING)
-  W_ unused1, W_ unused2,
-#endif
-  "ptr" W_ unused3, "ptr" W_ unused4)
-{
-  W_ frame, trec, valid;
-  IF_NOT_REG_R1(W_ rval;  rval = Sp(0);  Sp_adj(1); )
-
-  frame = Sp;
-
-  /* The TSO is currently waiting: should we stop waiting? */
-  (valid) = foreign "C" stmReWait(MyCapability() "ptr", CurrentTSO "ptr") [];
-  if (valid != 0) {
-    /* Previous attempt is still valid: no point trying again yet */
-	  IF_NOT_REG_R1(Sp_adj(-2);
-			Sp(1) = stg_NO_FINALIZER_closure;
-		  	Sp(0) = stg_ut_1_0_unreg_info;)
-    jump stg_block_noregs;
-  } else {
-    /* Previous attempt is no longer valid: try again */
-    ("ptr" trec) = foreign "C" stmStartTransaction(MyCapability() "ptr", NO_TREC "ptr") [];
-    StgTSO_trec(CurrentTSO) = trec;
-    StgHeader_info(frame) = stg_atomically_frame_info;
-    R1 = StgAtomicallyFrame_code(frame);
-    jump stg_ap_v_fast;
   }
 }
 
@@ -1243,114 +1178,6 @@ catchSTMzh_fast
 
   /* Apply R1 to the realworld token */
   jump stg_ap_v_fast;
-}
-
-
-catchRetryzh_fast
-{
-  W_ frame;
-  W_ new_trec;
-  W_ trec;
-
-  // stmStartTransaction may allocate
-  MAYBE_GC (R1_PTR & R2_PTR, catchRetryzh_fast); 
-
-  /* Args: R1 :: STM a */
-  /* Args: R2 :: STM a */
-  STK_CHK_GEN(SIZEOF_StgCatchRetryFrame + WDS(1), R1_PTR & R2_PTR, catchRetryzh_fast);
-
-  /* Start a nested transaction within which to run the first code */
-  trec = StgTSO_trec(CurrentTSO);
-  ("ptr" new_trec) = foreign "C" stmStartTransaction(MyCapability() "ptr", trec "ptr") [R1,R2];
-  StgTSO_trec(CurrentTSO) = new_trec;
-
-  /* Set up the catch-retry frame */
-  Sp = Sp - SIZEOF_StgCatchRetryFrame;
-  frame = Sp;
-  
-  SET_HDR(frame, stg_catch_retry_frame_info, W_[CCCS]);
-  StgCatchRetryFrame_running_alt_code(frame) = 0 :: CInt; // false;
-  StgCatchRetryFrame_first_code(frame) = R1;
-  StgCatchRetryFrame_alt_code(frame) = R2;
-
-  /* Apply R1 to the realworld token */
-  jump stg_ap_v_fast;
-}
-
-
-retryzh_fast
-{
-  W_ frame_type;
-  W_ frame;
-  W_ trec;
-  W_ outer;
-  W_ r;
-
-  MAYBE_GC (NO_PTRS, retryzh_fast); // STM operations may allocate
-
-  // Find the enclosing ATOMICALLY_FRAME or CATCH_RETRY_FRAME
-retry_pop_stack:
-  StgTSO_sp(CurrentTSO) = Sp;
-  (frame_type) = foreign "C" findRetryFrameHelper(CurrentTSO "ptr") [];
-  Sp = StgTSO_sp(CurrentTSO);
-  frame = Sp;
-  trec = StgTSO_trec(CurrentTSO);
-  ("ptr" outer) = foreign "C" stmGetEnclosingTRec(trec "ptr") [];
-
-  if (frame_type == CATCH_RETRY_FRAME) {
-    // The retry reaches a CATCH_RETRY_FRAME before the atomic frame
-    ASSERT(outer != NO_TREC);
-    // Abort the transaction attempting the current branch
-    foreign "C" stmAbortTransaction(MyCapability() "ptr", trec "ptr") [];
-    foreign "C" stmFreeAbortedTRec(MyCapability() "ptr", trec "ptr") [];
-    if (!StgCatchRetryFrame_running_alt_code(frame) != 0::I32) {
-      // Retry in the first branch: try the alternative
-      ("ptr" trec) = foreign "C" stmStartTransaction(MyCapability() "ptr", outer "ptr") [];
-      StgTSO_trec(CurrentTSO) = trec;
-      StgCatchRetryFrame_running_alt_code(frame) = 1 :: CInt; // true;
-      R1 = StgCatchRetryFrame_alt_code(frame);
-      jump stg_ap_v_fast;
-    } else {
-      // Retry in the alternative code: propagate the retry
-      StgTSO_trec(CurrentTSO) = outer;
-      Sp = Sp + SIZEOF_StgCatchRetryFrame;
-      goto retry_pop_stack;
-    }
-  }
-
-  // We've reached the ATOMICALLY_FRAME: attempt to wait 
-  ASSERT(frame_type == ATOMICALLY_FRAME);
-  if (outer != NO_TREC) {
-    // We called retry while checking invariants, so abort the current
-    // invariant check (merging its TVar accesses into the parents read
-    // set so we'll wait on them)
-    foreign "C" stmAbortTransaction(MyCapability() "ptr", trec "ptr") [];
-    foreign "C" stmFreeAbortedTRec(MyCapability() "ptr", trec "ptr") [];
-    trec = outer;
-    StgTSO_trec(CurrentTSO) = trec;
-    ("ptr" outer) = foreign "C" stmGetEnclosingTRec(trec "ptr") [];
-  }
-  ASSERT(outer == NO_TREC);
-
-  (r) = foreign "C" stmWait(MyCapability() "ptr", CurrentTSO "ptr", trec "ptr") [];
-  if (r != 0) {
-    // Transaction was valid: stmWait put us on the TVars' queues, we now block
-    StgHeader_info(frame) = stg_atomically_waiting_frame_info;
-    Sp = frame;
-    // Fix up the stack in the unregisterised case: the return convention is different.
-    IF_NOT_REG_R1(Sp_adj(-2); 
-		  Sp(1) = stg_NO_FINALIZER_closure;
-		  Sp(0) = stg_ut_1_0_unreg_info;)
-    R3 = trec; // passing to stmWaitUnblock()
-    jump stg_block_stmwait;
-  } else {
-    // Transaction was not valid: retry immediately
-    ("ptr" trec) = foreign "C" stmStartTransaction(MyCapability() "ptr", outer "ptr") [];
-    StgTSO_trec(CurrentTSO) = trec;
-    R1 = StgAtomicallyFrame_code(frame);
-    Sp = frame;
-    jump stg_ap_v_fast;
-  }
 }
 
 

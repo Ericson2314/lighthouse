@@ -1024,26 +1024,7 @@ raiseAsync(Capability *cap, StgTSO *tso, StgClosure *exception,
 	    }
 	    // Not stop_at_atomically... fall through and abort the
 	    // transaction.
-	    
-	case CATCH_RETRY_FRAME:
-	    // IF we find an ATOMICALLY_FRAME then we abort the
-	    // current transaction and propagate the exception.  In
-	    // this case (unlike ordinary exceptions) we do not care
-	    // whether the transaction is valid or not because its
-	    // possible validity cannot have caused the exception
-	    // and will not be visible after the abort.
-
-		{
-            StgTRecHeader *trec = tso -> trec;
-            StgTRecHeader *outer = stmGetEnclosingTRec(trec);
-	    debugTrace(DEBUG_stm, 
-		       "found atomically block delivering async exception");
-            stmAbortTransaction(cap, trec);
-	    stmFreeAbortedTRec(cap, trec);
-            tso -> trec = outer;
-	    break;
-	    };
-	    
+    
 	default:
 	    break;
 	}

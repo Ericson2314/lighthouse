@@ -61,9 +61,6 @@ StgTSO * unblockOne (Capability *cap, StgTSO *tso);
 /* raiseExceptionHelper */
 StgWord raiseExceptionHelper (StgRegTable *reg, StgTSO *tso, StgClosure *exception);
 
-/* findRetryFrameHelper */
-StgWord findRetryFrameHelper (StgTSO *tso);
-
 /* GetRoots(evac_fn f)
  *
  * Call f() for each root known to the scheduler.

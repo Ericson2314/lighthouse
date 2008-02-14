@@ -3080,77 +3080,11 @@ raiseExceptionHelper (StgRegTable *reg, StgTSO *tso, StgClosure *exception)
 	    tso->sp = p;
 	    return STOP_FRAME;
 
-        case CATCH_RETRY_FRAME:
 	default:
 	    p = next; 
 	    continue;
 	}
     }
-}
-
-
-/* -----------------------------------------------------------------------------
-   findRetryFrameHelper
-
-   This function is called by the retry# primitive.  It traverses the stack
-   leaving tso->sp referring to the frame which should handle the retry.  
-
-   This should either be a CATCH_RETRY_FRAME (if the retry# is within an orElse#) 
-   or should be a ATOMICALLY_FRAME (if the retry# reaches the top level).  
-
-   We skip CATCH_STM_FRAMEs (aborting and rolling back the nested tx that they
-   create) because retries are not considered to be exceptions, despite the
-   similar implementation.
-
-   We should not expect to see CATCH_FRAME or STOP_FRAME because those should
-   not be created within memory transactions.
-   -------------------------------------------------------------------------- */
-
-StgWord
-findRetryFrameHelper (StgTSO *tso)
-{
-  StgPtr           p, next;
-  StgRetInfoTable *info;
-
-  p = tso -> sp;
-  while (1) {
-    info = get_ret_itbl((StgClosure *)p);
-    next = p + stack_frame_sizeW((StgClosure *)p);
-    switch (info->i.type) {
-      
-    case ATOMICALLY_FRAME:
-	debugTrace(DEBUG_stm,
-		   "found ATOMICALLY_FRAME at %p during retry", p);
-	tso->sp = p;
-	return ATOMICALLY_FRAME;
-      
-    case CATCH_RETRY_FRAME:
-	debugTrace(DEBUG_stm,
-		   "found CATCH_RETRY_FRAME at %p during retrry", p);
-	tso->sp = p;
-	return CATCH_RETRY_FRAME;
-      
-    case CATCH_STM_FRAME: {
-        StgTRecHeader *trec = tso -> trec;
-	StgTRecHeader *outer = stmGetEnclosingTRec(trec);
-        debugTrace(DEBUG_stm,
-		   "found CATCH_STM_FRAME at %p during retry", p);
-        debugTrace(DEBUG_stm, "trec=%p outer=%p", trec, outer);
-	stmAbortTransaction(tso -> cap, trec);
-	stmFreeAbortedTRec(tso -> cap, trec);
-	tso -> trec = outer;
-        p = next; 
-        continue;
-    }
-      
-
-    default:
-      ASSERT(info->i.type != CATCH_FRAME);
-      ASSERT(info->i.type != STOP_FRAME);
-      p = next; 
-      continue;
-    }
-  }
 }
 
 /* -----------------------------------------------------------------------------
