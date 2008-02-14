@@ -63,6 +63,8 @@ import Monad.Util
 import Util.CmdLineParser hiding ((!))
 import qualified Util.CmdLineParser as P
        
+import LwConcTests
+
 default(Int)
 
 main :: IO ()
@@ -256,6 +258,8 @@ execute3 extra exestate@(netstate,pciState) user =
        cmd "ls" modules <@ flag "-l" -: "List Grub modules",
        cmd "run" run <@ path -: "Run a grub module",
        cmd "gif" gifinfo <@ path -: "Parse and show info about a GIF",
+       cmd "testTLS" (testTLS putStrLn) -: "Run some tests of the TLS system",
+       cmd "testCounter" (testCounter putStrLn) -: "Run a test of the timer counter",
 --       cmd "osker" ( \ ws->osker ws putStrLn putStr) <@ many args,
        cmd "reboot" reboot]
 

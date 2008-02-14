@@ -993,6 +993,62 @@ isCurrentThreadBoundzh_fast
   RET_N(r);
 }
 
+newSContzh_fast
+{
+  /* args: R1 = closure to spark */
+  MAYBE_GC(R1_PTR, newSContzh_fast);
+  W_ closure;
+  W_ tso;
+  closure = R1;
+  ("ptr" tso) = foreign "C" createIOThread(MyCapability() "ptr",
+                 RtsFlags_GcFlags_initialStkSize(RtsFlags), closure "ptr") [];
+  RET_P(tso);
+}
+
+getSContzh_fast
+{
+  /* no args. */
+  RET_P(CurrentTSO);
+}
+
+newTLSKeyzh_fast
+{ /* args: R1 = closure as default */
+  MAYBE_GC(R1_PTR, newTLSKeyzh_fast);
+  W_ key;
+  (key) = foreign "C" newTLSKeyHelper(R1 "ptr") [];
+  RET_N(key);
+}
+
+getTLSzh_fast
+{ /* args: R1=key */
+  W_ key;
+  W_ res;
+  key = R1;
+
+  if (key >= StgTSO_tls_max(CurrentTSO)) {
+    res = W_[tls_default_slots + WDS(key)];
+  } else {
+    res = W_[CurrentTSO + TSO_OFFSET_StgTSO_tls_slots + WDS(key)];
+  }
+
+  RET_P(res);
+}
+
+setTLSzh_fast
+{ /* args: R1=key R2=closure */
+  MAYBE_GC(R2_PTR, setTLSzh_fast);
+
+  W_ key;
+  W_ closure;
+  key = R1;
+  closure = R2;
+
+  if (key >= StgTSO_tls_max(CurrentTSO)) {
+    foreign "C" expandTLSHelper(CurrentTSO "ptr") [];
+  }
+  W_[CurrentTSO + TSO_OFFSET_StgTSO_tls_slots + WDS(key)] = closure;
+  jump %ENTRY_CODE(Sp(0));
+}
 
 /* -----------------------------------------------------------------------------
  * TVar primitives

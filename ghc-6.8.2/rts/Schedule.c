@@ -25,6 +25,7 @@
 #include "Stats.h"
 #include "STM.h"
 #include "Timer.h"
+#include "TLS.h"
 #include "Prelude.h"
 #include "ThreadLabels.h"
 #include "LdvProfile.h"
@@ -2687,6 +2688,9 @@ GetRoots( evac_fn evac )
     nat i;
     Capability *cap;
     Task *task;
+
+    // Evacuate the TLS
+    GetTLSRoots(evac);
 
 #if defined(GRAN)
     for (i=0; i<=RtsFlags.GranFlags.proc; i++) {

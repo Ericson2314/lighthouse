@@ -577,6 +577,12 @@ RTS_FUN(myThreadIdzh_fast);
 RTS_FUN(labelThreadzh_fast);
 RTS_FUN(isCurrentThreadBoundzh_fast);
 
+RTS_FUN(newSContzh_fast);
+RTS_FUN(getSContzh_fast);
+RTS_FUN(newTLSKeyzh_fast);
+RTS_FUN(getTLSzh_fast);
+RTS_FUN(setTLSzh_fast);
+
 RTS_FUN(mkWeakzh_fast);
 RTS_FUN(finalizzeWeakzh_fast);
 RTS_FUN(deRefWeakzh_fast);

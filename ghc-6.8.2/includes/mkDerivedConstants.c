@@ -288,6 +288,8 @@ main(int argc, char *argv[])
     tso_field(StgTSO, sp);
     tso_field_offset(StgTSO, stack);
     tso_field(StgTSO, stack_size);
+    tso_field(StgTSO, tls_max);
+    tso_field(StgTSO, tls_slots);
 
     struct_size(StgTSOProfInfo);
     struct_size(StgTSOParInfo);

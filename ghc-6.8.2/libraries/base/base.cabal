@@ -61,6 +61,8 @@ Library {
             GHC.Unicode,
             GHC.Weak,
             GHC.Word,
+            LwConc.Substrate,
+            LwConc.ConcLib,
             System.Timeout
     }
     exposed-modules:

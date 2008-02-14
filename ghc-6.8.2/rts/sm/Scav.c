@@ -149,6 +149,11 @@ scavengeTSO (StgTSO *tso)
     // scavange current transaction record
     tso->trec = (StgTRecHeader *)evacuate((StgClosure *)tso->trec);
     
+    // scavenge this thread's local state
+    StgWord32 i;
+    for (i = 0; i < tso->tls_max; i++)
+        tso->tls_slots[i] = evacuate(tso->tls_slots[i]);
+
     // scavenge this thread's stack 
     scavenge_stack(tso->sp, &(tso->stack[tso->stack_size]));
 }

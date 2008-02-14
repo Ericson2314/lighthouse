@@ -272,4 +272,6 @@
 #error RESERVED_STACK_WORDS may be wrong!
 #endif
 
+#define MAX_TLS_SLOTS 256
+
 #endif /* CONSTANTS_H */

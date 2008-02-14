@@ -563,6 +563,11 @@ typedef struct _RtsSymbolVal {
       SymX(minusIntegerzh_fast)			\
       SymX(mkApUpd0zh_fast)			\
       SymX(myThreadIdzh_fast)			\
+      SymX(newSContzh_fast)			\
+      SymX(getSContzh_fast)			\
+      SymX(newTLSKeyzh_fast)			\
+      SymX(getTLSzh_fast)			\
+      SymX(setTLSzh_fast)			\
       SymX(labelThreadzh_fast)                  \
       SymX(newArrayzh_fast)			\
       SymX(newBCOzh_fast)			\

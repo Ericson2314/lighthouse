@@ -163,6 +163,10 @@ typedef struct StgTSO_ {
     StgWord32 saved_winerror;
 #endif
 
+    /* Local TLS cache - master data is in global tls_default_slots */
+    StgWord32          tls_max;
+    StgClosure*        tls_slots[MAX_TLS_SLOTS];
+
     /* The thread stack... */
     StgWord32	       stack_size;     /* stack size in *words* */
     StgWord32          max_stack_size; /* maximum stack size in *words* */

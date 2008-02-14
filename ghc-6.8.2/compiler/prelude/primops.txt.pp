@@ -1492,6 +1492,38 @@ primop  NoDuplicateOp "noDuplicate#" GenPrimOp
    out_of_line = True
 
 ------------------------------------------------------------------------
+section "Lightweight concurrency"
+------------------------------------------------------------------------
+primop  GetSContOp "getSCont#" GenPrimOp
+   State# RealWorld -> (# State# RealWorld, ThreadId# #)
+   with
+   out_of_line = True
+
+primop  NewSContOp "newSCont#" GenPrimOp
+   a -> State# RealWorld -> (# State# RealWorld, ThreadId# #)
+   with
+   has_side_effects = True
+   out_of_line      = True
+
+primop  NewTLSKeyOp "newTLSKey#" GenPrimOp
+   a -> State# RealWorld -> (# State# RealWorld, Int# #)
+   with
+   has_side_effects = True
+   out_of_line      = True
+
+primop  GetTLSOp "getTLS#" GenPrimOp
+   Int# -> State# RealWorld -> (# State# RealWorld, a #)
+   with
+   has_side_effects = True
+   out_of_line      = True
+
+primop  SetTLSOp "setTLS#" GenPrimOp
+   Int# -> a -> State# RealWorld -> State# RealWorld
+   with
+   has_side_effects = True
+   out_of_line      = True
+
+------------------------------------------------------------------------
 section "Weak pointers"
 ------------------------------------------------------------------------
 

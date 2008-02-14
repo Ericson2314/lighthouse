@@ -104,6 +104,7 @@ createThread(Capability *cap, nat size)
     tso->saved_errno = 0;
     tso->bound = NULL;
     tso->cap = cap;
+    tso->tls_max = 0;
     
     tso->stack_size     = stack_size;
     tso->max_stack_size = round_to_mblocks(RtsFlags.GcFlags.maxStkSize) 
