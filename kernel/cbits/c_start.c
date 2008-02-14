@@ -369,9 +369,9 @@ void onIRQ0(IA32_FaultContext* p) {
     outb(0x20, 0x20); /* EOI */
 }
 
-/* Called by Timer.c startTimer() */
+/* Called by Timer.c initTimer() */
 int
-startTicker(unsigned ms, TickProc handle_tick) {
+initTicker(unsigned ms, TickProc handle_tick) {
   ms_per_tick = ms;
   timer0_proc=handle_tick;
   /* set timer 0 frequency */
@@ -384,7 +384,7 @@ startTicker(unsigned ms, TickProc handle_tick) {
 }
 
 int
-stopTicker()
+exitTicker()
 {
   /* disable IRQ 0 */
   outb(0x21, 0x01 | inb(0x21));
