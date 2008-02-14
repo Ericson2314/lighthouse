@@ -19,7 +19,7 @@ module Control.Concurrent.STM.TVar (
 	readTVar,
 	writeTVar,
 	newTVarIO,
-#ifdef __GLASGOW_HASKELL__
+#if defined(__GLASGOW_HASKELL__) && !defined(house_HOST_OS)
 	registerDelay
 #endif
   ) where

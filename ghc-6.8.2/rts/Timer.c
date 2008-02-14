@@ -90,10 +90,12 @@ handle_tick(int unused STG_UNUSED)
 void
 initTimer(void)
 {
+#ifndef house_HOST_OS
     initProfTimer();
     if (RtsFlags.MiscFlags.tickInterval != 0) {
         initTicker(RtsFlags.MiscFlags.tickInterval, handle_tick);
     }
+#endif
 }
 
 void
@@ -115,7 +117,9 @@ stopTimer(void)
 void
 exitTimer(void)
 {
+#ifndef house_HOST_OS
     if (RtsFlags.MiscFlags.tickInterval != 0) {
         exitTicker();
     }
+#endif
 }

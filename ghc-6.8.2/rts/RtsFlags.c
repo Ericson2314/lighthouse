@@ -2450,6 +2450,7 @@ getFullProgArgv(int *argc, char **argv[])
 void
 setFullProgArgv(int argc, char *argv[])
 {
+#ifndef house_HOST_OS
     int i;
     full_prog_argc = argc;
     full_prog_argv = stgCallocBytes(argc + 1, sizeof (char *),
@@ -2460,5 +2461,6 @@ setFullProgArgv(int argc, char *argv[])
         strcpy(full_prog_argv[i], argv[i]);
     }
     full_prog_argv[argc] = NULL;
+#endif
 }
 

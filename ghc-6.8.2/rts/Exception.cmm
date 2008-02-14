@@ -412,6 +412,7 @@ retry_pop_stack:
       }          
     }
 
+#ifdef ALLOW_INTERPRETER
     // After stripping the stack, see whether we should break here for
     // GHCi (c.f. the -fbreak-on-exception flag).  We do this after
     // stripping the stack for a reason: we'll be inspecting values in
@@ -441,6 +442,7 @@ retry_pop_stack:
             jump RET_LBL(stg_ap_pppv);
         }
     }
+#endif
 
     if (frame_type == STOP_FRAME) {
 	/*

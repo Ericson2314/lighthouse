@@ -319,6 +319,7 @@ resetGenSymZh(void) /* it's your funeral */
     return(__GenSymCounter);
 }
 
+#ifndef house_HOST_OS
 /* -----------------------------------------------------------------------------
    Get the current time as a string.  Used in profiling reports.
    -------------------------------------------------------------------------- */
@@ -341,6 +342,7 @@ time_str(void)
     }
     return nowstr;
 }
+#endif /* !house_HOST_OS */
 
 /* -----------------------------------------------------------------------------
  * Reset a file handle to blocking mode.  We do this for the standard
@@ -468,7 +470,6 @@ int genericRaise(int sig) {
         return raise(sig);
 #endif
 }
-#endif /* !house_HOST_OS */
 
 static void mkRtsInfoPair(char *key, char *val) {
     /* XXX should check for "s, \s etc in key and val */
@@ -488,4 +489,5 @@ void printRtsInfo(void) {
     mkRtsInfoPair("Tables next to code",     GhcEnableTablesNextToCode);
     printf(" ]\n");
 }
+#endif /* !house_HOST_OS */
 

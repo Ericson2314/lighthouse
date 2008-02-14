@@ -64,7 +64,7 @@ module Control.Concurrent (
 #endif
 	-- $merge
 
-#ifdef __GLASGOW_HASKELL__
+#if defined(__GLASGOW_HASKELL__) && !defined(house_HOST_OS)
 	-- * Bound Threads
 	-- $boundthreads
 	rtsSupportsBoundThreads,
@@ -256,7 +256,7 @@ nmergeIO lss
     mapIO f xs = sequence (map f xs)
 #endif /* __HUGS__ */
 
-#ifdef __GLASGOW_HASKELL__
+#if defined(__GLASGOW_HASKELL__) && !defined(house_HOST_OS)
 -- ---------------------------------------------------------------------------
 -- Bound Threads
 
@@ -297,7 +297,6 @@ from @main@ or from a @foreign export@.
 -- will always return 'False' and both 'forkOS' and 'runInBoundThread' will
 -- fail.
 foreign import ccall rtsSupportsBoundThreads :: Bool
-
 
 {- |
 Like 'forkIO', this sparks off a new thread to run the 'IO' computation passed as the
@@ -413,7 +412,7 @@ runInUnboundThread action = do
                 Right result -> return result
         else action
 	
-#endif /* __GLASGOW_HASKELL__ */
+#endif /* __GLASGOW_HASKELL__ && !house_HOST_OS */
 
 -- ---------------------------------------------------------------------------
 -- More docs
