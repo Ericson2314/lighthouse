@@ -67,8 +67,9 @@ import LeaveCriticalSection;
             CurrentNursery = bdescr_link(CurrentNursery);	\
             OPEN_NURSERY();					\
             if (CInt[context_switch] != 0 :: CInt) {		\
-                R1 = ThreadYielding;				\
-                goto sched;					\
+                CInt[context_switch] = 0 :: CInt;		\
+                R1 = base_LwConcziConcLib_timerHandler_closure;	\
+                jump stg_ap_v_fast;				\
             } else {						\
                 jump %ENTRY_CODE(Sp(0));			\
             }							\
