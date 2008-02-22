@@ -311,10 +311,26 @@ execute3 extra exestate@(netstate,pciState) user =
     debugcommands =
       oneof [cmd "lambda" (putStrLn "Too much to abstract!"),
              cmd "preempt" preempt,
+             cmd "preempt2" preempt2,
+             cmd "preempt3" preempt3,
+             cmd "preempt4" preempt4,
              cmd "wastemem" wasteMem <@ number]
       where
 	preempt = do forkH (putStrLn (repeat 'a'))
 		     putStrLn (repeat 'b')
+        p2helper s = do putStr s
+                        t <- newMVar [1,2,3]
+                        u <- readMVar t
+                        p2helper s
+	preempt2 = do putStrLn "This is a fair preempt: both allocate."
+                      forkH (p2helper "A")
+		      p2helper "B"
+	preempt3 = do putStrLn "Unfair preempt: forked thread doesn't alloc"
+                      forkH (putStr (repeat 'a'))
+		      p2helper "B"
+	preempt4 = do putStrLn "Unfair preempt: main thread doesn't alloc"
+	              forkH (p2helper "A")
+		      putStr (repeat 'b')
 
 	wasteMem n = print $ sum (reverse [1..n::Integer])
 
