@@ -57,6 +57,15 @@ import LeaveCriticalSection;
  * ThreadRunGHC thread.
  */
 
+/*
+                foreign "C" debugBelch("!"); \
+ *  a possibly faster method which could replace stg_ap_v_fast:
+ *                R1 = R1 + 1; \
+ *                jump %GET_ENTRY(UNTAG(base_LwConcziConcLib_timerHandler_closure)); \
+ *  ...also, I'm not sure about resetting context_switch before processing
+ *     timerHandler...if timerHandler hits a GC point...it'll switch again :/
+ *     ...seems like an infinite loop
+ */
 #define GC_GENERIC						\
     DEBUG_ONLY(foreign "C" heapCheckFail());			\
     if (Hp > HpLim) {						\
