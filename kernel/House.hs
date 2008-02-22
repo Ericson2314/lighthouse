@@ -5,6 +5,7 @@ import Control.Monad
 import Data.List(isSuffixOf)
 
 import Kernel.Debug(v_defaultConsole)
+import qualified Kernel.Debug as KDebug(putStr, putStrLn)
 import Kernel.Console
 import Kernel.LineEditor
 import Kernel.Driver.IA32.Screen
@@ -74,11 +75,55 @@ main = --trappedRunH mainH
 mainH :: H ()
 mainH =
     do enableInterrupts
-       forkH idle
        netState <- newMVar Nothing
        pciState <- newMVar (Nothing,Nothing) -- XXX
        trace "Tracing enabled"
-       shell (netState,pciState)
+       forkH (shell (netState, pciState))
+       scheduler
+
+scheduler :: H ()
+scheduler = scheduler4
+
+-- Schedulers with Spam (for debugging):
+
+-- A basic scheduler with spam
+scheduler1 =
+  do KDebug.putStr "'"
+     t <- newMVar [1,2,3]
+     x <- readMVar t
+     scheduler1
+
+-- One which allocates and prints less often
+scheduler2 = idle' 0
+  where idle' n | n >= 100000 = do t <- newMVar [1,2,3]
+                                   u <- readMVar t
+                                   KDebug.putStr "'"
+                                   idle' 0
+                | otherwise = idle' (n + 1)
+
+-- This one does a bunch of testCounters before allocating.
+-- Context switches will likely be less frequent than with the others
+scheduler3 = idle' 0
+  where idle' n | n >= 10000 = do t <- newMVar [1,2,3]
+                                  u <- readMVar t
+                                  idle' 0
+                | otherwise  = do testCounter KDebug.putStrLn
+                                  idle' (n + 1)
+
+-- Spam-free schedulers:
+
+-- A basic, quick scheduler
+scheduler4 =
+  do t <- newMVar [1,2,3]
+     u <- readMVar t
+     scheduler4
+
+-- One which wastes a lot of time before switching
+scheduler5 = idle' 0
+  where idle' n | n >= 10000 = do t <- newMVar [1,2,3]
+                                  u <- readMVar t
+                                  idle' 0
+                | otherwise = idle' (n + 1)
 
 shell exestate =
   do optgfx <- VBE.initialize
