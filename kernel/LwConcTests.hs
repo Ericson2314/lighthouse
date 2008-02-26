@@ -1,8 +1,7 @@
 module LwConcTests where
 
 import qualified LwConc.Substrate as S
-import LwConc.ConcLib(readCounter)
---import Kernel.Debug(putStrLn)
+--import LwConc.ConcLib(readCounter)
 import H.Monad(H, liftIO)
 
 atomically = liftIO . S.atomically
@@ -30,6 +29,7 @@ testTLS putStrLn =
 
 testCounter :: (String -> H ()) -> H ()
 testCounter putStrLn =
-  do i <- atomically $ readCounter
+  do --i <- atomically $ readCounter
+     let i = 0
      putStrLn ("timerHandler has been called " ++ show i ++ " times")
 

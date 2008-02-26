@@ -65,8 +65,16 @@ import Util.CmdLineParser hiding ((!))
 import qualified Util.CmdLineParser as P
        
 import LwConcTests
+import LwConc.ConcLib(startScheduling,schedule,queueLength)
+import H.Monad(liftIO)
+import Foreign.C(CString,withCString)
 
 default(Int)
+
+foreign import ccall unsafe "start.h c_print" c_print :: CString -> IO ()
+
+cPrint :: String -> H ()
+cPrint str = liftIO (withCString str c_print)
 
 main :: IO ()
 main = --trappedRunH mainH
@@ -74,12 +82,31 @@ main = --trappedRunH mainH
 
 mainH :: H ()
 mainH =
-    do enableInterrupts
-       netState <- newMVar Nothing
+    do netState <- newMVar Nothing
        pciState <- newMVar (Nothing,Nothing) -- XXX
        trace "Tracing enabled"
-       forkH (shell (netState, pciState))
-       scheduler
+       --forkH (shell (netState, pciState))
+       --forkH (preemptTest "a")
+       forkH (coopTest "AAA")
+       forkH (coopTest "BBB")
+       forkH (coopTest "CCC")
+       forkH (coopTest "DDD")
+       enableInterrupts
+       liftIO $ startScheduling
+
+coopTest s = do i <- liftIO $ queueLength
+                cPrint (s ++ "[" ++ show i ++ " threads in queue]\n")
+                idle 10000000
+                liftIO $ schedule -- should be yield, but they're the same
+                coopTest s
+  where idle 0 = return ()
+        idle n = idle (n - 1)
+
+preemptTest s = do i <- liftIO $ queueLength
+                   cPrint (show i ++ " ")
+                   t <- newMVar [1,2,3]
+                   u <- readMVar t
+                   preemptTest s
 
 scheduler :: H ()
 scheduler = scheduler4
@@ -88,7 +115,7 @@ scheduler = scheduler4
 
 -- A basic scheduler with spam
 scheduler1 =
-  do KDebug.putStr "'"
+  do cPrint "'"
      t <- newMVar [1,2,3]
      x <- readMVar t
      scheduler1

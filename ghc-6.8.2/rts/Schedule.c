@@ -128,7 +128,8 @@ StgTSO *all_threads = NULL;
 /* flag set by signal handler to precipitate a context switch
  * LOCK: none (just an advisory flag)
  */
-int context_switch = 0;
+int context_switch = 0; /* KAYDEN: Should rename to something indicating
+                           "please do a timer interrupt" */
 
 /* flag that tracks whether we have done any execution in this time slice.
  * LOCK: currently none, perhaps we should lock (but needs to be
