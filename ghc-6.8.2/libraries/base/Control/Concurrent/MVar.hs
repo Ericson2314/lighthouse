@@ -39,7 +39,11 @@ import Hugs.ConcBase ( MVar, newEmptyMVar, newMVar, takeMVar, putMVar,
 		)
 #endif
 
-#ifdef __GLASGOW_HASKELL__
+#ifdef house_HOST_OS
+import LwConc.MVar (MVar, newEmptyMVar, newMVar, takeMVar, putMVar,
+		    tryTakeMVar, tryPutMVar, isEmptyMVar, addMVarFinalizer)
+#elif __GLASGOW_HASKELL__
+#error Should not be importing this.
 import GHC.Conc	( MVar, newEmptyMVar, newMVar, takeMVar, putMVar,
 		  tryTakeMVar, tryPutMVar, isEmptyMVar, addMVarFinalizer
 		)

@@ -63,6 +63,7 @@ Library {
             GHC.Word,
             LwConc.Substrate,
             LwConc.ConcLib,
+            LwConc.MVar,
             System.Timeout
     }
     exposed-modules:

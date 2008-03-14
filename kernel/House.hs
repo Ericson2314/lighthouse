@@ -65,7 +65,8 @@ import Util.CmdLineParser hiding ((!))
 import qualified Util.CmdLineParser as P
        
 import LwConcTests
-import LwConc.ConcLib(startScheduling,schedule,queueLength)
+import LwConc.ConcLib(startScheduling,queueLength)
+import qualified LwConc.ConcLib as LWCL
 import H.Monad(liftIO)
 import Foreign.C(CString,withCString)
 
@@ -97,7 +98,7 @@ mainH =
 coopTest s = do i <- liftIO $ queueLength
                 cPrint (s ++ "[" ++ show i ++ " threads in queue]\n")
                 idle 10000000
-                liftIO $ schedule -- should be yield, but they're the same
+                liftIO $ LWCL.yield
                 coopTest s
   where idle 0 = return ()
         idle n = idle (n - 1)
