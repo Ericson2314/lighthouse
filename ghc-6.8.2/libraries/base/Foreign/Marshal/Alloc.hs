@@ -176,8 +176,7 @@ failWhenNULL name f = do
    addr <- f
    if addr == nullPtr
 #if __GLASGOW_HASKELL__ || __HUGS__
-      then ioError (IOError Nothing ResourceExhausted name 
-					"out of memory" Nothing)
+      then ioError (IOError ResourceExhausted name "out of memory" Nothing)
 #else
       then ioError (userError (name++": out of memory"))
 #endif

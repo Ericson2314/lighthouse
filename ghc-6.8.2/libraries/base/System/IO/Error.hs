@@ -22,7 +22,7 @@ module System.IO.Error (
     userError,		       	-- :: String  -> IOError
 
 #ifndef __NHC__
-    mkIOError,			-- :: IOErrorType -> String -> Maybe Handle
+    mkIOError,			-- :: IOErrorType -> String
 				--    -> Maybe FilePath -> IOError
 
     annotateIOError,		-- :: IOError -> String -> Maybe Handle
@@ -45,14 +45,12 @@ module System.IO.Error (
     ioeGetLocation,		-- :: IOError -> String
 #endif
     ioeGetErrorString,		-- :: IOError -> String
-    ioeGetHandle,		-- :: IOError -> Maybe Handle
     ioeGetFileName,		-- :: IOError -> Maybe FilePath
 
 #ifndef __NHC__
     ioeSetErrorType,		-- :: IOError -> IOErrorType -> IOError
     ioeSetErrorString,		-- :: IOError -> String -> IOError
     ioeSetLocation,		-- :: IOError -> String -> IOError
-    ioeSetHandle,		-- :: IOError -> Handle -> IOError
     ioeSetFileName,		-- :: IOError -> FilePath -> IOError
 #endif
 
@@ -147,12 +145,11 @@ try f          =  catch (do r <- f
 -- describes the error location and the third and fourth argument
 -- contain the file handle and file path of the file involved in the
 -- error if applicable.
-mkIOError :: IOErrorType -> String -> Maybe Handle -> Maybe FilePath -> IOError
-mkIOError t location maybe_hdl maybe_filename =
+mkIOError :: IOErrorType -> String -> Maybe FilePath -> IOError
+mkIOError t location maybe_filename =
                IOError{ ioe_type = t, 
 			ioe_location = location,
 	   		ioe_description = "",
-			ioe_handle = maybe_hdl, 
 			ioe_filename = maybe_filename
  			}
 #ifdef __NHC__
@@ -324,7 +321,6 @@ isUserErrorType _ = False
 ioeGetErrorType	      :: IOError -> IOErrorType
 ioeGetErrorString     :: IOError -> String
 ioeGetLocation        :: IOError -> String
-ioeGetHandle          :: IOError -> Maybe Handle
 ioeGetFileName        :: IOError -> Maybe FilePath
 
 ioeGetErrorType ioe = ioe_type ioe
@@ -335,20 +331,16 @@ ioeGetErrorString ioe
 
 ioeGetLocation ioe = ioe_location ioe
 
-ioeGetHandle ioe = ioe_handle ioe
-
 ioeGetFileName ioe = ioe_filename ioe
 
 ioeSetErrorType   :: IOError -> IOErrorType -> IOError
 ioeSetErrorString :: IOError -> String      -> IOError
 ioeSetLocation    :: IOError -> String      -> IOError
-ioeSetHandle      :: IOError -> Handle      -> IOError
 ioeSetFileName    :: IOError -> FilePath    -> IOError
 
 ioeSetErrorType   ioe errtype  = ioe{ ioe_type = errtype }
 ioeSetErrorString ioe str      = ioe{ ioe_description = str }
 ioeSetLocation    ioe str      = ioe{ ioe_location = str }
-ioeSetHandle      ioe hdl      = ioe{ ioe_handle = Just hdl }
 ioeSetFileName    ioe filename = ioe{ ioe_filename = Just filename }
 
 -- | Catch any 'IOError' that occurs in the computation and throw a
@@ -364,11 +356,10 @@ modifyIOError f io = catch io (\e -> ioError (f e))
 -- the corresponding value in the 'IOError' remains unaltered.
 annotateIOError :: IOError 
               -> String 
-              -> Maybe Handle 
               -> Maybe FilePath 
               -> IOError 
-annotateIOError (IOError ohdl errTy _ str opath) loc hdl path = 
-  IOError (hdl `mplus` ohdl) errTy loc str (path `mplus` opath)
+annotateIOError (IOError errTy _ str opath) loc path = 
+  IOError errTy loc str (path `mplus` opath)
   where
     Nothing `mplus` ys = ys
     xs      `mplus` _  = xs

@@ -27,12 +27,8 @@ module GHC.IOBase(
 	-- References
     IORef(..), newIORef, readIORef, writeIORef, 
     IOArray(..), newIOArray, readIOArray, writeIOArray, unsafeReadIOArray, unsafeWriteIOArray,
-    MVar(..),
 
-    	-- Handles, file descriptors,
     FilePath,  
-    Handle(..), Handle__(..), HandleType(..), IOMode(..), FD, 
-    isReadableHandleType, isWritableHandleType, isReadWriteHandleType, showHandle,
   
     	-- Buffers
     Buffer(..), RawBuffer, BufferState(..), BufferList(..), BufferMode(..),
@@ -289,107 +285,6 @@ noDuplicate :: IO ()
 noDuplicate = IO $ \s -> case noDuplicate# s of s' -> (# s', () #)
 
 -- ---------------------------------------------------------------------------
--- Handle type
-
-data MVar a = MVar (MVar# RealWorld a)
-{- ^
-An 'MVar' (pronounced \"em-var\") is a synchronising variable, used
-for communication between concurrent threads.  It can be thought of
-as a a box, which may be empty or full.
--}
-
--- pull in Eq (Mvar a) too, to avoid GHC.Conc being an orphan-instance module
-instance Eq (MVar a) where
-	(MVar mvar1#) == (MVar mvar2#) = sameMVar# mvar1# mvar2#
-
---  A Handle is represented by (a reference to) a record 
---  containing the state of the I/O port/device. We record
---  the following pieces of info:
-
---    * type (read,write,closed etc.)
---    * the underlying file descriptor
---    * buffering mode 
---    * buffer, and spare buffers
---    * user-friendly name (usually the
---	FilePath used when IO.openFile was called)
-
--- Note: when a Handle is garbage collected, we want to flush its buffer
--- and close the OS file handle, so as to free up a (precious) resource.
-
--- | Haskell defines operations to read and write characters from and to files,
--- represented by values of type @Handle@.  Each value of this type is a
--- /handle/: a record used by the Haskell run-time system to /manage/ I\/O
--- with file system objects.  A handle has at least the following properties:
--- 
---  * whether it manages input or output or both;
---
---  * whether it is /open/, /closed/ or /semi-closed/;
---
---  * whether the object is seekable;
---
---  * whether buffering is disabled, or enabled on a line or block basis;
---
---  * a buffer (whose length may be zero).
---
--- Most handles will also have a current I\/O position indicating where the next
--- input or output operation will occur.  A handle is /readable/ if it
--- manages only input or both input and output; likewise, it is /writable/ if
--- it manages only output or both input and output.  A handle is /open/ when
--- first allocated.
--- Once it is closed it can no longer be used for either input or output,
--- though an implementation cannot re-use its storage while references
--- remain to it.  Handles are in the 'Show' and 'Eq' classes.  The string
--- produced by showing a handle is system dependent; it should include
--- enough information to identify the handle for debugging.  A handle is
--- equal according to '==' only to itself; no attempt
--- is made to compare the internal state of different handles for equality.
---
--- GHC note: a 'Handle' will be automatically closed when the garbage
--- collector detects that it has become unreferenced by the program.
--- However, relying on this behaviour is not generally recommended:
--- the garbage collector is unpredictable.  If possible, use explicit
--- an explicit 'hClose' to close 'Handle's when they are no longer
--- required.  GHC does not currently attempt to free up file
--- descriptors when they have run out, it is your responsibility to
--- ensure that this doesn't happen.
-
-data Handle 
-  = FileHandle				-- A normal handle to a file
-	FilePath			-- the file (invariant)
-	!(MVar Handle__)
-
-  | DuplexHandle			-- A handle to a read/write stream
-	FilePath			-- file for a FIFO, otherwise some
-					--   descriptive string.
-	!(MVar Handle__)		-- The read side
-	!(MVar Handle__)		-- The write side
-
--- NOTES:
---    * A 'FileHandle' is seekable.  A 'DuplexHandle' may or may not be
---      seekable.
-
-instance Eq Handle where
- (FileHandle _ h1)     == (FileHandle _ h2)     = h1 == h2
- (DuplexHandle _ h1 _) == (DuplexHandle _ h2 _) = h1 == h2
- _ == _ = False 
-
-type FD = CInt
-
-data Handle__
-  = Handle__ {
-      haFD	    :: !FD,		     -- file descriptor
-      haType        :: HandleType,	     -- type (read/write/append etc.)
-      haIsBin       :: Bool,		     -- binary mode?
-      haIsStream    :: Bool,		     -- Windows : is this a socket?
-                                             -- Unix    : is O_NONBLOCK set?
-      haBufferMode  :: BufferMode,	     -- buffer contains read/write data?
-      haBuffer	    :: !(IORef Buffer),	     -- the current buffer
-      haBuffers     :: !(IORef BufferList),  -- spare buffers
-      haOtherSide   :: Maybe (MVar Handle__) -- ptr to the write side of a 
-					     -- duplex handle.
-    }
-
--- ---------------------------------------------------------------------------
 -- Buffers
 
 -- The buffer is represented by a mutable variable containing a
@@ -456,26 +351,6 @@ bufferFull b@Buffer{ bufWPtr=w } = w >= bufSize b
 
 --  Internally, we classify handles as being one
 --  of the following:
-
-data HandleType
- = ClosedHandle
- | SemiClosedHandle
- | ReadHandle
- | WriteHandle
- | AppendHandle
- | ReadWriteHandle
-
-isReadableHandleType ReadHandle         = True
-isReadableHandleType ReadWriteHandle    = True
-isReadableHandleType _	       	        = False
-
-isWritableHandleType AppendHandle    = True
-isWritableHandleType WriteHandle     = True
-isWritableHandleType ReadWriteHandle = True
-isWritableHandleType _	       	     = False
-
-isReadWriteHandleType ReadWriteHandle{} = True
-isReadWriteHandleType _                 = False
 
 -- | File and directory names are values of type 'String', whose precise
 -- meaning is operating system dependent. Files can be opened, yielding a
@@ -596,30 +471,6 @@ readIOArray (IOArray marr) i = stToIO (readSTArray marr i)
 -- | Write a new value into an 'IOArray'
 writeIOArray :: Ix i => IOArray i e -> i -> e -> IO ()
 writeIOArray (IOArray marr) i e = stToIO (writeSTArray marr i e)
-
-
--- ---------------------------------------------------------------------------
--- Show instance for Handles
-
--- handle types are 'show'n when printing error msgs, so
--- we provide a more user-friendly Show instance for it
--- than the derived one.
-
-instance Show HandleType where
-  showsPrec p t =
-    case t of
-      ClosedHandle      -> showString "closed"
-      SemiClosedHandle  -> showString "semi-closed"
-      ReadHandle        -> showString "readable"
-      WriteHandle       -> showString "writable"
-      AppendHandle      -> showString "writable (append)"
-      ReadWriteHandle   -> showString "read-writable"
-
-instance Show Handle where 
-  showsPrec p (FileHandle   file _)   = showHandle file
-  showsPrec p (DuplexHandle file _ _) = showHandle file
-
-showHandle file = showString "{handle: " . showString file . showString "}"
 
 -- ------------------------------------------------------------------------
 -- Exception datatype and operations
@@ -884,8 +735,6 @@ type IOError = IOException
 -- flagged.
 data IOException
  = IOError {
-     ioe_handle   :: Maybe Handle,   -- the handle used by the action flagging 
-				     -- the error.
      ioe_type     :: IOErrorType,    -- what it was.
      ioe_location :: String,	     -- location.
      ioe_description :: String,      -- error type specific information.
@@ -893,8 +742,8 @@ data IOException
    }
 
 instance Eq IOException where
-  (IOError h1 e1 loc1 str1 fn1) == (IOError h2 e2 loc2 str2 fn2) = 
-    e1==e2 && str1==str2 && h1==h2 && loc1==loc2 && fn1==fn2
+  (IOError e1 loc1 str1 fn1) == (IOError e2 loc2 str2 fn2) = 
+    e1==e2 && str1==str2 && loc1==loc2 && fn1==fn2
 
 -- | An abstract type that contains a value for each variant of 'IOError'.
 data IOErrorType
@@ -961,17 +810,15 @@ instance Show IOErrorType where
 -- >   fail s = ioError (userError s)
 --
 userError       :: String  -> IOError
-userError str	=  IOError Nothing UserError "" str Nothing
+userError str	=  IOError UserError "" str Nothing
 
 -- ---------------------------------------------------------------------------
 -- Showing IOErrors
 
 instance Show IOException where
-    showsPrec p (IOError hdl iot loc s fn) =
+    showsPrec p (IOError iot loc s fn) =
       (case fn of
-	 Nothing -> case hdl of
-		        Nothing -> id
-			Just h  -> showsPrec p h . showString ": "
+	 Nothing -> id
 	 Just name -> showString name . showString ": ") .
       (case loc of
          "" -> id

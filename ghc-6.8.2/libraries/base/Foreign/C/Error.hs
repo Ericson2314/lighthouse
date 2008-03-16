@@ -52,7 +52,6 @@ module Foreign.C.Error (
   --
   errnoToIOError,       -- :: String       -- location
                         -- -> Errno        -- errno
-                        -- -> Maybe Handle -- handle
                         -- -> Maybe String -- filename
                         -- -> IOError
 
@@ -328,7 +327,7 @@ throwErrno     :: String	-- ^ textual description of the error location
 throwErrno loc  =
   do
     errno <- getErrno
-    ioError (errnoToIOError loc errno Nothing Nothing)
+    ioError (errnoToIOError loc errno Nothing)
 
 
 -- guards for IO operations that may fail
@@ -461,7 +460,7 @@ throwErrnoPath :: String -> FilePath -> IO a
 throwErrnoPath loc path =
   do
     errno <- getErrno
-    ioError (errnoToIOError loc errno Nothing (Just path))
+    ioError (errnoToIOError loc errno (Just path))
 
 -- | as 'throwErrnoIf', but exceptions include the given path when
 --   appropriate.
@@ -505,13 +504,12 @@ throwErrnoPathIfMinus1_  = throwErrnoPathIf_ (== -1)
 --
 errnoToIOError	:: String	-- ^ the location where the error occurred
 		-> Errno	-- ^ the error number
-		-> Maybe Handle	-- ^ optional handle associated with the error
 		-> Maybe String	-- ^ optional filename associated with the error
 		-> IOError
-errnoToIOError loc errno maybeHdl maybeName = unsafePerformIO $ do
+errnoToIOError loc errno maybeName = unsafePerformIO $ do
     str <- strerror errno >>= peekCString
 #if __GLASGOW_HASKELL__
-    return (IOError maybeHdl errType loc str maybeName)
+    return (IOError errType loc str maybeName)
     where
     errType
         | errno == eOK             = OtherError

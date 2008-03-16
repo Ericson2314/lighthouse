@@ -32,12 +32,12 @@ import Data.Typeable
 import Data.Int              -- So we can give Data instance for Int8, ...
 import Data.Word             -- So we can give Data instance for Word8, ...
 import GHC.Real( Ratio(..) ) -- So we can give Data instance for Ratio
-import GHC.IOBase	     -- So we can give Data instance for IO, Handle
+import GHC.IOBase	     -- So we can give Data instance for IO
 import GHC.Ptr	     	     -- So we can give Data instance for Ptr
 import GHC.ForeignPtr	     -- So we can give Data instance for ForeignPtr
 import GHC.Stable	     -- So we can give Data instance for StablePtr
 import GHC.ST	     	     -- So we can give Data instance for ST
-import GHC.Conc		     -- So we can give Data instance for MVar & Co.
+import GHC.Conc              -- So we can give Data instance for TVar & Co.
 import GHC.Arr		     -- So we can give Data instance for Array
 
 #include "Typeable.h"
@@ -518,15 +518,6 @@ instance Typeable a => Data (IO a) where
 ------------------------------------------------------------------------------
 
 
-instance Data Handle where
-  toConstr _   = error "toConstr"
-  gunfold _ _  = error "gunfold"
-  dataTypeOf _ = mkNorepType "GHC.IOBase.Handle"
-
-
-------------------------------------------------------------------------------
-
-
 instance Typeable a => Data (Ptr a) where
   toConstr _   = error "toConstr"
   gunfold _ _  = error "gunfold"
@@ -585,15 +576,6 @@ instance Typeable a => Data (TVar a) where
   toConstr _   = error "toConstr"
   gunfold _ _  = error "gunfold"
   dataTypeOf _ = mkNorepType "GHC.Conc.TVar"
-
-
-------------------------------------------------------------------------------
-
-
-instance Typeable a => Data (MVar a) where
-  toConstr _   = error "toConstr"
-  gunfold _ _  = error "gunfold"
-  dataTypeOf _ = mkNorepType "GHC.Conc.MVar"
 
 
 ------------------------------------------------------------------------------

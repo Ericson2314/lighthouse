@@ -122,7 +122,7 @@ getEnv name =
       litstring <- c_getenv s
       if litstring /= nullPtr
 	then peekCString litstring
-        else ioException (IOError Nothing NoSuchThing "getEnv"
+        else ioException (IOError NoSuchThing "getEnv"
 			  "no environment variable" (Just name))
 
 foreign import ccall unsafe "getenv"

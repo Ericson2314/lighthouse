@@ -41,7 +41,7 @@ import LwConc.ConcLib
 import Data.IORef
 import Data.Sequence as Seq
 
-newtype MVar a = MVar (PVar (MVState a)) deriving Eq
+newtype MVar a = MVar (PVar (MVState a)) deriving Eq -- Typeable, Data?
 
 data MVState a = Full a (Seq (a, SCont))        -- queue of blocked writers
                | Empty  (Seq (IORef a, SCont))  -- queue of blocked readers
