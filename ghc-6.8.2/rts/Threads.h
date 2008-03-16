@@ -23,7 +23,6 @@ void awakenBlockedQueue(StgBlockingQueueElement *q, StgClosure *node);
 void awakenBlockedQueue (Capability *cap, StgTSO *tso);
 #endif
 
-void removeThreadFromMVarQueue (StgMVar *mvar, StgTSO *tso);
 void removeThreadFromQueue     (StgTSO **queue, StgTSO *tso);
 void removeThreadFromDeQueue   (StgTSO **head, StgTSO **tail, StgTSO *tso);
 

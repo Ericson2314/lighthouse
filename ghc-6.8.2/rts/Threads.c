@@ -334,13 +334,7 @@ removeThreadFromDeQueue (StgTSO **head, StgTSO **tail, StgTSO *tso)
 	    return;
 	}
     }
-    barf("removeThreadFromMVarQueue: not found");
-}
-
-void
-removeThreadFromMVarQueue (StgMVar *mvar, StgTSO *tso)
-{
-    removeThreadFromDeQueue (&mvar->head, &mvar->tail, tso);
+    barf("removeThreadFromDeQueue: not found");
 }
 
 /* ----------------------------------------------------------------------------
@@ -376,10 +370,6 @@ unblockCount ( StgBlockingQueueElement *bqe, StgClosure *node )
 	case BLACKHOLE_BQ:
 	  ((StgTSO *)bqe)->par.blocktime += CURRENT_TIME-((StgTSO *)bqe)->par.blockedat;
 	  break;
-#ifdef DIST
-        case MVAR:
-          break;
-#endif	  
 	default:
 	  barf("{unblockOne}Daq Qagh: unexpected closure in blocking queue");
 	}
@@ -840,8 +830,7 @@ print_bq (StgClosure *node)
   /* should cover all closures that may have a blocking queue */
   ASSERT(get_itbl(node)->type == BLACKHOLE_BQ ||
 	 get_itbl(node)->type == FETCH_ME_BQ ||
-	 get_itbl(node)->type == RBH ||
-	 get_itbl(node)->type == MVAR);
+	 get_itbl(node)->type == RBH);
     
   ASSERT(node!=(StgClosure*)NULL);         // sanity check
 

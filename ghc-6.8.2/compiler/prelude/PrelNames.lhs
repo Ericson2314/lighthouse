@@ -781,7 +781,6 @@ weakPrimTyConKey			= mkPreludeTyConUnique 27
 mutableArrayPrimTyConKey		= mkPreludeTyConUnique 28
 mutableByteArrayPrimTyConKey		= mkPreludeTyConUnique 29
 orderingTyConKey			= mkPreludeTyConUnique 30
-mVarPrimTyConKey		    	= mkPreludeTyConUnique 31
 ratioTyConKey				= mkPreludeTyConUnique 32
 rationalTyConKey			= mkPreludeTyConUnique 33
 realWorldTyConKey			= mkPreludeTyConUnique 34

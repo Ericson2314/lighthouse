@@ -257,22 +257,6 @@ checkClosure( StgClosure* p )
     info = get_itbl(p);
     switch (info->type) {
 
-    case MVAR:
-      { 
-	StgMVar *mvar = (StgMVar *)p;
-	ASSERT(LOOKS_LIKE_CLOSURE_PTR(mvar->head));
-	ASSERT(LOOKS_LIKE_CLOSURE_PTR(mvar->tail));
-	ASSERT(LOOKS_LIKE_CLOSURE_PTR(mvar->value));
-#if 0
-#if defined(PAR)
-	checkBQ((StgBlockingQueueElement *)mvar->head, p);
-#else
-	checkBQ(mvar->head, p);
-#endif
-#endif
-	return sizeofW(StgMVar);
-      }
-
     case THUNK:
     case THUNK_1_0:
     case THUNK_0_1:
@@ -691,7 +675,7 @@ checkTSO(StgTSO *tso)
       ASSERT(get_itbl(tso->block_info.tso)->type==TSO);
       break;
     case BlockedOnMVar:
-      ASSERT(get_itbl(tso->block_info.closure)->type==MVAR);
+      ASSERT(false);
       break;
     case BlockedOnSTM:
       ASSERT(tso->block_info.closure == END_TSO_QUEUE);
@@ -859,7 +843,7 @@ checkBQ (StgBlockingQueueElement *bqe, StgClosure *closure)
   rtsBool end = rtsFalse;
   StgInfoTable *info = get_itbl(closure);
 
-  ASSERT(info->type == MVAR || info->type == FETCH_ME_BQ || info->type == RBH);
+  ASSERT(info->type == FETCH_ME_BQ || info->type == RBH);
 
   do {
     switch (get_itbl(bqe)->type) {
@@ -888,7 +872,7 @@ checkBQ (StgTSO *bqe, StgClosure *closure)
   rtsBool end = rtsFalse;
   StgInfoTable *info = get_itbl(closure);
 
-  ASSERT(info->type == MVAR);
+  ASSERT(false);
 
   do {
     switch (get_itbl(bqe)->type) {

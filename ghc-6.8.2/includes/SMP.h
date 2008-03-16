@@ -39,7 +39,6 @@
  * pointed to by p with the value w, returning the old value.
  *
  * Used for locking closures during updates (see lockClosure() below)
- * and the MVar primops.
  */
 INLINE_HEADER StgWord xchg(StgPtr p, StgWord w);
 

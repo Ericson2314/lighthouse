@@ -146,7 +146,6 @@ static char *type_names[] = {
     "BLACKHOLE",
     "SE_BLACKHOLE",
     "SE_CAF_BLACKHOLE",
-    "MVAR",
     "ARR_WORDS",
     "MUT_ARR_PTRS_CLEAN",
     "MUT_ARR_PTRS_DIRTY",
@@ -984,7 +983,6 @@ heapCensusChain( Census *census, bdescr *bd )
 		break;
 #endif
 
-	    case MVAR:
 	    case WEAK:
 	    case STABLE_NAME:
 	    case MUT_VAR_CLEAN:

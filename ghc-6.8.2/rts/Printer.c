@@ -340,13 +340,6 @@ printClosure( StgClosure *obj )
 	debugBelch("MUT_ARR_PTRS_FROZEN(size=%lu)\n", (lnat)((StgMutArrPtrs *)obj)->ptrs);
 	break;
 
-    case MVAR:
-        {
-	  StgMVar* mv = (StgMVar*)obj;
-	  debugBelch("MVAR(head=%p, tail=%p, value=%p)\n", mv->head, mv->tail, mv->value);
-          break;
-        }
-
     case MUT_VAR_CLEAN:
         {
 	  StgMutVar* mv = (StgMutVar*)obj;
@@ -690,7 +683,6 @@ static char *closure_type_names[] = {
     "BLACKHOLE_BQ",
     "SE_BLACKHOLE",
     "SE_CAF_BLACKHOLE",
-    "MVAR",
     "ARR_WORDS",
     "MUT_ARR_PTRS_CLEAN",
     "MUT_ARR_PTRS_DIRTY",

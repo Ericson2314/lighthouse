@@ -34,7 +34,6 @@ module TysPrim(
 	mutableByteArrayPrimTyCon,	mkMutableByteArrayPrimTy,
 	mutVarPrimTyCon,		mkMutVarPrimTy,
 
-	mVarPrimTyCon,			mkMVarPrimTy,	
         tVarPrimTyCon,                  mkTVarPrimTy,
 	stablePtrPrimTyCon,		mkStablePtrPrimTy,
 	stableNamePrimTyCon,		mkStableNamePrimTy,
@@ -96,7 +95,6 @@ primTyCons
     , weakPrimTyCon
     , mutableArrayPrimTyCon
     , mutableByteArrayPrimTyCon
-    , mVarPrimTyCon
     , tVarPrimTyCon
     , mutVarPrimTyCon
     , realWorldTyCon
@@ -134,7 +132,6 @@ byteArrayPrimTyConName	      = mkPrimTc FSLIT("ByteArray#") byteArrayPrimTyConKe
 mutableArrayPrimTyConName     = mkPrimTc FSLIT("MutableArray#") mutableArrayPrimTyConKey mutableArrayPrimTyCon
 mutableByteArrayPrimTyConName = mkPrimTc FSLIT("MutableByteArray#") mutableByteArrayPrimTyConKey mutableByteArrayPrimTyCon
 mutVarPrimTyConName	      = mkPrimTc FSLIT("MutVar#") mutVarPrimTyConKey mutVarPrimTyCon
-mVarPrimTyConName	      = mkPrimTc FSLIT("MVar#") mVarPrimTyConKey mVarPrimTyCon
 tVarPrimTyConName	      = mkPrimTc FSLIT("TVar#") tVarPrimTyConKey tVarPrimTyCon
 stablePtrPrimTyConName        = mkPrimTc FSLIT("StablePtr#") stablePtrPrimTyConKey stablePtrPrimTyCon
 stableNamePrimTyConName       = mkPrimTc FSLIT("StableName#") stableNamePrimTyConKey stableNamePrimTyCon
@@ -349,18 +346,6 @@ mkMutableByteArrayPrimTy s  = mkTyConApp mutableByteArrayPrimTyCon [s]
 mutVarPrimTyCon = pcPrimTyCon mutVarPrimTyConName 2 PtrRep
 
 mkMutVarPrimTy s elt 	    = mkTyConApp mutVarPrimTyCon [s, elt]
-\end{code}
-
-%************************************************************************
-%*									*
-\subsection[TysPrim-synch-var]{The synchronizing variable type}
-%*									*
-%************************************************************************
-
-\begin{code}
-mVarPrimTyCon = pcPrimTyCon mVarPrimTyConName 2 PtrRep
-
-mkMVarPrimTy s elt 	    = mkTyConApp mVarPrimTyCon [s, elt]
 \end{code}
 
 %************************************************************************

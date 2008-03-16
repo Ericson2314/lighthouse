@@ -311,16 +311,6 @@ typedef struct {
     StgClosure *   payload[FLEXIBLE_ARRAY];
 } StgRetFun;
 
-/* Concurrent communication objects */
-
-typedef struct {
-  StgHeader       header;
-  struct StgTSO_ *head;
-  struct StgTSO_ *tail;
-  StgClosure*     value;
-} StgMVar;
-
-
 /* STM data structures
  *
  *  StgTVar defines the only type that can be updated through the STM

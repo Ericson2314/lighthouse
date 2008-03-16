@@ -549,7 +549,6 @@ typedef struct _RtsSymbolVal {
       SymX(isDoubleInfinite)			\
       SymX(isDoubleNaN)				\
       SymX(isDoubleNegativeZero)		\
-      SymX(isEmptyMVarzh_fast)			\
       SymX(isFloatDenormalized)			\
       SymX(isFloatInfinite)			\
       SymX(isFloatNaN)				\
@@ -573,7 +572,6 @@ typedef struct _RtsSymbolVal {
       SymX(newBCOzh_fast)			\
       SymX(newByteArrayzh_fast)			\
       SymX_redirect(newCAF, newDynCAF)		\
-      SymX(newMVarzh_fast)			\
       SymX(newMutVarzh_fast)			\
       SymX(newTVarzh_fast)			\
       SymX(noDuplicatezh_fast)			\
@@ -586,7 +584,6 @@ typedef struct _RtsSymbolVal {
       SymX(plusIntegerzh_fast)			\
       SymX(prog_argc)				\
       SymX(prog_argv)				\
-      SymX(putMVarzh_fast)			\
       SymX(quotIntegerzh_fast)			\
       SymX(quotRemIntegerzh_fast)		\
       SymX(raisezh_fast)			\
@@ -653,7 +650,6 @@ typedef struct _RtsSymbolVal {
       SymX(stg_CAF_BLACKHOLE_info)		\
       SymX(awakenBlockedQueue)			\
       SymX(stg_CHARLIKE_closure)		\
-      SymX(stg_EMPTY_MVAR_info)			\
       SymX(stg_IND_STATIC_info)			\
       SymX(stg_INTLIKE_closure)			\
       SymX(stg_MUT_ARR_PTRS_DIRTY_info)		\
@@ -715,10 +711,7 @@ typedef struct _RtsSymbolVal {
       SymX(stg_sel_9_upd_info)			\
       SymX(stg_upd_frame_info)			\
       SymX(suspendThread)			\
-      SymX(takeMVarzh_fast)			\
       SymX(timesIntegerzh_fast)			\
-      SymX(tryPutMVarzh_fast)			\
-      SymX(tryTakeMVarzh_fast)			\
       SymX(unblockAsyncExceptionszh_fast)	\
       SymX(unloadObj)                           \
       SymX(unsafeThawArrayzh_fast)		\

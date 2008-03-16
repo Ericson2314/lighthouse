@@ -649,15 +649,6 @@ thread_obj (StgInfoTable *info, StgPtr p)
 	return p + sizeofW(StgWeak);
     }
     
-    case MVAR:
-    { 
-	StgMVar *mvar = (StgMVar *)p;
-	thread_(&mvar->head);
-	thread_(&mvar->tail);
-	thread(&mvar->value);
-	return p + sizeofW(StgMVar);
-    }
-    
     case IND_OLDGEN:
     case IND_OLDGEN_PERM:
 	thread(&((StgInd *)p)->indirectee);

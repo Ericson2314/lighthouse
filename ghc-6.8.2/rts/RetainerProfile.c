@@ -477,7 +477,7 @@ push( StgClosure *c, retainer c_child_r, StgClosure **first_child )
 	*first_child = c->payload[0];
 	return;
 
-	// For CONSTR_2_0 and MVAR, we use se.info.step to record the position
+	// For CONSTR_2_0, we use se.info.step to record the position
 	// of the next child. We do not write a separate initialization code.
 	// Also we do not have to initialize info.type;
 
@@ -487,16 +487,6 @@ push( StgClosure *c, retainer c_child_r, StgClosure **first_child )
 	*first_child = c->payload[0];         // return the first pointer
 	// se.info.type = posTypeStep;
 	// se.info.next.step = 2;            // 2 = second
-	break;
-
-	// three children (fixed), no SRT
-	// need to push a stackElement
-    case MVAR:
-	// head must be TSO and the head of a linked list of TSOs.
-	// Shoule it be a child? Seems to be yes.
-	*first_child = (StgClosure *)((StgMVar *)c)->head;
-	// se.info.type = posTypeStep;
-	se.info.next.step = 2;            // 2 = second
 	break;
 
 	// three children (fixed), no SRT
@@ -803,21 +793,6 @@ pop( StgClosure **c, StgClosure **cp, retainer *r )
 	    return;
 
 	    // three children (fixed), no SRT
-	    // need to push a stackElement
-	case MVAR:
-	    if (se->info.next.step == 2) {
-		*c = (StgClosure *)((StgMVar *)se->c)->tail;
-		se->info.next.step++;             // move to the next step
-		// no popOff
-	    } else {
-		*c = ((StgMVar *)se->c)->value;
-		popOff();
-	    }
-	    *cp = se->c;
-	    *r = se->c_child_r;
-	    return;
-
-	    // three children (fixed), no SRT
 	case WEAK:
 	    if (se->info.next.step == 2) {
 		*c = ((StgWeak *)se->c)->value;
@@ -1057,7 +1032,6 @@ isRetainer( StgClosure *c )
     case TSO:
 
 	// mutable objects
-    case MVAR:
     case MUT_VAR_CLEAN:
     case MUT_VAR_DIRTY:
     case MUT_ARR_PTRS_CLEAN:

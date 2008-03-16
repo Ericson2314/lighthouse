@@ -300,19 +300,6 @@ scavenge(step *stp)
     q = p;
     switch (info->type) {
 
-    case MVAR:
-    { 
-	StgMVar *mvar = ((StgMVar *)p);
-	evac_gen = 0;
-	mvar->head = (StgTSO *)evacuate((StgClosure *)mvar->head);
-	mvar->tail = (StgTSO *)evacuate((StgClosure *)mvar->tail);
-	mvar->value = evacuate((StgClosure *)mvar->value);
-	evac_gen = saved_evac_gen;
-	failed_to_evac = rtsTrue; // mutable.
-	p += sizeofW(StgMVar);
-	break;
-    }
-
     case FUN_2_0:
 	scavenge_fun_srt(info);
 	((StgClosure *)p)->payload[1] = evacuate(((StgClosure *)p)->payload[1]);
@@ -705,18 +692,6 @@ linear_scan:
 	q = p;
 	switch (info->type) {
 	    
-	case MVAR:
-	{
-	    StgMVar *mvar = ((StgMVar *)p);
-	    evac_gen = 0;
-	    mvar->head = (StgTSO *)evacuate((StgClosure *)mvar->head);
-	    mvar->tail = (StgTSO *)evacuate((StgClosure *)mvar->tail);
-	    mvar->value = evacuate((StgClosure *)mvar->value);
-	    evac_gen = saved_evac_gen;
-	    failed_to_evac = rtsTrue; // mutable.
-	    break;
-	}
-
 	case FUN_2_0:
 	    scavenge_fun_srt(info);
 	    ((StgClosure *)p)->payload[1] = evacuate(((StgClosure *)p)->payload[1]);
@@ -1085,18 +1060,6 @@ scavenge_one(StgPtr p)
     
     switch (info->type) {
 	
-    case MVAR:
-    { 
-	StgMVar *mvar = ((StgMVar *)p);
-	evac_gen = 0;
-	mvar->head = (StgTSO *)evacuate((StgClosure *)mvar->head);
-	mvar->tail = (StgTSO *)evacuate((StgClosure *)mvar->tail);
-	mvar->value = evacuate((StgClosure *)mvar->value);
-	evac_gen = saved_evac_gen;
-	failed_to_evac = rtsTrue; // mutable.
-	break;
-    }
-
     case THUNK:
     case THUNK_1_0:
     case THUNK_0_1:

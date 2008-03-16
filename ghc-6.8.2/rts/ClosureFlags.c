@@ -71,7 +71,6 @@ StgWord16 closure_flags[] = {
 /* BLACKHOLE		= */ ( 	        _NS|              _UPT           ),
 /* SE_BLACKHOLE		= */ ( 	        _NS|              _UPT           ),
 /* SE_CAF_BLACKHOLE	= */ ( 	        _NS|              _UPT           ),
-/* MVAR		   	= */ (_HNF|     _NS|         _MUT|_UPT           ),
 /* ARR_WORDS		= */ (_HNF|     _NS|              _UPT           ),
 /* MUT_ARR_PTRS_CLEAN  	= */ (_HNF|     _NS|         _MUT|_UPT           ),
 /* MUT_ARR_PTRS_DIRTY  	= */ (_HNF|     _NS|         _MUT|_UPT           ),
@@ -98,6 +97,6 @@ StgWord16 closure_flags[] = {
 /* CATCH_STM_FRAME      = */ (     _BTM                                  )
 };
 
-#if N_CLOSURE_TYPES != 70
+#if N_CLOSURE_TYPES != 69
 #error Closure types changed: update ClosureFlags.c!
 #endif

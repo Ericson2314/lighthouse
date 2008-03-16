@@ -448,7 +448,6 @@ loop:
 
   case MUT_VAR_CLEAN:
   case MUT_VAR_DIRTY:
-  case MVAR:
       return copy(q,sizeW_fromITBL(info),stp);
 
   case CONSTR_0_1:

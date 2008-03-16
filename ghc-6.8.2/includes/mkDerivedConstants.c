@@ -356,11 +356,6 @@ main(int argc, char *argv[])
     closure_size(StgDeadWeak);
     closure_field(StgDeadWeak,link);
 
-    closure_size(StgMVar);
-    closure_field(StgMVar,head);
-    closure_field(StgMVar,tail);
-    closure_field(StgMVar,value);
-
 #ifdef ALLOW_INTERPRETER
     closure_size(StgBCO);
     closure_field(StgBCO, instrs);

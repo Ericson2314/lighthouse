@@ -495,7 +495,6 @@ translateOp Double2FloatOp = Just (MO_S_Conv F64 F32)
 -- Word comparisons masquerading as more exotic things.
 
 translateOp SameMutVarOp           = Just mo_wordEq
-translateOp SameMVarOp             = Just mo_wordEq
 translateOp SameMutableArrayOp     = Just mo_wordEq
 translateOp SameMutableByteArrayOp = Just mo_wordEq
 translateOp SameTVarOp             = Just mo_wordEq

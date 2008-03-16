@@ -272,48 +272,7 @@ check_target:
 
     case BlockedOnMVar:
     {
-	/*
-	  To establish ownership of this TSO, we need to acquire a
-	  lock on the MVar that it is blocked on.
-	*/
-	StgMVar *mvar;
-	StgInfoTable *info USED_IF_THREADS;
-	
-	mvar = (StgMVar *)target->block_info.closure;
-
-	// ASSUMPTION: tso->block_info must always point to a
-	// closure.  In the threaded RTS it does.
-	if (get_itbl(mvar)->type != MVAR) goto retry;
-
-	info = lockClosure((StgClosure *)mvar);
-
-	if (target->what_next == ThreadRelocated) {
-	    target = target->link;
-	    unlockClosure((StgClosure *)mvar,info);
-	    goto retry;
-	}
-	// we have the MVar, let's check whether the thread
-	// is still blocked on the same MVar.
-	if (target->why_blocked != BlockedOnMVar
-	    || (StgMVar *)target->block_info.closure != mvar) {
-	    unlockClosure((StgClosure *)mvar, info);
-	    goto retry;
-	}
-
-	if ((target->flags & TSO_BLOCKEX) &&
-	    ((target->flags & TSO_INTERRUPTIBLE) == 0)) {
-	    lockClosure((StgClosure *)target);
-	    blockedThrowTo(source,target);
-	    unlockClosure((StgClosure *)mvar, info);
-	    *out = target;
-	    return THROWTO_BLOCKED; // caller releases TSO
-	} else {
-	    removeThreadFromMVarQueue(mvar, target);
-	    raiseAsync(cap, target, exception, rtsFalse, NULL);
-	    unblockOne(cap, target);
-	    unlockClosure((StgClosure *)mvar, info);
-	    return THROWTO_SUCCESS;
-	}
+        ASSERT(false);
     }
 
     case BlockedOnBlackHole:
@@ -595,25 +554,7 @@ removeFromQueues(Capability *cap, StgTSO *tso)
     goto done;
 
   case BlockedOnMVar:
-    ASSERT(get_itbl(tso->block_info.closure)->type == MVAR);
-    {
-      StgBlockingQueueElement *last_tso = END_BQ_QUEUE;
-      StgMVar *mvar = (StgMVar *)(tso->block_info.closure);
-
-      last = (StgBlockingQueueElement **)&mvar->head;
-      for (t = (StgBlockingQueueElement *)mvar->head; 
-	   t != END_BQ_QUEUE; 
-	   last = &t->link, last_tso = t, t = t->link) {
-	if (t == (StgBlockingQueueElement *)tso) {
-	  *last = (StgBlockingQueueElement *)tso->link;
-	  if (mvar->tail == tso) {
-	    mvar->tail = (StgTSO *)last_tso;
-	  }
-	  goto done;
-	}
-      }
-      barf("removeFromQueues (MVAR): TSO not found");
-    }
+    ASSERT(false);
 
   case BlockedOnBlackHole:
     ASSERT(get_itbl(tso->block_info.closure)->type == BLACKHOLE_BQ);
@@ -737,7 +678,7 @@ removeFromQueues(Capability *cap, StgTSO *tso)
     goto done;
 
   case BlockedOnMVar:
-      removeThreadFromMVarQueue((StgMVar *)tso->block_info.closure, tso);
+      ASSERT(false);
       goto done;
 
   case BlockedOnBlackHole:
@@ -806,7 +747,7 @@ removeFromQueues(Capability *cap, StgTSO *tso)
  * asynchronous exception in an existing thread.
  *
  * We first remove the thread from any queue on which it might be
- * blocked.  The possible blockages are MVARs and BLACKHOLE_BQs.
+ * blocked.  The possible blockages are BLACKHOLE_BQs.
  *
  * We strip the stack down to the innermost CATCH_FRAME, building
  * thunks in the heap for all the active computations, so they can 

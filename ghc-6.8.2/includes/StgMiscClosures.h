@@ -100,8 +100,6 @@ RTS_INFO(stg_EVACUATED_info);
 RTS_INFO(stg_WEAK_info);
 RTS_INFO(stg_DEAD_WEAK_info);
 RTS_INFO(stg_STABLE_NAME_info);
-RTS_INFO(stg_FULL_MVAR_info);
-RTS_INFO(stg_EMPTY_MVAR_info);
 RTS_INFO(stg_TSO_info);
 RTS_INFO(stg_ARR_WORDS_info);
 RTS_INFO(stg_MUT_ARR_WORDS_info);
@@ -159,8 +157,6 @@ RTS_ENTRY(stg_EVACUATED_entry);
 RTS_ENTRY(stg_WEAK_entry);
 RTS_ENTRY(stg_DEAD_WEAK_entry);
 RTS_ENTRY(stg_STABLE_NAME_entry);
-RTS_ENTRY(stg_FULL_MVAR_entry);
-RTS_ENTRY(stg_EMPTY_MVAR_entry);
 RTS_ENTRY(stg_TSO_entry);
 RTS_ENTRY(stg_ARR_WORDS_entry);
 RTS_ENTRY(stg_MUT_ARR_WORDS_entry);
@@ -542,13 +538,6 @@ RTS_FUN(decodeDoublezh_fast);
 
 RTS_FUN(newMutVarzh_fast);
 RTS_FUN(atomicModifyMutVarzh_fast);
-
-RTS_FUN(isEmptyMVarzh_fast);
-RTS_FUN(newMVarzh_fast);
-RTS_FUN(takeMVarzh_fast);
-RTS_FUN(putMVarzh_fast);
-RTS_FUN(tryTakeMVarzh_fast);
-RTS_FUN(tryPutMVarzh_fast);
 
 RTS_FUN(waitReadzh_fast);
 RTS_FUN(waitWritezh_fast);
