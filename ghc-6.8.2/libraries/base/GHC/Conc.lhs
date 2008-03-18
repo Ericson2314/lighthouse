@@ -26,7 +26,6 @@ module GHC.Conc
 	( ThreadId(..)
 
 	-- * Forking and suchlike
-	, forkIO	-- :: IO a -> IO ThreadId
 	, forkOnIO	-- :: Int -> IO a -> IO ThreadId
         , numCapabilities -- :: Int
 	, childHandler  -- :: Exception -> IO ()
@@ -35,7 +34,6 @@ module GHC.Conc
 	, throwTo       -- :: ThreadId -> Exception -> IO ()
 	, par  		-- :: a -> b -> b
 	, pseq 		-- :: a -> b -> b
-	, yield         -- :: IO ()
 	, labelThread	-- :: ThreadId -> String -> IO ()
 
 	-- * Waiting
@@ -179,23 +177,6 @@ instance Ord ThreadId where
    compare = cmpThread
 
 {- |
-Sparks off a new thread to run the 'IO' computation passed as the
-first argument, and returns the 'ThreadId' of the newly created
-thread.
-
-The new thread will be a lightweight thread; if you want to use a foreign
-library that uses thread-local storage, use 'Control.Concurrent.forkOS' instead.
-
-GHC note: the new thread inherits the /blocked/ state of the parent 
-(see 'Control.Exception.block').
--}
-forkIO :: IO () -> IO ThreadId
-forkIO action = IO $ \ s -> 
-   case (fork# action_plus s) of (# s1, id #) -> (# s1, ThreadId id #)
- where
-  action_plus = catchException action childHandler
-
-{- |
 Like 'forkIO', but lets you specify on which CPU the thread is
 created.  Unlike a `forkIO` thread, a thread created by `forkOnIO`
 will stay on the same CPU for its entire lifetime (`forkIO` threads
@@ -291,15 +272,6 @@ throwTo (ThreadId id) ex = IO $ \ s ->
 myThreadId :: IO ThreadId
 myThreadId = IO $ \s ->
    case (myThreadId# s) of (# s1, id #) -> (# s1, ThreadId id #)
-
-
--- |The 'yield' action allows (forces, in a co-operative multitasking
--- implementation) a context-switch to any other currently runnable
--- threads (if any), and is occasionally useful when implementing
--- concurrency abstractions.
-yield :: IO ()
-yield = IO $ \s -> 
-   case (yield# s) of s1 -> (# s1, () #)
 
 {- | 'labelThread' stores a string as identifier for this thread if
 you built a RTS with debugging support. This identifier will be used in

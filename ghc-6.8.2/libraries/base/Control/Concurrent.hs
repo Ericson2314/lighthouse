@@ -98,12 +98,12 @@ import Control.Exception as Exception
 
 #ifdef __GLASGOW_HASKELL__
 import LwConc.ConcLib (yield, forkIO)
-import GHC.Conc		( ThreadId(..), myThreadId, killThread, {- yield, -}
+import GHC.Conc		( ThreadId(..), myThreadId, killThread,
 			  threadDelay, 
 #ifndef house_HOST_OS
                           threadWaitRead, threadWaitWrite,
 #endif
-			  {-forkIO,-} childHandler )
+			  childHandler )
 import GHC.TopHandler   ( reportStackOverflow, reportError )
 import GHC.IOBase	( IO(..) )
 import GHC.IOBase	( unsafeInterleaveIO )

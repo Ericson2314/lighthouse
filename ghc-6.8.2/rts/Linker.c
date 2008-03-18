@@ -468,7 +468,6 @@ typedef struct _RtsSymbolVal {
       SymX(stg_gc_gen_hp)			\
       SymX(stg_gc_ut)				\
       SymX(stg_gen_yield)			\
-      SymX(stg_yield_noregs)			\
       SymX(stg_yield_to_interpreter)		\
       SymX(stg_gen_block)			\
       SymX(stg_block_noregs)			\
@@ -515,7 +514,6 @@ typedef struct _RtsSymbolVal {
       SymX(dirty_MUT_VAR)			\
       SymX(divExactIntegerzh_fast)		\
       SymX(divModIntegerzh_fast)		\
-      SymX(forkzh_fast)				\
       SymX(forkOnzh_fast)			\
       SymX(forkProcess)				\
       SymX(forkOS_createThread)			\

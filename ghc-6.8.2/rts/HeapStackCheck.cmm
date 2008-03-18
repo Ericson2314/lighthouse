@@ -775,11 +775,6 @@ stg_gen_yield
     YIELD_GENERIC
 }
 
-stg_yield_noregs
-{
-    YIELD_GENERIC;
-}
-
 /* -----------------------------------------------------------------------------
    Yielding to the interpreter... top of stack says what to do next.
    -------------------------------------------------------------------------- */

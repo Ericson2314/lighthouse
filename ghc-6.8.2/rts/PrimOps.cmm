@@ -907,33 +907,6 @@ decodeDoublezh_fast
  * Concurrency primitives
  * -------------------------------------------------------------------------- */
 
-forkzh_fast
-{
-  /* args: R1 = closure to spark */
-
-  MAYBE_GC(R1_PTR, forkzh_fast);
-
-  W_ closure;
-  W_ threadid;
-  closure = R1;
-
-  ("ptr" threadid) = foreign "C" createIOThread( MyCapability() "ptr", 
-				RtsFlags_GcFlags_initialStkSize(RtsFlags), 
-				closure "ptr") [];
-
-  /* start blocked if the current thread is blocked */
-  StgTSO_flags(threadid) = 
-     StgTSO_flags(threadid) |  (StgTSO_flags(CurrentTSO) & 
-                                (TSO_BLOCKEX::I32 | TSO_INTERRUPTIBLE::I32));
-
-  foreign "C" scheduleThread(MyCapability() "ptr", threadid "ptr") [];
-
-  // switch at the earliest opportunity
-  CInt[context_switch] = 1 :: CInt;
-  
-  RET_P(threadid);
-}
-
 forkOnzh_fast
 {
   /* args: R1 = cpu, R2 = closure to spark */
@@ -961,11 +934,6 @@ forkOnzh_fast
   CInt[context_switch] = 1 :: CInt;
   
   RET_P(threadid);
-}
-
-yieldzh_fast
-{
-  jump stg_yield_noregs;
 }
 
 myThreadIdzh_fast
