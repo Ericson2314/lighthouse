@@ -65,6 +65,7 @@ import Util.CmdLineParser hiding ((!))
 import qualified Util.CmdLineParser as P
        
 import LwConcTests
+import Scratch
 import LwConc.ConcLib(startScheduling,queueLength)
 import qualified LwConc.ConcLib as LWCL
 import H.Monad(liftIO)
@@ -88,10 +89,11 @@ mainH =
        trace "Tracing enabled"
        --forkH (shell (netState, pciState))
        --forkH (preemptTest "a")
-       forkH (coopTest "AAA")
-       forkH (coopTest "BBB")
-       forkH (coopTest "CCC")
-       forkH (coopTest "DDD")
+       forkH scratchMain
+       --forkH (coopTest "AAA")
+       --forkH (coopTest "BBB")
+       --forkH (coopTest "CCC")
+       --forkH (coopTest "DDD")
        enableInterrupts
        liftIO $ startScheduling
 
