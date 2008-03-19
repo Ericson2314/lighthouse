@@ -216,7 +216,6 @@
  */
 #define HeapOverflow   1		/* might also be StackOverflow */
 #define StackOverflow  2
-#define ThreadYielding 3
 #define ThreadBlocked  4
 #define ThreadFinished 5
 

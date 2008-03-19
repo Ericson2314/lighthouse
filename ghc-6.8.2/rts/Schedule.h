@@ -36,19 +36,7 @@ void scheduleThreadOn(Capability *cap, StgWord cpu, StgTSO *tso);
  * Called from STG :  yes
  * Locks assumed   :  none
  */
-#if defined(GRAN)
-void awakenBlockedQueue(StgBlockingQueueElement *q, StgClosure *node);
-#elif defined(PAR)
-void awakenBlockedQueue(StgBlockingQueueElement *q, StgClosure *node);
-#else
 void awakenBlockedQueue (Capability *cap, StgTSO *tso);
-#endif
-
-/* wakeUpRts()
- * 
- * Causes an OS thread to wake up and run the scheduler, if necessary.
- */
-void wakeUpRts(void);
 
 /* unblockOne()
  *
@@ -78,20 +66,10 @@ void GetRoots(evac_fn);
  */
 void workerStart(Task *task);
 
-#if defined(GRAN)
-void    awaken_blocked_queue(StgBlockingQueueElement *q, StgClosure *node);
-void    unlink_from_bq(StgTSO* tso, StgClosure* node);
-void    initThread(StgTSO *tso, nat stack_size, StgInt pri);
-#elif defined(PAR)
-nat     run_queue_len(void);
-void    awaken_blocked_queue(StgBlockingQueueElement *q, StgClosure *node);
-void    initThread(StgTSO *tso, nat stack_size);
-#else
 char   *info_type(StgClosure *closure);    // dummy
 char   *info_type_by_ip(StgInfoTable *ip); // dummy
 void    awaken_blocked_queue(StgTSO *q);
 void    initThread(StgTSO *tso, nat stack_size);
-#endif
 
 /* Context switch flag.
  * Locks required  : none (conflicts are harmless)
@@ -129,14 +107,10 @@ extern nat recent_activity;
  *
  * In GranSim we have one run/blocked_queue per PE.
  */
-#if defined(GRAN)
-// run_queue_hds defined in GranSim.h
-#else
 extern  StgTSO *RTS_VAR(blackhole_queue);
 #if !defined(THREADED_RTS)
 extern  StgTSO *RTS_VAR(blocked_queue_hd), *RTS_VAR(blocked_queue_tl);
 extern  StgTSO *RTS_VAR(sleeping_queue);
-#endif
 #endif
 
 /* Linked list of all threads.
@@ -153,10 +127,6 @@ extern  StgTSO *RTS_VAR(all_threads);
  */
 extern rtsBool blackholes_need_checking;
 
-#if defined(THREADED_RTS)
-extern Mutex RTS_VAR(sched_mutex);
-#endif
-
 SchedulerStatus rts_mainLazyIO(HaskellObj p, /*out*/HaskellObj *ret);
 
 /* Called by shutdown_handler(). */
@@ -172,9 +142,6 @@ void printAllThreads(void);
  */
 #ifdef DEBUG
 void print_bq (StgClosure *node);
-#endif
-#if defined(PAR)
-void print_bqe (StgBlockingQueueElement *bqe);
 #endif
 
 /* -----------------------------------------------------------------------------
@@ -246,20 +213,6 @@ appendToBlockedQueue(StgTSO *tso)
 }
 #endif
 
-#if defined(THREADED_RTS)
-INLINE_HEADER void
-appendToWakeupQueue (Capability *cap, StgTSO *tso)
-{
-    ASSERT(tso->link == END_TSO_QUEUE);
-    if (cap->wakeup_queue_hd == END_TSO_QUEUE) {
-	cap->wakeup_queue_hd = tso;
-    } else {
-	cap->wakeup_queue_tl->link = tso;
-    }
-    cap->wakeup_queue_tl = tso;
-}
-#endif
-
 /* Check whether various thread queues are empty
  */
 INLINE_HEADER rtsBool
@@ -273,14 +226,6 @@ emptyRunQueue(Capability *cap)
 {
     return emptyQueue(cap->run_queue_hd);
 }
-
-#if defined(THREADED_RTS)
-INLINE_HEADER rtsBool
-emptyWakeupQueue(Capability *cap)
-{
-    return emptyQueue(cap->wakeup_queue_hd);
-}
-#endif
 
 #if !defined(THREADED_RTS)
 #define EMPTY_BLOCKED_QUEUE()  (emptyQueue(blocked_queue_hd))

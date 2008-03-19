@@ -25,7 +25,7 @@ import LeaveCriticalSection;
  *
  *    - If the context_switch flag is set, indicating that there are more
  *      threads waiting to run, we yield to the scheduler 
- *	(return ThreadYielding).
+ *	(call timerHandler)
  *
  *    - If Hp > HpLim, we've had a heap check failure.  This means we've
  *	come to the end of the current heap block, so we try to chain
@@ -101,20 +101,10 @@ import LeaveCriticalSection;
    PRE_RETURN(ThreadBlocked,  ThreadRunGHC)	\
   jump stg_returnToSched;
 
-#define YIELD_GENERIC				\
-  PRE_RETURN(ThreadYielding, ThreadRunGHC)	\
-  jump stg_returnToSched;
-
 #define BLOCK_BUT_FIRST(c)			\
   PRE_RETURN(ThreadBlocked, ThreadRunGHC)	\
   R2 = c;					\
   jump stg_returnToSchedButFirst;
-
-#ifdef ALLOW_INTERPRETER
-#define YIELD_TO_INTERPRETER			\
-  PRE_RETURN(ThreadYielding, ThreadInterpret)	\
-  jump stg_returnToSchedNotPaused;
-#endif // ALLOW_INTERPRETER
 
 /* -----------------------------------------------------------------------------
    Heap checks in thunks/functions.
@@ -146,140 +136,6 @@ __stg_gc_enter_1
   ToDo: merge the block and yield macros, calling something like BLOCK(N)
         at the end;
 */
-
-/* 
-   Should we actually ever do a yield in such a case?? -- HWL
-*/
-gran_yield_0
-{
-    SAVE_THREAD_STATE();					
-    TSO_what_next(CurrentTSO) = ThreadRunGHC;		
-    R1 = ThreadYielding;
-    jump StgReturn;
-}
-
-gran_yield_1
-{
-    Sp_adj(-1);
-    Sp(0) = R1;
-    SAVE_THREAD_STATE();					
-    TSO_what_next(CurrentTSO) = ThreadRunGHC;		
-    R1 = ThreadYielding;
-    jump StgReturn;
-}
-
-/*- 2 Regs--------------------------------------------------------------------*/
-
-gran_yield_2
-{
-    Sp_adj(-2);
-    Sp(1) = R2;
-    Sp(0) = R1;
-    SAVE_THREAD_STATE();					
-    TSO_what_next(CurrentTSO) = ThreadRunGHC;		
-    R1 = ThreadYielding;
-    jump StgReturn;
-}
-
-/*- 3 Regs -------------------------------------------------------------------*/
-
-gran_yield_3
-{
-    Sp_adj(-3);
-    Sp(2) = R3;
-    Sp(1) = R2;
-    Sp(0) = R1;
-    SAVE_THREAD_STATE();					
-    TSO_what_next(CurrentTSO) = ThreadRunGHC;		
-    R1 = ThreadYielding;
-    jump StgReturn;
-}
-
-/*- 4 Regs -------------------------------------------------------------------*/
-
-gran_yield_4
-{
-    Sp_adj(-4);
-    Sp(3) = R4;
-    Sp(2) = R3;
-    Sp(1) = R2;
-    Sp(0) = R1;
-    SAVE_THREAD_STATE();					
-    TSO_what_next(CurrentTSO) = ThreadRunGHC;		
-    R1 = ThreadYielding;
-    jump StgReturn;
-}
-
-/*- 5 Regs -------------------------------------------------------------------*/
-
-gran_yield_5
-{
-    Sp_adj(-5);
-    Sp(4) = R5;
-    Sp(3) = R4;
-    Sp(2) = R3;
-    Sp(1) = R2;
-    Sp(0) = R1;
-    SAVE_THREAD_STATE();					
-    TSO_what_next(CurrentTSO) = ThreadRunGHC;		
-    R1 = ThreadYielding;
-    jump StgReturn;
-}
-
-/*- 6 Regs -------------------------------------------------------------------*/
-
-gran_yield_6
-{
-    Sp_adj(-6);
-    Sp(5) = R6;
-    Sp(4) = R5;
-    Sp(3) = R4;
-    Sp(2) = R3;
-    Sp(1) = R2;
-    Sp(0) = R1;
-    SAVE_THREAD_STATE();					
-    TSO_what_next(CurrentTSO) = ThreadRunGHC;		
-    R1 = ThreadYielding;
-    jump StgReturn;
-}
-
-/*- 7 Regs -------------------------------------------------------------------*/
-
-gran_yield_7
-{
-    Sp_adj(-7);
-    Sp(6) = R7;
-    Sp(5) = R6;
-    Sp(4) = R5;
-    Sp(3) = R4;
-    Sp(2) = R3;
-    Sp(1) = R2;
-    Sp(0) = R1;
-    SAVE_THREAD_STATE();					
-    TSO_what_next(CurrentTSO) = ThreadRunGHC;		
-    R1 = ThreadYielding;
-    jump StgReturn;
-}
-
-/*- 8 Regs -------------------------------------------------------------------*/
-
-gran_yield_8
-{
-    Sp_adj(-8);
-    Sp(7) = R8;
-    Sp(6) = R7;
-    Sp(5) = R6;
-    Sp(4) = R5;
-    Sp(3) = R4;
-    Sp(2) = R3;
-    Sp(1) = R2;
-    Sp(0) = R1;
-    SAVE_THREAD_STATE();					
-    TSO_what_next(CurrentTSO) = ThreadRunGHC;		
-    R1 = ThreadYielding;
-    jump StgReturn;
-}
-
 // the same routines but with a block rather than a yield
 
 gran_block_1
@@ -682,8 +538,6 @@ INFO_TABLE_RET( stg_gc_fun, RET_FUN )
    to relevant SRTs).
 
    See StgMacros.h for a description of the RET_DYN stack frame.
-
-   We also define an stg_gen_yield here, because it's very similar.
    -------------------------------------------------------------------------- */
 
 // For simplicity, we assume that SIZEOF_DOUBLE == 2*SIZEOF_VOID_P
@@ -764,29 +618,6 @@ stg_gc_gen_hp
     SAVE_EVERYTHING;
     HP_GENERIC
 }	  
-
-/* -----------------------------------------------------------------------------
-   Yields
-   -------------------------------------------------------------------------- */
-
-stg_gen_yield
-{
-    SAVE_EVERYTHING;
-    YIELD_GENERIC
-}
-
-/* -----------------------------------------------------------------------------
-   Yielding to the interpreter... top of stack says what to do next.
-   -------------------------------------------------------------------------- */
-
-#ifdef ALLOW_INTERPRETER
-
-stg_yield_to_interpreter
-{
-    YIELD_TO_INTERPRETER;
-}
-
-#endif // ALLOW_INTERPRETER
 
 /* -----------------------------------------------------------------------------
    Blocks

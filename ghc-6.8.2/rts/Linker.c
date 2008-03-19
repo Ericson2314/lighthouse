@@ -467,8 +467,6 @@ typedef struct _RtsSymbolVal {
       SymX(stg_gc_gen_info)			\
       SymX(stg_gc_gen_hp)			\
       SymX(stg_gc_ut)				\
-      SymX(stg_gen_yield)			\
-      SymX(stg_yield_to_interpreter)		\
       SymX(stg_gen_block)			\
       SymX(stg_block_noregs)			\
       SymX(stg_block_1)				\
@@ -718,7 +716,6 @@ typedef struct _RtsSymbolVal {
       SymX(word2Integerzh_fast)			\
       SymX(writeTVarzh_fast)			\
       SymX(xorIntegerzh_fast)			\
-      SymX(yieldzh_fast)                        \
       SymX(stg_interp_constr_entry)             \
       SymX(allocateExec)	                \
       SymX(freeExec)		                \
