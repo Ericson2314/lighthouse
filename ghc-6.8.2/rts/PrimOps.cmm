@@ -907,35 +907,6 @@ decodeDoublezh_fast
  * Concurrency primitives
  * -------------------------------------------------------------------------- */
 
-forkOnzh_fast
-{
-  /* args: R1 = cpu, R2 = closure to spark */
-
-  MAYBE_GC(R2_PTR, forkOnzh_fast);
-
-  W_ cpu;
-  W_ closure;
-  W_ threadid;
-  cpu = R1;
-  closure = R2;
-
-  ("ptr" threadid) = foreign "C" createIOThread( MyCapability() "ptr", 
-				RtsFlags_GcFlags_initialStkSize(RtsFlags), 
-				closure "ptr") [];
-
-  /* start blocked if the current thread is blocked */
-  StgTSO_flags(threadid) = 
-     StgTSO_flags(threadid) |  (StgTSO_flags(CurrentTSO) & 
-                                (TSO_BLOCKEX::I32 | TSO_INTERRUPTIBLE::I32));
-
-  foreign "C" scheduleThreadOn(MyCapability() "ptr", cpu, threadid "ptr") [];
-
-  // switch at the earliest opportunity
-  CInt[context_switch] = 1 :: CInt;
-  
-  RET_P(threadid);
-}
-
 myThreadIdzh_fast
 {
   /* no args. */
@@ -1550,119 +1521,21 @@ for2:
    Thread I/O blocking primitives
    -------------------------------------------------------------------------- */
 
-/* Add a thread to the end of the blocked queue. (C-- version of the C
- * macro in Schedule.h).
- */
-#define APPEND_TO_BLOCKED_QUEUE(tso)			\
-    ASSERT(StgTSO_link(tso) == END_TSO_QUEUE);		\
-    if (W_[blocked_queue_hd] == END_TSO_QUEUE) {	\
-      W_[blocked_queue_hd] = tso;			\
-    } else {						\
-      StgTSO_link(W_[blocked_queue_tl]) = tso;		\
-    }							\
-    W_[blocked_queue_tl] = tso;
-
 waitReadzh_fast
 {
-    /* args: R1 */
-#ifdef THREADED_RTS
-    foreign "C" barf("waitRead# on threaded RTS") never returns;
-#else
-
-    ASSERT(StgTSO_why_blocked(CurrentTSO) == NotBlocked::I16);
-    StgTSO_why_blocked(CurrentTSO) = BlockedOnRead::I16;
-    StgTSO_block_info(CurrentTSO) = R1;
-    // No locking - we're not going to use this interface in the
-    // threaded RTS anyway.
-    APPEND_TO_BLOCKED_QUEUE(CurrentTSO);
-    jump stg_block_noregs;
-#endif
+    foreign "C" barf("waitRead# not supported in LwConc") never returns;
 }
 
 waitWritezh_fast
 {
-    /* args: R1 */
-#ifdef THREADED_RTS
-    foreign "C" barf("waitWrite# on threaded RTS") never returns;
-#else
-
-    ASSERT(StgTSO_why_blocked(CurrentTSO) == NotBlocked::I16);
-    StgTSO_why_blocked(CurrentTSO) = BlockedOnWrite::I16;
-    StgTSO_block_info(CurrentTSO) = R1;
-    // No locking - we're not going to use this interface in the
-    // threaded RTS anyway.
-    APPEND_TO_BLOCKED_QUEUE(CurrentTSO);
-    jump stg_block_noregs;
-#endif
+    foreign "C" barf("waitWrite# not supported in LwConc") never returns;
 }
 
 
 STRING(stg_delayzh_malloc_str, "delayzh_fast")
 delayzh_fast
 {
-#ifdef mingw32_HOST_OS
-    W_ ares;
-    CInt reqID;
-#else
-    W_ t, prev, target;
-#endif
-
-#ifdef THREADED_RTS
-    foreign "C" barf("delay# on threaded RTS") never returns;
-#else
-
-    /* args: R1 (microsecond delay amount) */
-    ASSERT(StgTSO_why_blocked(CurrentTSO) == NotBlocked::I16);
-    StgTSO_why_blocked(CurrentTSO) = BlockedOnDelay::I16;
-
-#ifdef mingw32_HOST_OS
-
-    /* could probably allocate this on the heap instead */
-    ("ptr" ares) = foreign "C" stgMallocBytes(SIZEOF_StgAsyncIOResult,
-					    stg_delayzh_malloc_str);
-    (reqID) = foreign "C" addDelayRequest(R1);
-    StgAsyncIOResult_reqID(ares)   = reqID;
-    StgAsyncIOResult_len(ares)     = 0;
-    StgAsyncIOResult_errCode(ares) = 0;
-    StgTSO_block_info(CurrentTSO)  = ares;
-
-    /* Having all async-blocked threads reside on the blocked_queue
-     * simplifies matters, so change the status to OnDoProc put the
-     * delayed thread on the blocked_queue.
-     */
-    StgTSO_why_blocked(CurrentTSO) = BlockedOnDoProc::I16;
-    APPEND_TO_BLOCKED_QUEUE(CurrentTSO);
-    jump stg_block_async_void;
-
-#else
-
-    W_ time;
-    W_ divisor;
-    (time) = foreign "C" getourtimeofday() [R1];
-    divisor = TO_W_(RtsFlags_MiscFlags_tickInterval(RtsFlags))*1000;
-    target = ((R1 + divisor - 1) / divisor) /* divide rounding up */
-           + time + 1; /* Add 1 as getourtimeofday rounds down */
-    StgTSO_block_info(CurrentTSO) = target;
-
-    /* Insert the new thread in the sleeping queue. */
-    prev = NULL;
-    t = W_[sleeping_queue];
-while:
-    if (t != END_TSO_QUEUE && StgTSO_block_info(t) < target) {
-	prev = t;
-	t = StgTSO_link(t);
-	goto while;
-    }
-
-    StgTSO_link(CurrentTSO) = t;
-    if (prev == NULL) {
-	W_[sleeping_queue] = CurrentTSO;
-    } else {
-	StgTSO_link(prev) = CurrentTSO;
-    }
-    jump stg_block_noregs;
-#endif
-#endif /* !THREADED_RTS */
+    foreign "C" barf("delay# not supported - need a LwConc replacement") never returns;
 }
 
 

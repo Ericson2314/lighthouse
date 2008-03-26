@@ -45,10 +45,14 @@ startSignalHandlers(Capability *cap)
 
     next_pending_handler--;
 
+    // KAYDEN: This is absolutely critical - all interrupts for the OS.
+    //         But it's broken until I implement a new upcall mechanism.
+    /*
     scheduleThread (cap,
 	createIOThread(cap,
 		       RtsFlags.GcFlags.initialStkSize, 
 		       (StgClosure *) *next_pending_handler));
+                       */
   }
 
   unblockUserSignals();

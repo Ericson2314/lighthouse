@@ -69,13 +69,6 @@
  * Global variables
  * -------------------------------------------------------------------------- */
 
-#if !defined(THREADED_RTS)
-// Blocked/sleeping thrads
-StgTSO *blocked_queue_hd = NULL;
-StgTSO *blocked_queue_tl = NULL;
-StgTSO *sleeping_queue = NULL;    // perhaps replace with a hash table?
-#endif
-
 /* Threads blocked on blackholes.
  * LOCK: sched_mutex+capability, or all capabilities
  */
@@ -140,16 +133,12 @@ static Capability *schedule (Capability *initialCapability, Task *task);
 // scheduler clearer.
 //
 static void scheduleStartSignalHandlers (Capability *cap);
-static void scheduleCheckBlockedThreads (Capability *cap);
 static void scheduleCheckBlackHoles (Capability *cap);
-static void scheduleDetectDeadlock (Capability *cap, Task *task);
 static rtsBool scheduleHandleHeapOverflow( Capability *cap, StgTSO *t );
 static void scheduleHandleStackOverflow( Capability *cap, Task *task, 
 					 StgTSO *t);
-static void scheduleHandleThreadBlocked( StgTSO *t );
 static rtsBool scheduleHandleThreadFinished( Capability *cap, Task *task,
 					     StgTSO *t );
-static rtsBool scheduleNeedHeapProfile(rtsBool ready_to_gc);
 static Capability *scheduleDoGC(Capability *cap, Task *task,
 				rtsBool force_major);
 
@@ -174,17 +163,6 @@ static char *whatNext_strs[] = {
   "ThreadComplete"
 };
 #endif
-
-/* -----------------------------------------------------------------------------
- * Putting a thread on the run queue: different scheduling policies
- * -------------------------------------------------------------------------- */
-
-STATIC_INLINE void
-addToRunQueue( Capability *cap, StgTSO *t )
-{
-    // this does round-robin scheduling; good for concurrency
-    appendToRunQueue(cap,t);
-}
 
 /* ---------------------------------------------------------------------------
    Main scheduling loop.
@@ -289,9 +267,9 @@ schedule (Capability *initialCapability, Task *task)
 	// If we are a worker, just exit.  If we're a bound thread
 	// then we will exit below when we've removed our TSO from
 	// the run queue.
-	if (task->tso == NULL && emptyRunQueue(cap)) {
+	//if (task->tso == NULL && emptyRunQueue(cap)) {
 	    return cap;
-	}
+	//}
 	break;
     default:
 	barf("sched_state: %d", sched_state);
@@ -299,53 +277,15 @@ schedule (Capability *initialCapability, Task *task)
 
     scheduleStartSignalHandlers(cap);
 
-    // Only check the black holes here if we've nothing else to do.
-    // During normal execution, the black hole list only gets checked
-    // at GC time, to avoid repeatedly traversing this possibly long
-    // list each time around the scheduler.
-    if (emptyRunQueue(cap)) { scheduleCheckBlackHoles(cap); }
-
-    scheduleCheckBlockedThreads(cap);
-
-    scheduleDetectDeadlock(cap,task);
     // Normally, the only way we can get here with no threads to
     // run is if a keyboard interrupt received during 
     // scheduleCheckBlockedThreads() or scheduleDetectDeadlock().
     // Additionally, it is not fatal for the
     // threaded RTS to reach here with no threads to run.
-    //
-    // win32: might be here due to awaitEvent() being abandoned
-    // as a result of a console event having been delivered.
-    if ( emptyRunQueue(cap) ) {
-#if !defined(THREADED_RTS) && !defined(mingw32_HOST_OS)
-	ASSERT(sched_state >= SCHED_INTERRUPTING);
-#endif
-	continue; // nothing to do
-    }
+    ASSERT(cap->r.rCurrentTSO && sched_state >= SCHED_INTERRUPTING);
 
-    // 
-    // Get a thread to run
-    //
-    t = popRunQueue(cap);
-
-    // Sanity check the thread we're about to run.  This can be
-    // expensive if there is lots of thread switching going on...
-    IF_DEBUG(sanity,checkTSO(t));
-
-    // KAYDEN: looks like switchSContzh_fast sort of code
-    cap->r.rCurrentTSO = t;
-    
-    /* context switches are initiated by the timer signal, unless
-     * the user specified "context switch as often as possible", with
-     * +RTS -C0
-     */
-    if (RtsFlags.ConcFlags.ctxtSwitchTicks == 0
-	&& !emptyThreadQueues(cap)) {
-	context_switch = 1;
-    }
-	 
 run_thread:
-
+    t = cap->r.rCurrentTSO;
     debugTrace(DEBUG_sched, "-->> running thread %ld %s ...", 
 			      (long)t->id, whatNext_strs[t->what_next]);
 
@@ -443,20 +383,17 @@ run_thread:
 	scheduleHandleStackOverflow(cap,task,t);
 	break;
 
-    case ThreadBlocked:
-	scheduleHandleThreadBlocked(t);
-	break;
-
     case ThreadFinished:
 	if (scheduleHandleThreadFinished(cap, task, t)) return cap;
 	ASSERT_FULL_CAPABILITY_INVARIANTS(cap,task);
 	break;
 
+    case ThreadBlocked:
     default:
       barf("schedule: invalid thread return code %d", (int)ret);
     }
 
-    if (ready_to_gc || scheduleNeedHeapProfile(ready_to_gc)) {
+    if (ready_to_gc) {
       cap = scheduleDoGC(cap,task,rtsFalse);
     }
   } /* end of while() */
@@ -485,26 +422,6 @@ scheduleStartSignalHandlers(Capability *cap STG_UNUSED)
 #endif
 
 /* ----------------------------------------------------------------------------
- * Check for blocked threads that can be woken up.
- * ------------------------------------------------------------------------- */
-
-static void
-scheduleCheckBlockedThreads(Capability *cap USED_IF_NOT_THREADS)
-{
-#if !defined(THREADED_RTS)
-    //
-    // Check whether any waiting threads need to be woken up.  If the
-    // run queue is empty, and there are no other tasks running, we
-    // can wait indefinitely for something to happen.
-    //
-    if ( !emptyQueue(blocked_queue_hd) || !emptyQueue(sleeping_queue) )
-    {
-	awaitEvent( emptyRunQueue(cap) && !blackholes_need_checking );
-    }
-#endif
-}
-
-/* ----------------------------------------------------------------------------
  * Check for threads blocked on BLACKHOLEs that can be woken up
  * ------------------------------------------------------------------------- */
 static void
@@ -518,58 +435,6 @@ scheduleCheckBlackHoles (Capability *cap)
 	    blackholes_need_checking = rtsFalse;
 	}
 	RELEASE_LOCK(&sched_mutex);
-    }
-}
-
-/* ----------------------------------------------------------------------------
- * Detect deadlock conditions and attempt to resolve them.
- * ------------------------------------------------------------------------- */
-
-static void
-scheduleDetectDeadlock (Capability *cap, Task *task)
-{
-    /* 
-     * Detect deadlock: when we have no threads to run, there are no
-     * threads blocked, waiting for I/O, or sleeping, and all the
-     * other tasks are waiting for work, we must have a deadlock of
-     * some description.
-     */
-    if ( emptyThreadQueues(cap) )
-    {
-	debugTrace(DEBUG_sched, "deadlocked, forcing major GC...");
-
-	// Garbage collection can release some new threads due to
-	// either (a) finalizers or (b) threads resurrected because
-	// they are unreachable and will therefore be sent an
-	// exception.  Any threads thus released will be immediately
-	// runnable.
-	cap = scheduleDoGC (cap, task, rtsTrue/*force  major GC*/);
-
-	recent_activity = ACTIVITY_DONE_GC;
-        // disable timer signals (see #1623)
-        stopTimer();
-	
-	if ( !emptyRunQueue(cap) ) return;
-
-#if defined(RTS_USER_SIGNALS) && !defined(THREADED_RTS)
-	/* If we have user-installed signal handlers, then wait
-	 * for signals to arrive rather then bombing out with a
-	 * deadlock.
-	 */
-	if ( RtsFlags.MiscFlags.install_signal_handlers && anyUserHandlers() ) {
-	    debugTrace(DEBUG_sched,
-		       "still deadlocked, waiting for signals...");
-
-	    awaitUserSignals();
-
-	    if (signals_pending()) {
-		startSignalHandlers(cap);
-	    }
-
-	    // either we have threads to run, or we were interrupted:
-	    ASSERT(!emptyRunQueue(cap) || sched_state >= SCHED_INTERRUPTING);
-	}
-#endif
     }
 }
 
@@ -643,7 +508,7 @@ scheduleHandleHeapOverflow( Capability *cap, StgTSO *t )
 	    // run queue before us and steal the large block, but in that
 	    // case the thread will just end up requesting another large
 	    // block.
-	    pushOnRunQueue(cap,t);
+	    //pushOnRunQueue(cap,t);
 	    return rtsFalse;  /* not actually GC'ing */
 	}
     }
@@ -652,7 +517,7 @@ scheduleHandleHeapOverflow( Capability *cap, StgTSO *t )
 	       "--<< thread %ld (%s) stopped: HeapOverflow\n", 
 	       (long)t->id, whatNext_strs[t->what_next]);
 
-    pushOnRunQueue(cap,t);
+    //pushOnRunQueue(cap,t);
     return rtsTrue;
     /* actual GC is done at the end of the while loop in schedule() */
 }
@@ -681,29 +546,8 @@ scheduleHandleStackOverflow (Capability *cap, Task *task, StgTSO *t)
 	if (task->tso == t) {
 	    task->tso = new_t;
 	}
-	pushOnRunQueue(cap,new_t);
+        cap->r.rCurrentTSO = new_t;
     }
-}
-
-/* -----------------------------------------------------------------------------
- * Handle a thread that returned to the scheduler with ThreadBlocked
- * -------------------------------------------------------------------------- */
-
-static void
-scheduleHandleThreadBlocked( StgTSO *t
-#if !defined(DEBUG)
-    STG_UNUSED
-#endif
-    )
-{
-#ifdef DEBUG
-    if (traceClass(DEBUG_sched)) {
-	debugTraceBegin("--<< thread %lu (%s) stopped: ", 
-			(unsigned long)t->id, whatNext_strs[t->what_next]);
-	printThreadBlockage(t);
-	debugTraceEnd();
-    }
-#endif
 }
 
 /* -----------------------------------------------------------------------------
@@ -732,18 +576,7 @@ scheduleHandleThreadFinished (Capability *cap STG_UNUSED, Task *task, StgTSO *t)
       //
 
       if (t->bound) {
-
-	  if (t->bound != task) {
-	      // Must be a bound thread that is not the topmost one.  Leave
-	      // it on the run queue until the stack has unwound to the
-	      // point where we can deal with this.  Leaving it on the run
-	      // queue also ensures that the garbage collector knows about
-	      // this thread and its return value (it gets dropped from the
-	      // all_threads list so there's no other way to find it).
-	      appendToRunQueue(cap,t);
-	      return rtsFalse;
-	  }
-
+	  ASSERT(t->bound == task);
 	  ASSERT(task->tso == t);
 
 	  if (t->what_next == ThreadComplete) {
@@ -769,24 +602,6 @@ scheduleHandleThreadFinished (Capability *cap STG_UNUSED, Task *task, StgTSO *t)
       }
 
       return rtsFalse;
-}
-
-/* -----------------------------------------------------------------------------
- * Perform a heap census
- * -------------------------------------------------------------------------- */
-
-static rtsBool
-scheduleNeedHeapProfile( rtsBool ready_to_gc STG_UNUSED )
-{
-    // When we have +RTS -i0 and we're heap profiling, do a census at
-    // every GC.  This lets us get repeatable runs for debugging.
-    if (performHeapProfile ||
-	(RtsFlags.ProfFlags.profileInterval==0 &&
-	 RtsFlags.ProfFlags.doHeapProfile && ready_to_gc)) {
-        return rtsTrue;
-    } else {
-        return rtsFalse;
-    }
 }
 
 /* -----------------------------------------------------------------------------
@@ -859,8 +674,6 @@ scheduleDoGC (Capability *cap, Task *task USED_IF_THREADS, rtsBool force_major)
 	sched_state = SCHED_SHUTTING_DOWN;
     }
     
-    heap_census = scheduleNeedHeapProfile(rtsTrue);
-
     /* everybody back, start the GC.
      * Could do it in this thread, or signal a condition var
      * to do it in another thread.  Either way, we need to
@@ -868,12 +681,6 @@ scheduleDoGC (Capability *cap, Task *task USED_IF_THREADS, rtsBool force_major)
      */
     GarbageCollect(force_major || heap_census);
     
-    if (heap_census) {
-        debugTrace(DEBUG_sched, "performing heap census");
-        heapCensus();
-	performHeapProfile = rtsFalse;
-    }
-
     return cap;
 }
 
@@ -939,13 +746,6 @@ forkProcess(HsStablePtr *entry
 	    }
 	}
 	
-	// Empty the run queue.  It seems tempting to let all the
-	// killed threads stay on the run queue as zombies to be
-	// cleaned up later, but some of them correspond to bound
-	// threads for which the corresponding Task does not exist.
-	cap->run_queue_hd = END_TSO_QUEUE;
-	cap->run_queue_tl = END_TSO_QUEUE;
-
 	// Any suspended C-calling Tasks are no more, their OS threads
 	// don't exist now:
 	cap->suspended_ccalling_tasks = NULL;
@@ -988,6 +788,7 @@ forkProcess(HsStablePtr *entry
 static void
 deleteAllThreads ( Capability *cap )
 {
+    debugBelch("/!\ deleteAllThreads() called!\n");
     // NOTE: only safe to call if we own all capabilities.
 
     StgTSO* t, *next;
@@ -1006,11 +807,6 @@ deleteAllThreads ( Capability *cap )
     // somewhere, and the main scheduler loop has to deal with it.
     // Also, the run queue is the only thing keeping these threads from
     // being GC'd, and we don't want the "main thread has been GC'd" panic.
-
-#if !defined(THREADED_RTS)
-    ASSERT(blocked_queue_hd == END_TSO_QUEUE);
-    ASSERT(sleeping_queue == END_TSO_QUEUE);
-#endif
 }
 
 /* -----------------------------------------------------------------------------
@@ -1172,30 +968,6 @@ resumeThread (void *task_)
     return &cap->r;
 }
 
-/* ---------------------------------------------------------------------------
- * scheduleThread()
- *
- * scheduleThread puts a thread on the end  of the runnable queue.
- * This will usually be done immediately after a thread is created.
- * The caller of scheduleThread must create the thread using e.g.
- * createThread and push an appropriate closure
- * on this thread's stack before the scheduler is invoked.
- * ------------------------------------------------------------------------ */
-
-void
-scheduleThread(Capability *cap, StgTSO *tso)
-{
-    // The thread goes at the *end* of the run-queue, to avoid possible
-    // starvation of any threads already on the queue.
-    appendToRunQueue(cap,tso);
-}
-
-void
-scheduleThreadOn(Capability *cap, StgWord cpu USED_IF_THREADS, StgTSO *tso)
-{
-    appendToRunQueue(cap,tso);
-}
-
 Capability *
 scheduleWaitThread (StgTSO* tso, /*[out]*/HaskellObj* ret, Capability *cap)
 {
@@ -1213,7 +985,7 @@ scheduleWaitThread (StgTSO* tso, /*[out]*/HaskellObj* ret, Capability *cap)
     task->ret = ret;
     task->stat = NoStatus;
 
-    appendToRunQueue(cap,tso);
+    cap->r.rCurrentTSO = tso;
 
     debugTrace(DEBUG_sched, "new bound thread (%lu)", (unsigned long)tso->id);
 
@@ -1242,10 +1014,6 @@ scheduleWaitThread (StgTSO* tso, /*[out]*/HaskellObj* ret, Capability *cap)
 void 
 initScheduler(void)
 {
-  blocked_queue_hd  = END_TSO_QUEUE;
-  blocked_queue_tl  = END_TSO_QUEUE;
-  sleeping_queue    = END_TSO_QUEUE;
-
   blackhole_queue   = END_TSO_QUEUE;
   all_threads       = END_TSO_QUEUE;
 
@@ -1301,9 +1069,6 @@ freeScheduler( void )
 /* ---------------------------------------------------------------------------
    Where are the roots that we know about?
 
-        - all the threads on the runnable queue
-        - all the threads on the blocked queue
-        - all the threads on the sleeping queue
 	- all the thread currently executing a _ccall_GC
         - all the "main threads"
      
@@ -1326,8 +1091,6 @@ GetRoots( evac_fn evac )
 
     for (i = 0; i < n_capabilities; i++) {
 	cap = &capabilities[i];
-	evac((StgClosure **)(void *)&cap->run_queue_hd);
-	evac((StgClosure **)(void *)&cap->run_queue_tl);
 	for (task = cap->suspended_ccalling_tasks; task != NULL; 
 	     task=task->next) {
 	    debugTrace(DEBUG_sched,
@@ -1336,10 +1099,6 @@ GetRoots( evac_fn evac )
 	}
 
     }
-
-    evac((StgClosure **)(void *)&blocked_queue_hd);
-    evac((StgClosure **)(void *)&blocked_queue_tl);
-    evac((StgClosure **)(void *)&sleeping_queue);
 
     // evac((StgClosure **)&blackhole_queue);
 

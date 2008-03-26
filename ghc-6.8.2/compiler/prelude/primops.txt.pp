@@ -1388,12 +1388,6 @@ primtype ThreadId#
 	type, whose (unique) value is returned by {\tt myThreadId\#}.  The 
 	other operations can be omitted.)}
 
-primop  ForkOnOp "forkOn#" GenPrimOp
-   Int# -> a -> State# RealWorld -> (# State# RealWorld, ThreadId# #)
-   with
-   has_side_effects = True
-   out_of_line      = True
-
 primop  KillThreadOp "killThread#"  GenPrimOp
    ThreadId# -> a -> State# RealWorld -> State# RealWorld
    with

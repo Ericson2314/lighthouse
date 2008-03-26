@@ -503,8 +503,8 @@ unblockOne_ (Capability *cap, StgTSO *tso,
       wakeupThreadOnCapability_lock(tso->cap, tso);
   }
 #else
-  appendToRunQueue(cap,tso);
-  context_switch = 1;
+  //appendToRunQueue(cap,tso);
+  //context_switch = 1;
 #endif
 
   debugTrace(DEBUG_sched,

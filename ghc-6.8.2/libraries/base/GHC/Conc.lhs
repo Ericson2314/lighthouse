@@ -26,7 +26,6 @@ module GHC.Conc
 	( ThreadId(..)
 
 	-- * Forking and suchlike
-	, forkOnIO	-- :: Int -> IO a -> IO ThreadId
         , numCapabilities -- :: Int
 	, childHandler  -- :: Exception -> IO ()
 	, myThreadId 	-- :: IO ThreadId
@@ -175,25 +174,6 @@ instance Eq ThreadId where
 
 instance Ord ThreadId where
    compare = cmpThread
-
-{- |
-Like 'forkIO', but lets you specify on which CPU the thread is
-created.  Unlike a `forkIO` thread, a thread created by `forkOnIO`
-will stay on the same CPU for its entire lifetime (`forkIO` threads
-can migrate between CPUs according to the scheduling policy).
-`forkOnIO` is useful for overriding the scheduling policy when you
-know in advance how best to distribute the threads.
-
-The `Int` argument specifies the CPU number; it is interpreted modulo
-'numCapabilities' (note that it actually specifies a capability number
-rather than a CPU number, but to a first approximation the two are
-equivalent).
--}
-forkOnIO :: Int -> IO () -> IO ThreadId
-forkOnIO (I# cpu) action = IO $ \ s -> 
-   case (forkOn# cpu action_plus s) of (# s1, id #) -> (# s1, ThreadId id #)
- where
-  action_plus = catchException action childHandler
 
 -- | the value passed to the @+RTS -N@ flag.  This is the number of
 -- Haskell threads that can run truly simultaneously at any given

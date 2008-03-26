@@ -28,8 +28,6 @@ static void raiseAsync (Capability *cap,
 			rtsBool stop_at_atomically,
 			StgPtr stop_here);
 
-static void removeFromQueues(Capability *cap, StgTSO *tso);
-
 static void blockedThrowTo (StgTSO *source, StgTSO *target);
 
 static void performBlockedException (Capability *cap, 
@@ -68,7 +66,7 @@ throwToSingleThreaded_(Capability *cap, StgTSO *tso, StgClosure *exception,
     }
 
     // Remove it from any blocking queues
-    removeFromQueues(cap,tso);
+    //removeFromQueues(cap,tso);
 
     raiseAsync(cap, tso, exception, stop_at_atomically, stop_here);
 }
@@ -82,7 +80,7 @@ suspendComputation(Capability *cap, StgTSO *tso, StgPtr stop_here)
     }
 
     // Remove it from any blocking queues
-    removeFromQueues(cap,tso);
+    //removeFromQueues(cap,tso);
 
     raiseAsync(cap, tso, NULL, rtsFalse, stop_here);
 }
@@ -405,7 +403,7 @@ check_target:
 	    blockedThrowTo(source,target);
 	    return THROWTO_BLOCKED;
 	} else {
-	    removeFromQueues(cap,target);
+	    //removeFromQueues(cap,target);
 	    raiseAsync(cap, target, exception, rtsFalse, NULL);
 	    return THROWTO_SUCCESS;
 	}
@@ -517,228 +515,6 @@ performBlockedException (Capability *cap, StgTSO *source, StgTSO *target)
     throwToSingleThreaded(cap, target, exception);
     source->sp += 3;
 }
-
-/* -----------------------------------------------------------------------------
-   Remove a thread from blocking queues.
-
-   This is for use when we raise an exception in another thread, which
-   may be blocked.
-   This has nothing to do with the UnblockThread event in GranSim. -- HWL
-   -------------------------------------------------------------------------- */
-
-#if defined(GRAN) || defined(PARALLEL_HASKELL)
-/*
-  NB: only the type of the blocking queue is different in GranSim and GUM
-      the operations on the queue-elements are the same
-      long live polymorphism!
-
-  Locks: sched_mutex is held upon entry and exit.
-
-*/
-static void
-removeFromQueues(Capability *cap, StgTSO *tso)
-{
-  StgBlockingQueueElement *t, **last;
-
-  switch (tso->why_blocked) {
-
-  case NotBlocked:
-    return;  /* not blocked */
-
-  case BlockedOnSTM:
-    // Be careful: nothing to do here!  We tell the scheduler that the thread
-    // is runnable and we leave it to the stack-walking code to abort the 
-    // transaction while unwinding the stack.  We should perhaps have a debugging
-    // test to make sure that this really happens and that the 'zombie' transaction
-    // does not get committed.
-    goto done;
-
-  case BlockedOnMVar:
-    ASSERT(false);
-
-  case BlockedOnBlackHole:
-    ASSERT(get_itbl(tso->block_info.closure)->type == BLACKHOLE_BQ);
-    {
-      StgBlockingQueue *bq = (StgBlockingQueue *)(tso->block_info.closure);
-
-      last = &bq->blocking_queue;
-      for (t = bq->blocking_queue; 
-	   t != END_BQ_QUEUE; 
-	   last = &t->link, t = t->link) {
-	if (t == (StgBlockingQueueElement *)tso) {
-	  *last = (StgBlockingQueueElement *)tso->link;
-	  goto done;
-	}
-      }
-      barf("removeFromQueues (BLACKHOLE): TSO not found");
-    }
-
-  case BlockedOnException:
-    {
-      StgTSO *target  = tso->block_info.tso;
-
-      ASSERT(get_itbl(target)->type == TSO);
-
-      while (target->what_next == ThreadRelocated) {
-	  target = target2->link;
-	  ASSERT(get_itbl(target)->type == TSO);
-      }
-
-      last = (StgBlockingQueueElement **)&target->blocked_exceptions;
-      for (t = (StgBlockingQueueElement *)target->blocked_exceptions; 
-	   t != END_BQ_QUEUE; 
-	   last = &t->link, t = t->link) {
-	ASSERT(get_itbl(t)->type == TSO);
-	if (t == (StgBlockingQueueElement *)tso) {
-	  *last = (StgBlockingQueueElement *)tso->link;
-	  goto done;
-	}
-      }
-      barf("removeFromQueues (Exception): TSO not found");
-    }
-
-  case BlockedOnRead:
-  case BlockedOnWrite:
-#if defined(mingw32_HOST_OS)
-  case BlockedOnDoProc:
-#endif
-    {
-      /* take TSO off blocked_queue */
-      StgBlockingQueueElement *prev = NULL;
-      for (t = (StgBlockingQueueElement *)blocked_queue_hd; t != END_BQ_QUEUE; 
-	   prev = t, t = t->link) {
-	if (t == (StgBlockingQueueElement *)tso) {
-	  if (prev == NULL) {
-	    blocked_queue_hd = (StgTSO *)t->link;
-	    if ((StgBlockingQueueElement *)blocked_queue_tl == t) {
-	      blocked_queue_tl = END_TSO_QUEUE;
-	    }
-	  } else {
-	    prev->link = t->link;
-	    if ((StgBlockingQueueElement *)blocked_queue_tl == t) {
-	      blocked_queue_tl = (StgTSO *)prev;
-	    }
-	  }
-#if defined(mingw32_HOST_OS)
-	  /* (Cooperatively) signal that the worker thread should abort
-	   * the request.
-	   */
-	  abandonWorkRequest(tso->block_info.async_result->reqID);
-#endif
-	  goto done;
-	}
-      }
-      barf("removeFromQueues (I/O): TSO not found");
-    }
-
-  case BlockedOnDelay:
-    {
-      /* take TSO off sleeping_queue */
-      StgBlockingQueueElement *prev = NULL;
-      for (t = (StgBlockingQueueElement *)sleeping_queue; t != END_BQ_QUEUE; 
-	   prev = t, t = t->link) {
-	if (t == (StgBlockingQueueElement *)tso) {
-	  if (prev == NULL) {
-	    sleeping_queue = (StgTSO *)t->link;
-	  } else {
-	    prev->link = t->link;
-	  }
-	  goto done;
-	}
-      }
-      barf("removeFromQueues (delay): TSO not found");
-    }
-
-  default:
-    barf("removeFromQueues");
-  }
-
- done:
-  tso->link = END_TSO_QUEUE;
-  tso->why_blocked = NotBlocked;
-  tso->block_info.closure = NULL;
-  pushOnRunQueue(cap,tso);
-}
-#else
-static void
-removeFromQueues(Capability *cap, StgTSO *tso)
-{
-  switch (tso->why_blocked) {
-
-  case NotBlocked:
-      return;
-
-  case BlockedOnSTM:
-    // Be careful: nothing to do here!  We tell the scheduler that the
-    // thread is runnable and we leave it to the stack-walking code to
-    // abort the transaction while unwinding the stack.  We should
-    // perhaps have a debugging test to make sure that this really
-    // happens and that the 'zombie' transaction does not get
-    // committed.
-    goto done;
-
-  case BlockedOnMVar:
-      ASSERT(false);
-      goto done;
-
-  case BlockedOnBlackHole:
-      removeThreadFromQueue(&blackhole_queue, tso);
-      goto done;
-
-  case BlockedOnException:
-    {
-      StgTSO *target  = tso->block_info.tso;
-
-      // NO: when called by threadPaused(), we probably have this
-      // TSO already locked (WHITEHOLEd) because we just placed
-      // ourselves on its queue.
-      // ASSERT(get_itbl(target)->type == TSO);
-
-      while (target->what_next == ThreadRelocated) {
-	  target = target->link;
-      }
-      
-      removeThreadFromQueue(&target->blocked_exceptions, tso);
-      goto done;
-    }
-
-#if !defined(THREADED_RTS)
-  case BlockedOnRead:
-  case BlockedOnWrite:
-#if defined(mingw32_HOST_OS)
-  case BlockedOnDoProc:
-#endif
-      removeThreadFromDeQueue(&blocked_queue_hd, &blocked_queue_tl, tso);
-#if defined(mingw32_HOST_OS)
-      /* (Cooperatively) signal that the worker thread should abort
-       * the request.
-       */
-      abandonWorkRequest(tso->block_info.async_result->reqID);
-#endif
-      goto done;
-
-  case BlockedOnDelay:
-	removeThreadFromQueue(&sleeping_queue, tso);
-	goto done;
-#endif
-
-  default:
-      barf("removeFromQueues");
-  }
-
- done:
-  tso->link = END_TSO_QUEUE;
-  tso->why_blocked = NotBlocked;
-  tso->block_info.closure = NULL;
-  appendToRunQueue(cap,tso);
-
-  // We might have just migrated this TSO to our Capability:
-  if (tso->bound) {
-      tso->bound->cap = cap;
-  }
-  tso->cap = cap;
-}
-#endif
 
 /* -----------------------------------------------------------------------------
  * raiseAsync()

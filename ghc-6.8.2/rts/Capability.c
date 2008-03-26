@@ -128,9 +128,6 @@ initCapability( Capability *cap, nat i )
     cap->no = i;
     cap->in_haskell        = rtsFalse;
 
-    cap->run_queue_hd      = END_TSO_QUEUE;
-    cap->run_queue_tl      = END_TSO_QUEUE;
-
 #if defined(THREADED_RTS)
     initMutex(&cap->lock);
     cap->running_task      = NULL; // indicates cap is free

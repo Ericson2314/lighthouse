@@ -85,6 +85,7 @@ scheduleFinalizers(Capability *cap, StgWeak *list)
 	}
     }
 
+    /* Broken in LwConc:
     t = createIOThread(cap, 
 		       RtsFlags.GcFlags.initialStkSize, 
 		       rts_apply(cap,
@@ -94,4 +95,5 @@ scheduleFinalizers(Capability *cap, StgWeak *list)
 			   (StgClosure *)arr)
 	);
     scheduleThread(cap,t);
+    */
 }

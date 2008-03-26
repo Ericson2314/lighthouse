@@ -21,14 +21,6 @@ void initScheduler (void);
 void exitScheduler (rtsBool wait_foreign);
 void freeScheduler (void);
 
-// Place a new thread on the run queue of the current Capability
-void scheduleThread (Capability *cap, StgTSO *tso);
-
-// Place a new thread on the run queue of a specified Capability
-// (cap is the currently owned Capability, cpu is the number of
-// the desired Capability).
-void scheduleThreadOn(Capability *cap, StgWord cpu, StgTSO *tso);
-
 /* awakenBlockedQueue()
  *
  * Takes a pointer to the beginning of a blocked TSO queue, and
@@ -132,8 +124,6 @@ SchedulerStatus rts_mainLazyIO(HaskellObj p, /*out*/HaskellObj *ret);
 /* Called by shutdown_handler(). */
 void interruptStgRts (void);
 
-nat  run_queue_len (void);
-
 void resurrectThreads (StgTSO *);
 
 void printAllThreads(void);
@@ -149,53 +139,6 @@ void print_bq (StgClosure *node);
  */
 
 #if !IN_STG_CODE
-
-/* END_TSO_QUEUE and friends now defined in includes/StgMiscClosures.h */
-
-/* Add a thread to the end of the run queue.
- * NOTE: tso->link should be END_TSO_QUEUE before calling this macro.
- * ASSUMES: cap->running_task is the current task.
- */
-INLINE_HEADER void
-appendToRunQueue (Capability *cap, StgTSO *tso)
-{
-    ASSERT(tso->link == END_TSO_QUEUE);
-    if (cap->run_queue_hd == END_TSO_QUEUE) {
-	cap->run_queue_hd = tso;
-    } else {
-	cap->run_queue_tl->link = tso;
-    }
-    cap->run_queue_tl = tso;
-}
-
-/* Push a thread on the beginning of the run queue.  Used for
- * newly awakened threads, so they get run as soon as possible.
- * ASSUMES: cap->running_task is the current task.
- */
-INLINE_HEADER void
-pushOnRunQueue (Capability *cap, StgTSO *tso)
-{
-    tso->link = cap->run_queue_hd;
-    cap->run_queue_hd = tso;
-    if (cap->run_queue_tl == END_TSO_QUEUE) {
-	cap->run_queue_tl = tso;
-    }
-}
-
-/* Pop the first thread off the runnable queue.
- */
-INLINE_HEADER StgTSO *
-popRunQueue (Capability *cap)
-{ 
-    StgTSO *t = cap->run_queue_hd;
-    ASSERT(t != END_TSO_QUEUE);
-    cap->run_queue_hd = t->link;
-    t->link = END_TSO_QUEUE;
-    if (cap->run_queue_hd == END_TSO_QUEUE) {
-	cap->run_queue_tl = END_TSO_QUEUE;
-    }
-    return t;
-}
 
 /* Add a thread to the end of the blocked queue.
  */
@@ -219,27 +162,6 @@ INLINE_HEADER rtsBool
 emptyQueue (StgTSO *q)
 {
     return (q == END_TSO_QUEUE);
-}
-
-INLINE_HEADER rtsBool
-emptyRunQueue(Capability *cap)
-{
-    return emptyQueue(cap->run_queue_hd);
-}
-
-#if !defined(THREADED_RTS)
-#define EMPTY_BLOCKED_QUEUE()  (emptyQueue(blocked_queue_hd))
-#define EMPTY_SLEEPING_QUEUE() (emptyQueue(sleeping_queue))
-#endif
-
-INLINE_HEADER rtsBool
-emptyThreadQueues(Capability *cap)
-{
-    return emptyRunQueue(cap)
-#if !defined(THREADED_RTS)
-	&& EMPTY_BLOCKED_QUEUE() && EMPTY_SLEEPING_QUEUE()
-#endif
-    ;
 }
 
 #endif /* !IN_STG_CODE */

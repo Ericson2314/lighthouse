@@ -45,13 +45,6 @@ struct Capability_ {
     // catching unsafe call-ins.
     rtsBool in_haskell;
 
-    // The run queue.  The Task owning this Capability has exclusive
-    // access to its run queue, so can wake up threads without
-    // taking a lock, and the common path through the scheduler is
-    // also lock-free.
-    StgTSO *run_queue_hd;
-    StgTSO *run_queue_tl;
-
     // Tasks currently making safe foreign calls.  Doubly-linked.
     // When returning, a task first acquires the Capability before
     // removing itself from this list, so that the GC can find all
