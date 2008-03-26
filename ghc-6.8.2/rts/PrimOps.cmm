@@ -1059,9 +1059,9 @@ newSContzh_fast
   W_ closure;
   W_ tso;
   closure = R1;
-  foreign "C" debugBelch("newSCont# called.\n");
   ("ptr" tso) = foreign "C" createIOThread(MyCapability() "ptr",
                  RtsFlags_GcFlags_initialStkSize(RtsFlags), closure "ptr") [];
+  foreign "C" debugBelch("%x called newSCont# to create new TSO %x.\n", CurrentTSO, tso);
   RET_P(tso);
 }
 

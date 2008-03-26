@@ -107,6 +107,11 @@ static void real_main(void)
 
     /* ToDo: want to start with a larger stack size */
     { 
+        // KAYDEN: This is the main entry point, where things get set up
+        //         ... rts_evalLazyIO creates a TSO (using the same method
+        //         as newSCont: createIOThread), and passes it off to
+        //         scheduleWaitThread, which sticks it on the capability's
+        //         run queue, starts the scheduler, and off we go...
 	Capability *cap = rts_lock();
 	cap = rts_evalLazyIO(cap,(HaskellObj)(void *)mainIO_closure, NULL);
 	status = rts_getSchedStatus(cap);
