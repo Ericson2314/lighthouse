@@ -1424,19 +1424,21 @@ primop  NoDuplicateOp "noDuplicate#" GenPrimOp
 ------------------------------------------------------------------------
 section "Lightweight concurrency"
 ------------------------------------------------------------------------
+primtype TSO#
+
 primop  AtomicSwitchOp "atomicSwitch#" GenPrimOp
-   ThreadId# -> State# RealWorld -> State# RealWorld
+   TSO# -> State# RealWorld -> State# RealWorld
    with
    has_side_effects = True
    out_of_line = True
 
 primop  GetSContOp "getSCont#" GenPrimOp
-   State# RealWorld -> (# State# RealWorld, ThreadId# #)
+   State# RealWorld -> (# State# RealWorld, TSO# #)
    with
    out_of_line = True
 
 primop  NewSContOp "newSCont#" GenPrimOp
-   a -> State# RealWorld -> (# State# RealWorld, ThreadId# #)
+   a -> State# RealWorld -> (# State# RealWorld, TSO# #)
    with
    has_side_effects = True
    out_of_line      = True

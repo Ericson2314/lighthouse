@@ -855,6 +855,7 @@ opaqueTyConKey                          = mkPreludeTyConUnique 133
 
 stringTyConKey				= mkPreludeTyConUnique 134
 
+tsoPrimTyConKey				= mkPreludeTyConUnique 135
 ---------------- Template Haskell -------------------
 --	USES TyConUniques 100-129
 -----------------------------------------------------

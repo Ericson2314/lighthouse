@@ -479,6 +479,7 @@ ppType (TyApp "Double#"     []) = "doublePrimTy"
 ppType (TyApp "ByteArr#"    []) = "byteArrayPrimTy"
 ppType (TyApp "RealWorld"   []) = "realWorldTy"
 ppType (TyApp "ThreadId#"   []) = "threadIdPrimTy"
+ppType (TyApp "TSO#"        []) = "tsoPrimTy"
 ppType (TyApp "ForeignObj#" []) = "foreignObjPrimTy"
 #ifdef ALLOW_INTERPRETER
 ppType (TyApp "BCO#"        []) = "bcoPrimTy"

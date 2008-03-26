@@ -40,6 +40,7 @@ module TysPrim(
 	bcoPrimTyCon,			bcoPrimTy,
 	weakPrimTyCon,  		mkWeakPrimTy,
 	threadIdPrimTyCon,		threadIdPrimTy,
+	tsoPrimTyCon,			tsoPrimTy,
 	
 	int32PrimTyCon,		int32PrimTy,
 	word32PrimTyCon,	word32PrimTy,
@@ -102,6 +103,7 @@ primTyCons
     , stableNamePrimTyCon
     , statePrimTyCon
     , threadIdPrimTyCon
+    , tsoPrimTyCon
     , wordPrimTyCon
     , word32PrimTyCon
     , word64PrimTyCon
@@ -137,6 +139,7 @@ stablePtrPrimTyConName        = mkPrimTc FSLIT("StablePtr#") stablePtrPrimTyConK
 stableNamePrimTyConName       = mkPrimTc FSLIT("StableName#") stableNamePrimTyConKey stableNamePrimTyCon
 bcoPrimTyConName 	      = mkPrimTc FSLIT("BCO#") bcoPrimTyConKey bcoPrimTyCon
 weakPrimTyConName  	      = mkPrimTc FSLIT("Weak#") weakPrimTyConKey weakPrimTyCon
+tsoPrimTyConName	      = mkPrimTc FSLIT("TSO#") tsoPrimTyConKey tsoPrimTyCon
 threadIdPrimTyConName  	      = mkPrimTc FSLIT("ThreadId#") threadIdPrimTyConKey threadIdPrimTyCon
 anyPrimTyConName	      = mkPrimTc FSLIT("Any") anyPrimTyConKey anyPrimTyCon
 anyPrimTyCon1Name	      = mkPrimTc FSLIT("Any1") anyPrimTyCon1Key anyPrimTyCon
@@ -425,4 +428,18 @@ to the thread id internally.
 \begin{code}
 threadIdPrimTy    = mkTyConTy threadIdPrimTyCon
 threadIdPrimTyCon = pcPrimTyCon0 threadIdPrimTyConName PtrRep
+\end{code}
+
+%************************************************************************
+%*									*
+\subsection[TysPrim-tso]{The ``TSO'' type}
+%*									*
+%************************************************************************
+
+A pointer to the TSO itself, used for creating stack continuations in the
+lightweight concurrency system.
+
+\begin{code}
+tsoPrimTy    = mkTyConTy tsoPrimTyCon
+tsoPrimTyCon = pcPrimTyCon0 tsoPrimTyConName PtrRep
 \end{code}
