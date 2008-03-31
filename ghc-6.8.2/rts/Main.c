@@ -101,7 +101,7 @@ static void real_main(void)
 #  elif defined(GRAN)
 
     /* ToDo: Dump event for the main thread */
-    status = rts_mainLazyIO(mainIO_closure, NULL);
+    //status = rts_mainLazyIO(mainIO_closure, NULL);
 
 #  else /* !PAR && !GRAN */
 

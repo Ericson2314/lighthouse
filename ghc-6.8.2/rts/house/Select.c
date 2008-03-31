@@ -64,6 +64,7 @@ wakeUpSleepingThreads(lnat ticks)
 	tso->link = END_TSO_QUEUE;
 	IF_DEBUG(scheduler,debugBelch("Waking up sleeping thread %lu\n", (unsigned long)tso->id));
 	// MainCapability: this code is !THREADED_RTS
+        // KAYDEN: Warning, pushOnRunQueue and emptyRunQueue don't exist anymore...need to do something with this code!!
 	pushOnRunQueue(&MainCapability,tso);
 	flag = rtsTrue;
     }

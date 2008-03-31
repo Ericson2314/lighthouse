@@ -508,10 +508,11 @@ rts_evalStableIO (Capability *cap, HsStablePtr s, /*out*/HsStablePtr *ret)
 Capability *
 rts_evalLazyIO (Capability *cap, HaskellObj p, /*out*/HaskellObj *ret)
 {
-    StgTSO *tso;
+    //StgTSO *tso;
 
-    tso = createIOThread(cap, RtsFlags.GcFlags.initialStkSize, p);
-    return scheduleWaitThread(tso,ret,cap);
+    //tso = createIOThread(cap, RtsFlags.GcFlags.initialStkSize, p);
+    //return scheduleWaitThread(tso,ret,cap);
+    return runTheWorld(cap, p);
 }
 
 Capability *

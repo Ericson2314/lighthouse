@@ -139,8 +139,7 @@ static void scheduleHandleStackOverflow( Capability *cap, Task *task,
 					 StgTSO *t);
 static rtsBool scheduleHandleThreadFinished( Capability *cap, Task *task,
 					     StgTSO *t );
-static Capability *scheduleDoGC(Capability *cap, Task *task,
-				rtsBool force_major);
+static Capability *scheduleDoGC(Capability *cap, rtsBool force_major);
 
 static rtsBool checkBlackHoles(Capability *cap);
 
@@ -190,6 +189,8 @@ static char *whatNext_strs[] = {
 static Capability *
 schedule (Capability *initialCapability, Task *task)
 {
+  barf("schedule called - not implemented anymore!\n");
+#if 0
   StgTSO *t;
   Capability *cap;
   StgThreadReturnCode ret;
@@ -260,16 +261,16 @@ schedule (Capability *initialCapability, Task *task)
     case SCHED_INTERRUPTING:
 	debugTrace(DEBUG_sched, "SCHED_INTERRUPTING");
 	/* scheduleDoGC() deletes all the threads */
-	cap = scheduleDoGC(cap,task,rtsFalse);
+	cap = scheduleDoGC(cap,rtsFalse);
 	break;
     case SCHED_SHUTTING_DOWN:
 	debugTrace(DEBUG_sched, "SCHED_SHUTTING_DOWN");
 	// If we are a worker, just exit.  If we're a bound thread
 	// then we will exit below when we've removed our TSO from
 	// the run queue.
-	//if (task->tso == NULL && emptyRunQueue(cap)) {
+	if (task->tso == NULL) { // && emptyRunQueue(cap)) {
 	    return cap;
-	//}
+	}
 	break;
     default:
 	barf("sched_state: %d", sched_state);
@@ -394,12 +395,13 @@ run_thread:
     }
 
     if (ready_to_gc) {
-      cap = scheduleDoGC(cap,task,rtsFalse);
+      cap = scheduleDoGC(cap,rtsFalse);
     }
   } /* end of while() */
 
   debugTrace(PAR_DEBUG_verbose,
 	     "== Leaving schedule() after having received Finish");
+#endif
 }
 
 /* ----------------------------------------------------------------------------
@@ -533,6 +535,8 @@ scheduleHandleStackOverflow (Capability *cap, Task *task, StgTSO *t)
 		"--<< thread %ld (%s) stopped, StackOverflow", 
 		(long)t->id, whatNext_strs[t->what_next]);
 
+    if (t != cap->r.rCurrentTSO)
+        debugBelch("scheduleHandleStackOverflow: called with the wrong TSO\n");
     /* just adjust the stack for this thread, then pop it back
      * on the run queue.
      */
@@ -545,8 +549,10 @@ scheduleHandleStackOverflow (Capability *cap, Task *task, StgTSO *t)
 	 */
 	if (task->tso == t) {
 	    task->tso = new_t;
-	}
-        cap->r.rCurrentTSO = new_t;
+	} else {
+            debugBelch("scheduleHandleStackOverflow: task->tso out of sync.\n");
+        }
+        cap->r.rCurrentTSO = new_t; // KAYDEN: this used to be pushOnRunQueue...
     }
 }
 
@@ -609,7 +615,7 @@ scheduleHandleThreadFinished (Capability *cap STG_UNUSED, Task *task, StgTSO *t)
  * -------------------------------------------------------------------------- */
 
 static Capability *
-scheduleDoGC (Capability *cap, Task *task USED_IF_THREADS, rtsBool force_major)
+scheduleDoGC (Capability *cap, rtsBool force_major)
 {
     StgTSO *t;
     rtsBool heap_census;
@@ -971,30 +977,96 @@ resumeThread (void *task_)
 Capability *
 scheduleWaitThread (StgTSO* tso, /*[out]*/HaskellObj* ret, Capability *cap)
 {
-    Task *task;
+    barf("scheduleWaitThread called - not implemented anymore!\n");
+    return cap; // shouldn't happen actually
+}
 
-    // We already created/initialised the Task
-    task = cap->running_task;
+/* LwConc scheduling */
+Capability *
+runTheWorld (Capability *cap, HaskellObj closure)
+{
+    cap->r.rCurrentTSO = createIOThread(cap, RtsFlags.GcFlags.initialStkSize, closure);
 
     // This TSO is now a bound thread; make the Task and TSO
     // point to each other.
-    tso->bound = task;
-    tso->cap = cap;
+    cap->r.rCurrentTSO->bound = cap->running_task;
+    cap->r.rCurrentTSO->cap = cap;
 
-    task->tso = tso;
-    task->ret = ret;
-    task->stat = NoStatus;
+    cap->running_task->tso = cap->r.rCurrentTSO;
+    cap->running_task->stat = NoStatus;
 
-    cap->r.rCurrentTSO = tso;
+    while (rtsTrue) {
+        StgThreadReturnCode ret;
+        rtsBool ready_to_gc = rtsFalse;
 
-    debugTrace(DEBUG_sched, "new bound thread (%lu)", (unsigned long)tso->id);
+        debugBelch("RTW: Before dirtyTSO\n");
 
-    cap = schedule(cap,task);
+        dirtyTSO(cap->r.rCurrentTSO);
+        debugBelch("RTW: what's next...\n");
+        switch (cap->r.rCurrentTSO->what_next) {
+            case ThreadKilled:
+            case ThreadComplete:
+                debugBelch("RTW: what_next was ThreadKilled or ThreadComplete\n");
+                ret = ThreadFinished;
+                break;
+            case ThreadRunGHC:
+            {
+                debugBelch("RTW: what_next was ThreadRunGHC\n");
+                StgRegTable *r;
+                r = StgRun((StgFunPtr) stg_returnToStackTop, &cap->r);
+                debugBelch("RTW: past StgRun\n");
+                cap = regTableToCapability(r);
+                ret = r->rRet;
 
-    ASSERT(task->stat != NoStatus);
-    ASSERT_FULL_CAPABILITY_INVARIANTS(cap,task);
+                // KAYDEN: Seems to be an easier way to do this in old schedule()
+                /*
+                StgRegTable *r_new;
+                ASSERT(cap->r.rCurrentTSO->header.info == &stg_TSO_info);
+                cap->r.rRet = 0;
+                r_new = StgRun((StgFunPtr) stg_returnToStackTop, &cap->r);
+                ASSERT(&cap->r == r_new);
+                ret = cap->r.rRet;
+                */
+                break;
+            }
+            default:
+                debugBelch("runTheWorld: invalid what_next field\n");
+                ASSERT(rtsFalse);
+        }
 
-    debugTrace(DEBUG_sched, "bound thread (%lu) finished", (unsigned long)task->tso->id);
+        debugBelch("RTW: checking ret\n");
+        switch (ret)
+        {
+            case HeapOverflow:
+                debugBelch("RTW: ret was HeapOverflow\n");
+                ready_to_gc = scheduleHandleHeapOverflow(cap, cap->r.rCurrentTSO);
+                break;
+            case StackOverflow:
+                debugBelch("RTW: ret was StackOverflow, TSO = %x\n", cap->r.rCurrentTSO);
+                scheduleHandleStackOverflow(cap, cap->running_task, cap->r.rCurrentTSO);
+                debugBelch("RTW: handled, TSO = %x\n", cap->r.rCurrentTSO);
+                break;
+            case ThreadFinished:
+                debugBelch("RTW: ret was ThreadFinished\n");
+	        if (scheduleHandleThreadFinished(cap, cap->running_task, cap->r.rCurrentTSO))
+                    return cap;
+	        ASSERT_FULL_CAPABILITY_INVARIANTS(cap,task);
+	        break;
+            case ThreadBlocked:
+                //barf("runTheWorld: got ThreadBlocked return status...should never happen!\n");
+            default:
+                debugBelch("runTheWorld: invalid thread return code %d", (int)ret);
+                ASSERT(rtsFalse);
+        }
+
+        if (ready_to_gc) {
+            debugBelch("RTW: doing a GC\n");
+            cap = scheduleDoGC(cap, rtsFalse);
+        } else {
+            debugBelch("RTW: no GC necessary\n");
+        }
+    }
+
     return cap;
 }
 
@@ -1050,7 +1122,7 @@ exitScheduler(
     // If we haven't killed all the threads yet, do it now.
     if (sched_state < SCHED_SHUTTING_DOWN) {
 	sched_state = SCHED_INTERRUPTING;
-	scheduleDoGC(NULL,task,rtsFalse);    
+	scheduleDoGC(NULL,rtsFalse);
     }
     sched_state = SCHED_SHUTTING_DOWN;
 
@@ -1128,7 +1200,7 @@ performGC_(rtsBool force_major)
     ACQUIRE_LOCK(&sched_mutex);
     task = newBoundTask();
     RELEASE_LOCK(&sched_mutex);
-    scheduleDoGC(NULL,task,force_major);
+    scheduleDoGC(NULL,force_major);
     boundTaskExiting(task);
 }
 
@@ -1243,18 +1315,6 @@ threadStackOverflow(Capability *cap, StgTSO *tso)
 #endif
 
   return dest;
-}
-
-/* ---------------------------------------------------------------------------
-   Interrupt execution
-   - usually called inside a signal handler so it mustn't do anything fancy.   
-   ------------------------------------------------------------------------ */
-
-void
-interruptStgRts(void)
-{
-    sched_state = SCHED_INTERRUPTING;
-    context_switch = 1;
 }
 
 /* -----------------------------------------------------------------------------

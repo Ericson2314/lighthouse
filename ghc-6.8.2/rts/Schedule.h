@@ -21,6 +21,8 @@ void initScheduler (void);
 void exitScheduler (rtsBool wait_foreign);
 void freeScheduler (void);
 
+Capability * runTheWorld (Capability *cap, HaskellObj closure);
+
 /* awakenBlockedQueue()
  *
  * Takes a pointer to the beginning of a blocked TSO queue, and
@@ -118,11 +120,6 @@ extern  StgTSO *RTS_VAR(all_threads);
  * Locks required  : none (see scheduleCheckBlackHoles()).
  */
 extern rtsBool blackholes_need_checking;
-
-SchedulerStatus rts_mainLazyIO(HaskellObj p, /*out*/HaskellObj *ret);
-
-/* Called by shutdown_handler(). */
-void interruptStgRts (void);
 
 void resurrectThreads (StgTSO *);
 
