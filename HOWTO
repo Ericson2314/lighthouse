@@ -1,11 +1,16 @@
+*don't use GCC 4.3.0, it breaks everything horribly. 4.2.3 works*
+
 tar xjvf ghc-6.6.1-src.tar.bz2
 tar xjvf ghc-6.6.1-src-extralibs.tar.bz2 ghc-6.6.1/libraries/mtl
 cd ghc-6.6.1
+(actually it's 6.8.2 now)
 mv ../series .
 mv ../patches .
 quilt push -a
+(and I'm not using quilt anymore)
 autoreconf
 ./configure --build=i386-unknown-xen
+(and it's -house now)
 <create mk/build.mk with SplitObjs = NO and GHCWithInterpter = NO>
 <create rts/house>
 make stage1
