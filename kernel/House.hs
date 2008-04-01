@@ -66,7 +66,7 @@ import qualified Util.CmdLineParser as P
        
 import LwConcTests
 import Scratch
-import LwConc.ConcLib(startScheduling,queueLength)
+import LwConc.ConcLib(yieldAndDie)
 import qualified LwConc.ConcLib as LWCL
 import H.Monad(liftIO)
 import Foreign.C(CString,withCString)
@@ -88,15 +88,15 @@ mainH =
        pciState <- newMVar (Nothing,Nothing) -- XXX
        trace "Tracing enabled"
        --forkH (shell (netState, pciState))
-       --forkH (preemptTest "a")
        forkH scratchMain
        --forkH (coopTest "AAA")
        --forkH (coopTest "BBB")
        --forkH (coopTest "CCC")
        --forkH (coopTest "DDD")
        enableInterrupts
-       liftIO $ startScheduling
+       liftIO $ yieldAndDie
 
+{-
 coopTest s = do i <- liftIO $ queueLength
                 cPrint (s ++ "[" ++ show i ++ " threads in queue]\n")
                 idle 10000000
@@ -104,56 +104,7 @@ coopTest s = do i <- liftIO $ queueLength
                 coopTest s
   where idle 0 = return ()
         idle n = idle (n - 1)
-
-preemptTest s = do i <- liftIO $ queueLength
-                   cPrint (show i ++ " ")
-                   t <- newMVar [1,2,3]
-                   u <- readMVar t
-                   preemptTest s
-
-scheduler :: H ()
-scheduler = scheduler4
-
--- Schedulers with Spam (for debugging):
-
--- A basic scheduler with spam
-scheduler1 =
-  do cPrint "'"
-     t <- newMVar [1,2,3]
-     x <- readMVar t
-     scheduler1
-
--- One which allocates and prints less often
-scheduler2 = idle' 0
-  where idle' n | n >= 100000 = do t <- newMVar [1,2,3]
-                                   u <- readMVar t
-                                   KDebug.putStr "'"
-                                   idle' 0
-                | otherwise = idle' (n + 1)
-
--- This one does a bunch of testCounters before allocating.
--- Context switches will likely be less frequent than with the others
-scheduler3 = idle' 0
-  where idle' n | n >= 10000 = do t <- newMVar [1,2,3]
-                                  u <- readMVar t
-                                  idle' 0
-                | otherwise  = do testCounter KDebug.putStrLn
-                                  idle' (n + 1)
-
--- Spam-free schedulers:
-
--- A basic, quick scheduler
-scheduler4 =
-  do t <- newMVar [1,2,3]
-     u <- readMVar t
-     scheduler4
-
--- One which wastes a lot of time before switching
-scheduler5 = idle' 0
-  where idle' n | n >= 10000 = do t <- newMVar [1,2,3]
-                                  u <- readMVar t
-                                  idle' 0
-                | otherwise = idle' (n + 1)
+        -}
 
 shell exestate =
   do optgfx <- VBE.initialize

@@ -520,6 +520,8 @@ scheduleHandleHeapOverflow( Capability *cap, StgTSO *t )
 	       (long)t->id, whatNext_strs[t->what_next]);
 
     //pushOnRunQueue(cap,t);
+    if (cap->r.rCurrentTSO != t)
+        debugBelch("scheduleHandleHeapOverflow: CurrentTSO != t\n");
     return rtsTrue;
     /* actual GC is done at the end of the while loop in schedule() */
 }
@@ -552,62 +554,8 @@ scheduleHandleStackOverflow (Capability *cap, Task *task, StgTSO *t)
 	} else {
             debugBelch("scheduleHandleStackOverflow: task->tso out of sync.\n");
         }
-        cap->r.rCurrentTSO = new_t; // KAYDEN: this used to be pushOnRunQueue...
+        cap->r.rCurrentTSO = new_t;
     }
-}
-
-/* -----------------------------------------------------------------------------
- * Handle a thread that returned to the scheduler with ThreadFinished
- * -------------------------------------------------------------------------- */
-
-static rtsBool
-scheduleHandleThreadFinished (Capability *cap STG_UNUSED, Task *task, StgTSO *t)
-{
-    /* Need to check whether this was a main thread, and if so,
-     * return with the return value.
-     *
-     * We also end up here if the thread kills itself with an
-     * uncaught exception, see Exception.cmm.
-     */
-    debugTrace(DEBUG_sched, "--++ thread %lu (%s) finished", 
-	       (unsigned long)t->id, whatNext_strs[t->what_next]);
-
-      // Check whether the thread that just completed was a bound
-      // thread, and if so return with the result.  
-      //
-      // There is an assumption here that all thread completion goes
-      // through this point; we need to make sure that if a thread
-      // ends up in the ThreadKilled state, that it stays on the run
-      // queue so it can be dealt with here.
-      //
-
-      if (t->bound) {
-	  ASSERT(t->bound == task);
-	  ASSERT(task->tso == t);
-
-	  if (t->what_next == ThreadComplete) {
-	      if (task->ret) {
-		  // NOTE: return val is tso->sp[1] (see StgStartup.hc)
-		  *(task->ret) = (StgClosure *)task->tso->sp[1]; 
-	      }
-	      task->stat = Success;
-	  } else {
-	      if (task->ret) {
-		  *(task->ret) = NULL;
-	      }
-	      if (sched_state >= SCHED_INTERRUPTING) {
-		  task->stat = Interrupted;
-	      } else {
-		  task->stat = Killed;
-	      }
-	  }
-#ifdef DEBUG
-	  removeThreadLabel((StgWord)task->tso->id);
-#endif
-	  return rtsTrue; // tells schedule() to return
-      }
-
-      return rtsFalse;
 }
 
 /* -----------------------------------------------------------------------------
@@ -675,10 +623,10 @@ scheduleDoGC (Capability *cap, rtsBool force_major)
      * state, then we should take the opportunity to delete all the
      * threads in the system.
      */
-    if (sched_state >= SCHED_INTERRUPTING) {
-	deleteAllThreads(&capabilities[0]);
-	sched_state = SCHED_SHUTTING_DOWN;
-    }
+    //if (sched_state >= SCHED_INTERRUPTING) {
+	//deleteAllThreads(&capabilities[0]);
+	//sched_state = SCHED_SHUTTING_DOWN;
+    //}
     
     /* everybody back, start the GC.
      * Could do it in this thread, or signal a condition var
@@ -985,6 +933,8 @@ scheduleWaitThread (StgTSO* tso, /*[out]*/HaskellObj* ret, Capability *cap)
 Capability *
 runTheWorld (Capability *cap, HaskellObj closure)
 {
+    // need to start signal handlers here somewhere...
+
     cap->r.rCurrentTSO = createIOThread(cap, RtsFlags.GcFlags.initialStkSize, closure);
 
     // This TSO is now a bound thread; make the Task and TSO
@@ -999,26 +949,21 @@ runTheWorld (Capability *cap, HaskellObj closure)
         StgThreadReturnCode ret;
         rtsBool ready_to_gc = rtsFalse;
 
-        debugBelch("RTW: Before dirtyTSO\n");
-
         dirtyTSO(cap->r.rCurrentTSO);
-        debugBelch("RTW: what's next...\n");
         switch (cap->r.rCurrentTSO->what_next) {
             case ThreadKilled:
             case ThreadComplete:
-                debugBelch("RTW: what_next was ThreadKilled or ThreadComplete\n");
+                debugBelch("RTW[%x]: what_next was ThreadKilled or ThreadComplete\n", cap->r.rCurrentTSO);
                 ret = ThreadFinished;
                 break;
             case ThreadRunGHC:
             {
-                debugBelch("RTW: what_next was ThreadRunGHC\n");
+                debugBelch("RTW[%x]: what_next was ThreadRunGHC\n", cap->r.rCurrentTSO);
                 StgRegTable *r;
                 r = StgRun((StgFunPtr) stg_returnToStackTop, &cap->r);
-                debugBelch("RTW: past StgRun\n");
                 cap = regTableToCapability(r);
                 ret = r->rRet;
 
-                // KAYDEN: Seems to be an easier way to do this in old schedule()
                 /*
                 StgRegTable *r_new;
                 ASSERT(cap->r.rCurrentTSO->header.info == &stg_TSO_info);
@@ -1034,24 +979,29 @@ runTheWorld (Capability *cap, HaskellObj closure)
                 ASSERT(rtsFalse);
         }
 
-        debugBelch("RTW: checking ret\n");
         switch (ret)
         {
             case HeapOverflow:
-                debugBelch("RTW: ret was HeapOverflow\n");
+                debugBelch("RTW[%x]: ret was HeapOverflow\n", cap->r.rCurrentTSO);
                 ready_to_gc = scheduleHandleHeapOverflow(cap, cap->r.rCurrentTSO);
                 break;
             case StackOverflow:
-                debugBelch("RTW: ret was StackOverflow, TSO = %x\n", cap->r.rCurrentTSO);
+                debugBelch("RTW[%x]: ret was StackOverflow -> ", cap->r.rCurrentTSO);
                 scheduleHandleStackOverflow(cap, cap->running_task, cap->r.rCurrentTSO);
-                debugBelch("RTW: handled, TSO = %x\n", cap->r.rCurrentTSO);
+                debugBelch("handled: TSO is now %x\n; ", cap->r.rCurrentTSO);
                 break;
             case ThreadFinished:
-                debugBelch("RTW: ret was ThreadFinished\n");
-	        if (scheduleHandleThreadFinished(cap, cap->running_task, cap->r.rCurrentTSO))
-                    return cap;
-	        ASSERT_FULL_CAPABILITY_INVARIANTS(cap,task);
-	        break;
+                // Returning with ThreadFinished is a very dangerous thing...
+                // Unlike in the old world, we don't get a new thread from a
+                // run queue and schedule it...we just stop.  The Haskell land
+                // scheduler should always take care of switching to a new
+                // thread when a forked thread is about to die.
+                //
+                // For now, this corresponds to shutting down...but it gives
+                // a warning because some code (like exceptions) likely hasn't
+                // been properly converted yet.
+                debugBelch("WARNING: Thread %x returned with ThreadFinished\n", cap->r.rCurrentTSO);
+                return cap;
             case ThreadBlocked:
                 //barf("runTheWorld: got ThreadBlocked return status...should never happen!\n");
             default:
@@ -1060,10 +1010,8 @@ runTheWorld (Capability *cap, HaskellObj closure)
         }
 
         if (ready_to_gc) {
-            debugBelch("RTW: doing a GC\n");
+            debugBelch("RTW[%x]: doing a GC\n", cap->r.rCurrentTSO);
             cap = scheduleDoGC(cap, rtsFalse);
-        } else {
-            debugBelch("RTW: no GC necessary\n");
         }
     }
 
@@ -1254,6 +1202,7 @@ threadStackOverflow(Capability *cap, StgTSO *tso)
 	       printStackChunk(tso->sp, stg_min(tso->stack+tso->stack_size, 
 						tso->sp+64)));
 
+      debugBelch("Out of stack space...trying to throw exception\n");
       // Send this thread the StackOverflow exception
       unlockTSO(tso);
       throwToSingleThreaded(cap, tso, (StgClosure *)stackOverflow_closure);

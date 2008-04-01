@@ -2,7 +2,7 @@
 module LwConc.ConcLib
 ( timerHandler
 , blackholeHandler
-, startScheduling
+, yieldAndDie
 , fetchRunnableThread -- only for MVar code
 , placeOnReadyQ -- only for MVar code
 , forkIO
@@ -30,7 +30,7 @@ readyQ :: PVar (Seq SCont)
 readyQ = unsafePerformIO $ newPVarIO Seq.empty
 
 timerHandler :: IO ()
-timerHandler = return () -- should be yield, but we're going coop for now!
+timerHandler = yield
 
 -- Be careful when implementing this: if it tries to evaluate a thunk, and
 -- blackholes, it can re-enter.  One could use TLS and busy-waiting to work
@@ -39,16 +39,15 @@ timerHandler = return () -- should be yield, but we're going coop for now!
 blackholeHandler :: IO ()
 blackholeHandler = yield
 
--- |Start the scheduler, scheduling the first thread (presumes one has been
--- created with forkIO already), but _not_ storing the current thread on the
--- run queue.  Presumably the main thread will fork, run this, then do nothing
--- useful (if we have no threads, the system should halt and be done.)
-startScheduling :: IO ()
-startScheduling =
+-- |Yields, but doesn't place the current thread on the run queue.  This is
+-- useful when a thread is about to finish - another thread must take its place,
+-- and the RTS cannot schedule one for us.  Called by both forkIO and main.
+yieldAndDie :: IO ()
+yieldAndDie =
   do maybeThread <- atomically $ tryFetchRunnableThread
      case maybeThread of
-       Nothing -> error "No threads to run! Invalid."
-       Just firstThread -> switch $ \mainThread -> return firstThread
+       Nothing -> error "No threads to run! Invalid." -- maybe just return ()
+       Just newThread -> switch $ \dyingThread -> return newThread
 
 -- |Pops a thread off the ready queue and returns it, when there is one.
 -- Note that if there is only one thread in the system, and it tries to yield,
@@ -88,15 +87,17 @@ yield = -- It should be okay to do the following non-atomically
                                                    return newThread
 
 -- |Fork.
--- In the future we could actually extend the thread to look like
---  1. Init code
---  2. Computation
---  3. Cleanup code
--- or wrap it somehow. This might let us catch, say, kill exceptions.
+-- We actually wrap the provided computation, and can do initialization code
+-- beforehand, or cleanup code afterward.
+--
+-- Notably, we must call yieldAndDie after performing the computation.
+-- Otherwise it will return to the RTS with a "ThreadFinished" status...and the
+-- RTS no longer knows how to schedule a new thread.
 forkIO :: IO () -> IO ThreadId
 forkIO computation =
   do newThread <- newSCont $ do computation
                                 cPrint "Some thread just died"
+                                yieldAndDie
      atomically $ placeOnReadyQ newThread
      myThreadId -- WRONG!
      
