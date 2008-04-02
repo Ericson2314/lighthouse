@@ -226,6 +226,14 @@
 #define DEBUG_ONLY(s) /* nothing */
 #endif
 
+#define CHECK_SENSIBLE_REGS() \
+    ASSERT(Hp != 0);			\
+    ASSERT(Sp != 0);			\
+    ASSERT(SpLim != 0);			\
+    ASSERT(HpLim != 0);			\
+    ASSERT(SpLim - WDS(RESERVED_STACK_WORDS) <= Sp); \
+    ASSERT(HpLim >= Hp);
+
 /*
  * The IF_DEBUG macro is useful for debug messages that depend on one
  * of the RTS debug options.  For example:

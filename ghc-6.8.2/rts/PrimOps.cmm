@@ -943,23 +943,15 @@ atomicSwitchzh_fast
 
   // foreign "C" debugBelch("switch# at SP %x.\n", Sp);
 
-  /* save thread state */
-  StgTSO_sp(CurrentTSO) = Sp;
-
   if (CurrentTSO != tso) {
     foreign "C" debugBelch("switch#ing from TSO %x to TSO %x.\n", CurrentTSO, tso);
+    SAVE_THREAD_STATE();
     dirtyTSO(tso);
     CurrentTSO = tso;
-    SpLim = CurrentTSO + TSO_OFFSET_StgTSO_stack + WDS(RESERVED_STACK_WORDS);
+    LOAD_THREAD_STATE();
   }
-  Sp = StgTSO_sp(CurrentTSO);
 
-  ASSERT(Hp != 0);
-  ASSERT(Sp != 0);
-  ASSERT(SpLim != 0);
-  ASSERT(HpLim != 0);
-  ASSERT(SpLim - WDS(RESERVED_STACK_WORDS) <= Sp);
-  ASSERT(HpLim >= Hp);
+  CHECK_SENSIBLE_REGS();
 
   //foreign "C" debugBelch("switch# jumping off Sp %x.\n", Sp);
   jump %ENTRY_CODE(Sp(0));
