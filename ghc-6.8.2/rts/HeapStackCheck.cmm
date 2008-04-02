@@ -23,9 +23,8 @@ import LeaveCriticalSection;
  *
  * On discovering that a stack or heap check has failed, we do the following:
  *
- *    - If the context_switch flag is set, indicating that there are more
- *      threads waiting to run, we yield to the scheduler 
- *	(call timerHandler)
+ *    - If the pending_timer_irq flag is set, indicating that a timer interrupt
+ *      needs to be handled ASAP, we call timerHandler.
  *
  *    - If Hp > HpLim, we've had a heap check failure.  This means we've
  *	come to the end of the current heap block, so we try to chain
@@ -42,7 +41,7 @@ import LeaveCriticalSection;
  *	scheduler will either increase the size of our stack, or raise
  *	an exception if the stack is already too big.
  *
- * The effect of checking for context switch only in the heap/stack check
+ * The effect of checking for interrupts only in the heap/stack check
  * failure code is that we'll switch threads after the current thread has
  * reached the end of its heap block.  If a thread isn't allocating
  * at all, it won't yield.  Hopefully this won't be a problem in practice.
@@ -62,7 +61,7 @@ import LeaveCriticalSection;
  *  a possibly faster method which could replace stg_ap_v_fast:
  *                R1 = R1 + 1; \
  *                jump %GET_ENTRY(UNTAG(base_LwConcziConcLib_timerHandler_closure)); \
- *  ...also, I'm not sure about resetting context_switch before processing
+ *  ...also, I'm not sure about resetting pending_timer_irq before processing
  *     timerHandler...if timerHandler hits a GC point...it'll switch again :/
  *     ...seems like an infinite loop
  */
@@ -75,8 +74,9 @@ import LeaveCriticalSection;
             CLOSE_NURSERY();					\
             CurrentNursery = bdescr_link(CurrentNursery);	\
             OPEN_NURSERY();					\
-            if (CInt[context_switch] != 0 :: CInt) {		\
-                CInt[context_switch] = 0 :: CInt;		\
+            if (CInt[pending_timer_irq] != 0 :: CInt) {		\
+                foreign "C" debugBelch("jumping to timerHandler\n"); \
+                CInt[pending_timer_irq] = 0 :: CInt;		\
                 R1 = base_LwConcziConcLib_timerHandler_closure;	\
                 jump stg_ap_v_fast;				\
             } else {						\

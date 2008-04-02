@@ -336,7 +336,7 @@ void irq_handler(IA32_FaultContext* p) {
 	  kprintf("Too many pending signal (interrupt) handlers\n");
 	  abort();
 	}
-	context_switch = 1;
+	pending_timer_irq = 1; // I don't think this is correct...
 #if 0   // EOI will be done after handler actually executes
 	if (n >= 8) {
 	  outb(0xA0, 0x20);

@@ -9,6 +9,8 @@
 #ifndef TICKER_H
 #define TICKER_H
 
+#define TICKS_TO_TIMER_IRQ 20
+
 typedef void (*TickProc)(int);
 
 extern void initTicker  (nat ms, TickProc handle_tick);

@@ -43,11 +43,11 @@ void
 handle_tick(int unused STG_UNUSED)
 {
   handleProfTick();
-  if (RtsFlags.ConcFlags.ctxtSwitchTicks > 0) {
+  if (TICKS_TO_TIMER_IRQ > 0) {
       ticks_to_ctxt_switch--;
       if (ticks_to_ctxt_switch <= 0) {
-	  ticks_to_ctxt_switch = RtsFlags.ConcFlags.ctxtSwitchTicks;
-	  context_switch = 1;	/* schedule a context switch */
+	  ticks_to_ctxt_switch = TICKS_TO_TIMER_IRQ;
+	  pending_timer_irq = 1; /* flag that timerHandler should be run ASAP */
       }
   }
 

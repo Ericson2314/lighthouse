@@ -86,11 +86,10 @@ rtsBool blackholes_need_checking = rtsFalse;
  */
 StgTSO *all_threads = NULL;
 
-/* flag set by signal handler to precipitate a context switch
+/* flag set by IRQ handler, indicating that timerHandler should be called ASAP
  * LOCK: none (just an advisory flag)
  */
-int context_switch = 0; /* KAYDEN: Should rename to something indicating
-                           "please do a timer interrupt" */
+int pending_timer_irq = 0;
 
 /* flag that tracks whether we have done any execution in this time slice.
  * LOCK: currently none, perhaps we should lock (but needs to be
@@ -1037,7 +1036,7 @@ initScheduler(void)
   blackhole_queue   = END_TSO_QUEUE;
   all_threads       = END_TSO_QUEUE;
 
-  context_switch = 0;
+  pending_timer_irq = 0;
   sched_state    = SCHED_RUNNING;
   recent_activity = ACTIVITY_YES;
 
