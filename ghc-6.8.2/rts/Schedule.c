@@ -546,7 +546,7 @@ scheduleHandleStackOverflow (Capability *cap, Task *task, StgTSO *t)
 	if (task->tso == t) {
 	    task->tso = new_t;
 	} else {
-            debugBelch("scheduleHandleStackOverflow: task->tso out of sync.\n");
+            //debugBelch("scheduleHandleStackOverflow: task->tso out of sync.\n");
         }
         cap->r.rCurrentTSO = new_t;
     }
@@ -947,12 +947,12 @@ runTheWorld (Capability *cap, HaskellObj closure)
         switch (cap->r.rCurrentTSO->what_next) {
             case ThreadKilled:
             case ThreadComplete:
-                debugBelch("RTW[%x]: what_next was ThreadKilled or ThreadComplete\n", cap->r.rCurrentTSO);
+                //debugBelch("RTW[%x]: what_next was ThreadKilled or ThreadComplete\n", cap->r.rCurrentTSO);
                 ret = ThreadFinished;
                 break;
             case ThreadRunGHC:
             {
-                debugBelch("RTW[%x]: what_next was ThreadRunGHC\n", cap->r.rCurrentTSO);
+                //debugBelch("RTW[%x]: what_next was ThreadRunGHC\n", cap->r.rCurrentTSO);
                 StgRegTable *r;
                 r = StgRun((StgFunPtr) stg_returnToStackTop, &cap->r);
                 cap = regTableToCapability(r);
@@ -976,13 +976,13 @@ runTheWorld (Capability *cap, HaskellObj closure)
         switch (ret)
         {
             case HeapOverflow:
-                debugBelch("RTW[%x]: ret was HeapOverflow\n", cap->r.rCurrentTSO);
+                //debugBelch("RTW[%x]: ret was HeapOverflow\n", cap->r.rCurrentTSO);
                 ready_to_gc = scheduleHandleHeapOverflow(cap, cap->r.rCurrentTSO);
                 break;
             case StackOverflow:
-                debugBelch("RTW[%x]: ret was StackOverflow -> ", cap->r.rCurrentTSO);
+                //debugBelch("RTW[%x]: ret was StackOverflow -> ", cap->r.rCurrentTSO);
                 scheduleHandleStackOverflow(cap, cap->running_task, cap->r.rCurrentTSO);
-                debugBelch("handled: TSO is now %x\n; ", cap->r.rCurrentTSO);
+                //debugBelch("handled: TSO is now %x\n; ", cap->r.rCurrentTSO);
                 break;
             case ThreadFinished:
                 // Returning with ThreadFinished is a very dangerous thing...
@@ -1004,7 +1004,7 @@ runTheWorld (Capability *cap, HaskellObj closure)
         }
 
         if (ready_to_gc) {
-            debugBelch("RTW[%x]: doing a GC\n", cap->r.rCurrentTSO);
+            //debugBelch("RTW[%x]: doing a GC\n", cap->r.rCurrentTSO);
             cap = scheduleDoGC(cap, rtsFalse);
         }
     }
