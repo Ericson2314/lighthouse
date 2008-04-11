@@ -1,8 +1,6 @@
 -- | Interrupts (section 3.4 in the paper)
 module H.Interrupts(IRQ(..),enableIRQ,disableIRQ,eoiIRQ,
-		    enableInterrupts,disableInterrupts,
-	            installHandler,
-		    {- registerIRQHandler, callIRQHandler -} ) where
+		    enableInterrupts,disableInterrupts) where
 
 import Foreign.StablePtr(StablePtr,newStablePtr)
 
@@ -35,9 +33,6 @@ eoiIRQ :: IRQ -> H()
 enableInterrupts :: H()
 -- | Disable interrupts globally
 disableInterrupts :: H()
-
-installHandler :: IRQ -> H() -> H()
-
 
 ---------PRIVATE IMPLEMENTATION FOLLOWS----------------------
 
@@ -81,11 +76,4 @@ foreign import ccall unsafe "io.h disableInterrupts" disableInterruptsIO :: IO (
 
 enableInterrupts = liftIO $ enableInterruptsIO
 disableInterrupts = liftIO $ disableInterruptsIO
-
-
-foreign import ccall unsafe "start.h setIRQTable" setIRQTableIO :: Int -> StablePtr (H()) -> IO ()
-installHandler irq h = liftIO $
-	               do sptr <-  newStablePtr h
-                          setIRQTableIO (fromEnum irq) sptr
-
 

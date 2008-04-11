@@ -193,6 +193,7 @@ void user_fault(int fault,IA32_FaultContext* p) {
 }
 
 void user_timer(IA32_FaultContext* p) {
+  // user code will need to change to deal with all kinds of interrupts, someday
   if (p != task_fault_context) {
     kprintf("user_fault oops %X %X\n",p,task_fault_context);
     abort();

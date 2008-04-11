@@ -65,11 +65,11 @@ char   *info_type_by_ip(StgInfoTable *ip); // dummy
 void    awaken_blocked_queue(StgTSO *q);
 void    initThread(StgTSO *tso, nat stack_size);
 
-/* Flag indicating if a timer IRQ is pending (i.e. timerHandler should be
- * called at the next safe point)
+/* Flag indicating if any interrupts are pending (and should be handled at the
+ * next safe point)
  * Locks required  : none (conflicts are harmless)
  */
-extern int RTS_VAR(pending_timer_irq);
+extern int pending_irqs;
 
 /* The state of the scheduler.  This is used to control the sequence
  * of events during shutdown, and when the runtime is interrupted

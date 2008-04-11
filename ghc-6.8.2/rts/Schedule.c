@@ -86,11 +86,6 @@ rtsBool blackholes_need_checking = rtsFalse;
  */
 StgTSO *all_threads = NULL;
 
-/* flag set by IRQ handler, indicating that timerHandler should be called ASAP
- * LOCK: none (just an advisory flag)
- */
-int pending_timer_irq = 0;
-
 /* flag that tracks whether we have done any execution in this time slice.
  * LOCK: currently none, perhaps we should lock (but needs to be
  * updated in the fast path of the scheduler).
@@ -1036,7 +1031,6 @@ initScheduler(void)
   blackhole_queue   = END_TSO_QUEUE;
   all_threads       = END_TSO_QUEUE;
 
-  pending_timer_irq = 0;
   sched_state    = SCHED_RUNNING;
   recent_activity = ACTIVITY_YES;
 

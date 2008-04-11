@@ -43,13 +43,15 @@ void
 handle_tick(int unused STG_UNUSED)
 {
   handleProfTick();
-  if (TICKS_TO_TIMER_IRQ > 0) {
-      ticks_to_ctxt_switch--;
-      if (ticks_to_ctxt_switch <= 0) {
-	  ticks_to_ctxt_switch = TICKS_TO_TIMER_IRQ;
-	  pending_timer_irq = 1; /* flag that timerHandler should be run ASAP */
-      }
-  }
+  // We don't want to dilute how often timer interrupts happen...because we have very high priority
+  // haskell land code now.  Scheduler can decide to give longer timeslices if it wants to.
+  //if (TICKS_TO_TIMER_IRQ > 0) {
+      //ticks_to_ctxt_switch--;
+      //if (ticks_to_ctxt_switch <= 0) {
+	  //ticks_to_ctxt_switch = TICKS_TO_TIMER_IRQ;
+	  pending_irqs |= 1; /* flag that timerHandler should be run ASAP */
+      //}
+  //}
 
 #if defined(THREADED_RTS)
   /* 

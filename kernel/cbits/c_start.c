@@ -286,11 +286,14 @@ void initIDT() {
 // IRQs
 //
 
-StgStablePtr irqHandlerThreads[16] =
-  { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 };
-int irqHandlerInstalled[16] = // booleans
-  { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 };
+int pending_irqs = 0;
 
+int getPendingIRQs()
+{
+    int p = pending_irqs;
+    pending_irqs = 0;
+    return p;
+}
 
 void initPIC(StgWord8 pic1, StgWord8 pic2)
 {
@@ -309,34 +312,20 @@ void initPIC(StgWord8 pic1, StgWord8 pic2)
 
 void onIRQ0(IA32_FaultContext* p);
 
-// new stuff:
-#define N_PENDING_HANDLERS 16
-extern StgPtr *pending_handler_buf;
-extern StgPtr *next_pending_handler;
-void setIRQTable(int irq,StgStablePtr sp) {
-  irqHandlerInstalled[irq] = 1;
-  irqHandlerThreads[irq] = sp;
-}
-
 void irq_handler(IA32_FaultContext* p) {
   unsigned n = (unsigned)(p->error_code);
-  if (0 == n) 
+  if (0 == n) {
     onIRQ0(p);
-  else {
+  } else {
     if (n < 16) {
       // kprintf("Received interrupt %u (%X) \n", n, irqHandlerThreads[n]);
-      if (USER_MODE(p)) 
+      if (USER_MODE(p)) {
 	// return interrupt immediately 
 	user_fault(0x20+n,p);
-      else if (irqHandlerInstalled[n]) {
-	// treat like a signal, queueing handler for execution when GHC RTS finds convenient
-	StgStablePtr sp = irqHandlerThreads[n];
-	*next_pending_handler++ = deRefStablePtr(sp);
-	if (next_pending_handler == &pending_handler_buf[N_PENDING_HANDLERS]) {
-	  kprintf("Too many pending signal (interrupt) handlers\n");
-	  abort();
-	}
-	pending_timer_irq = 1; // I don't think this is correct...
+      } else {
+	// flag it...GHC RTS will execute it when convenient
+        //kprintf("!!! IRQ%d => bit %u\n", n, 1 << n);
+        pending_irqs |= (1 << n);
 #if 0   // EOI will be done after handler actually executes
 	if (n >= 8) {
 	  outb(0xA0, 0x20);

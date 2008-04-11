@@ -23,8 +23,8 @@ import LeaveCriticalSection;
  *
  * On discovering that a stack or heap check has failed, we do the following:
  *
- *    - If the pending_timer_irq flag is set, indicating that a timer interrupt
- *      needs to be handled ASAP, we call timerHandler.
+ *    - If the pending_irqs flag is set, indicating that interrupts need
+ *      handling ASAP, we call House's interruptHandler.
  *
  *    - If Hp > HpLim, we've had a heap check failure.  This means we've
  *	come to the end of the current heap block, so we try to chain
@@ -56,15 +56,6 @@ import LeaveCriticalSection;
  * ThreadRunGHC thread.
  */
 
-/*
-                foreign "C" debugBelch("!"); \
- *  a possibly faster method which could replace stg_ap_v_fast:
- *                R1 = R1 + 1; \
- *                jump %GET_ENTRY(UNTAG(base_LwConcziConcLib_timerHandler_closure)); \
- *  ...also, I'm not sure about resetting pending_timer_irq before processing
- *     timerHandler...if timerHandler hits a GC point...it'll switch again :/
- *     ...seems like an infinite loop
- */
 #define GC_GENERIC						\
     DEBUG_ONLY(foreign "C" heapCheckFail());			\
     if (Hp > HpLim) {						\
@@ -74,10 +65,8 @@ import LeaveCriticalSection;
             CLOSE_NURSERY();					\
             CurrentNursery = bdescr_link(CurrentNursery);	\
             OPEN_NURSERY();					\
-            if (CInt[pending_timer_irq] != 0 :: CInt) {		\
-                foreign "C" debugBelch("jumping to timerHandler\n"); \
-                CInt[pending_timer_irq] = 0 :: CInt;		\
-                R1 = base_LwConcziConcLib_timerHandler_closure;	\
+            if (CInt[pending_irqs] != 0 :: CInt) {		\
+                R1 = KernelziInterrupts_interruptHandler_closure;	\
                 jump stg_ap_v_fast;				\
             } else {						\
                 jump %ENTRY_CODE(Sp(0));			\

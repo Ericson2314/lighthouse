@@ -19,8 +19,8 @@
 
 #define N_PENDING_HANDLERS 16
 
-StgPtr pending_handler_buf[N_PENDING_HANDLERS];
-StgPtr *next_pending_handler = pending_handler_buf;
+//StgPtr pending_handler_buf[N_PENDING_HANDLERS];
+//StgPtr *next_pending_handler = pending_handler_buf;
 
 void
 blockUserSignals(void)
@@ -39,23 +39,24 @@ unblockUserSignals(void)
 void
 startSignalHandlers(Capability *cap)
 {
-  blockUserSignals();
+  //blockUserSignals();
   
-  while (next_pending_handler != pending_handler_buf) {
+  //while (next_pending_handler != pending_handler_buf) {
 
-    next_pending_handler--;
+    //next_pending_handler--;
 
     // KAYDEN: This is absolutely critical - all interrupts for the OS.
     //         But it's broken until I implement a new upcall mechanism.
+    // rts_apply() is probably your friend
     /*
     scheduleThread (cap,
 	createIOThread(cap,
 		       RtsFlags.GcFlags.initialStkSize, 
 		       (StgClosure *) *next_pending_handler));
                        */
-  }
+  //}
 
-  unblockUserSignals();
+  //unblockUserSignals();
 }
 
 /* Useless functions to avoid unnecessary ifdefs */
