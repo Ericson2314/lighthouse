@@ -287,12 +287,30 @@ void initIDT() {
 //
 
 int pending_irqs = 0;
+int allow_haskell_interrupts = 1;
 
 int getPendingIRQs()
 {
+    __asm__ __volatile__ ("cli");
     int p = pending_irqs;
     pending_irqs = 0;
+    __asm__ __volatile__ ("sti");
     return p;
+}
+
+void allowHaskellInterrupts(int flag)
+{
+    allow_haskell_interrupts = flag;
+}
+
+int disallowHaskellInterrupts()
+{
+    __asm__ __volatile__ ("cli");
+    int a = allow_haskell_interrupts;
+    //__asm__ __volatile__ ("mfence");
+    allow_haskell_interrupts = 0;
+    __asm__ __volatile__ ("sti");
+    return a;
 }
 
 void initPIC(StgWord8 pic1, StgWord8 pic2)

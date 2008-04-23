@@ -8,10 +8,11 @@ import H.Monad(H,liftIO)
 import H.Mutable(HArray,newArray,readArray,writeArray)
 import H.Unsafe(unsafePerformH)
 import H.Interrupts(IRQ(..),enableIRQ,eoiIRQ)
-import H.Concurrency(forkH)
+import H.Concurrency(forkH, forkHighPriorityH)
 import LwConc.ConcLib(timerHandler)
 import Foreign.C(CInt)
 import Data.Bits(testBit)
+import Control.Monad(when)
 
 import Foreign.C(CString, withCString)
 -- import H.Monad(H, liftIO)
@@ -33,22 +34,29 @@ registerIRQHandler irq handler =
          do handler
             eoiIRQ irq
 
-callIRQHandler IRQ0 = liftIO $ timerHandler
+-- We can't fork for timerHandler, nor is it registered in the table.
+callIRQHandler IRQ0 = cPrint "Don't use callIRQHandler on IRQ0!\n"
 callIRQHandler irq = 
-      do mHandler <- readArray irqTable irq
-         case mHandler of
-           Just handler -> forkH handler >> return ()
-           Nothing -> return () -- cPrint ("No handler for " ++ show irq ++ "\n")
-           -- well, actually we _can't_ fork for timerHandler...
-
+  do mHandler <- readArray irqTable irq
+     case mHandler of
+       Just handler -> do forkHighPriorityH handler
+                          return ()
+       Nothing -> return ()
 
 foreign import ccall unsafe getPendingIRQs :: IO CInt
+foreign import ccall unsafe allowHaskellInterrupts :: CInt -> IO ()
+foreign import ccall unsafe disallowHaskellInterrupts :: IO CInt
 
 interruptHandler :: H ()
 interruptHandler =
-  do bits <- liftIO getPendingIRQs
+  do hsiStatus <- liftIO disallowHaskellInterrupts
+     bits <- liftIO getPendingIRQs
      cPrint ("===Pending IRQs: " ++ show bits)
-     let pendingIRQs = [x | x <- [IRQ0 ..], testBit bits (fromEnum x)]
-     cPrint (show pendingIRQs ++ "\n")
+     let pendingIRQs = [x | x <- [IRQ1 .. IRQ15], testBit bits (fromEnum x)]
+     let timerPending = testBit bits 0
+     cPrint (show (if timerPending then IRQ0:pendingIRQs else pendingIRQs) ++ "\n")
      sequence_ (map callIRQHandler pendingIRQs)
+     cPrint "Done pushing IRQ handlers\n"
+     liftIO $ allowHaskellInterrupts hsiStatus
+     when timerPending (liftIO timerHandler)
 

@@ -65,12 +65,12 @@ import LeaveCriticalSection;
             CLOSE_NURSERY();					\
             CurrentNursery = bdescr_link(CurrentNursery);	\
             OPEN_NURSERY();					\
-            if (CInt[pending_irqs] != 0 :: CInt) {		\
+            if (CInt[pending_irqs] != 0 :: CInt && CInt[allow_haskell_interrupts] != 0) {		\
+                Sp_adj(-1);					\
+                Sp(0) = stg_ap_v_info;	                        \
                 R1 = KernelziInterrupts_interruptHandler_closure;	\
-                jump stg_ap_v_fast;				\
-            } else {						\
-                jump %ENTRY_CODE(Sp(0));			\
-            }							\
+            }	                                                \
+            jump %ENTRY_CODE(Sp(0));				\
 	} else {						\
             R1 = HeapOverflow;					\
             goto sched;						\

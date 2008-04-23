@@ -70,6 +70,7 @@ void    initThread(StgTSO *tso, nat stack_size);
  * Locks required  : none (conflicts are harmless)
  */
 extern int pending_irqs;
+extern int allow_haskell_interrupts;
 
 /* The state of the scheduler.  This is used to control the sequence
  * of events during shutdown, and when the runtime is interrupted

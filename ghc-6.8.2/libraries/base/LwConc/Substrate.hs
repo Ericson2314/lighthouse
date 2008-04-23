@@ -25,9 +25,17 @@ import GHC.Exts
 import Data.Typeable
 
 import Data.IORef
+import Foreign.C.Types(CInt)
+
+foreign import ccall unsafe allowHaskellInterrupts :: CInt -> IO ()
+foreign import ccall unsafe disallowHaskellInterrupts :: IO CInt
+
 type PTM a = IO a
 type PVar a = IORef a
-atomically x = x
+atomically x = do hsiStatus <- disallowHaskellInterrupts
+                  v <- x
+                  allowHaskellInterrupts hsiStatus
+                  return v
 newPVar = newIORef
 newPVarIO = newIORef
 writePVar = writeIORef
@@ -146,8 +154,6 @@ newPVar val = PTM $ \s1# ->
     case newTVar# val s1# of
          (# s2#, tvar# #) -> (# s2#, PVar tvar# #)
 
--- KAYDEN: Again, I'm uncertain if this is truly necessary or not.
---         Need to think about it.
 -- |@IO@ version of 'newPVar'.  This is useful for creating top-level
 -- 'PVar's using 'System.IO.Unsafe.unsafePerformIO', because using
 -- 'atomically' inside 'System.IO.Unsafe.unsafePerformIO' isn't
@@ -199,12 +205,6 @@ newSCont :: IO () -> IO SCont
 newSCont x = IO $ \s -> case newSCont# x s of
                           (# s', tso #) -> (# s', SCont tso Usable #)
 
-{-# INLINE switchSContPTM #-}
-switchSContPTM :: SCont -> PTM ()
-switchSContPTM (SCont sc Usable) = IO {- PTM -}  $ \s -> 
-   case (atomicSwitch# sc s) of s1 -> (# s1, () #)
-switchSContPTM (SCont _ Used) = error "Attempted to switch to used-up SCont!"
-
 {-# INLINE getSCont #-}
 getSCont :: PTM SCont
 getSCont = IO {- PTM -} $ \s10 ->
@@ -213,7 +213,12 @@ getSCont = IO {- PTM -} $ \s10 ->
 
 {-# INLINE switch #-}
 switch :: (SCont -> PTM SCont) -> IO ()
-switch scheduler = atomically $ do s1 <- getSCont
-                                   s2 <- scheduler s1
-                                   switchSContPTM s2
+switch scheduler = do s2 <- atomically $ getSCont >>= scheduler
+                      switchSCont s2
+
+{-# INLINE switchSCont #-}
+switchSCont :: SCont -> IO ()
+switchSCont (SCont sc Usable) = IO $ \s -> 
+   case (atomicSwitch# sc s) of s1 -> (# s1, () #)
+switchSCont (SCont _ Used) = error "Attempted to switch to used-up SCont!"
 

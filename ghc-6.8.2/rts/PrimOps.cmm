@@ -940,7 +940,9 @@ atomicSwitchzh_fast
   /* find target stack */
   ("ptr" tso) = foreign "C" rts_findRelocatedTSO(R1) [];
   ASSERT(tso != 0);
-
+  if (CInt[allow_haskell_interrupts] == 0) {
+    foreign "C" debugBelch("BAD! BAD! BAD! Tried to switch from %x to %x with HSI off!.\n", CurrentTSO, tso);
+  }
   // foreign "C" debugBelch("switch# at SP %x.\n", Sp);
 
   if (CurrentTSO != tso) {
