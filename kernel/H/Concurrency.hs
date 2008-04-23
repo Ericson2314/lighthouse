@@ -3,11 +3,13 @@ module H.Concurrency(module H.Concurrency,{- H,-} Chan,MVar,QSem,ThreadId) where
 import qualified Control.Concurrent as IO
 import Control.Concurrent(Chan,MVar,QSem,ThreadId)
 import H.Monad(H,liftIO,trappedRunH,runH)
+import LwConc.ConcLib(forkHighPriorityIO)
 
 ------------------------ INTERFACE ---------------------------------------------
 
 -- * Thread control
 forkH :: (H a) -> H ThreadId
+forkHighPriorityH :: (H a) -> H ThreadId
 killH :: ThreadId -> H ()
 yield :: H ()
 threadDelay :: Int -> H ()
@@ -41,6 +43,7 @@ withQSem :: QSem -> (H a) -> H a
 
 -- Thread control---------------------------------------------------------------
 forkH = liftIO . IO.forkIO . trappedRunH
+forkHighPriorityH = liftIO . forkHighPriorityIO . trappedRunH
 killH = liftIO . IO.killThread
 yield = liftIO IO.yield
 threadDelay = liftIO . IO.threadDelay

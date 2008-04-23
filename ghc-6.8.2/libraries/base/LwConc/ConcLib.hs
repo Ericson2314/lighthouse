@@ -6,6 +6,7 @@ module LwConc.ConcLib
 , fetchRunnableThread -- only for MVar code
 , placeOnReadyQ -- only for MVar code
 , forkIO
+, forkHighPriorityIO
 , yield
 , queueLength
 ) where
@@ -75,6 +76,12 @@ placeOnReadyQ thread =
   do q <- readPVar readyQ
      writePVar readyQ (q |> thread)
 
+-- |Stores a thread at the front of the ready queue.
+placeAtFrontOfReadyQ :: SCont -> PTM ()
+placeAtFrontOfReadyQ thread =
+  do q <- readPVar readyQ
+     writePVar readyQ (thread <| q)
+
 -- |Yielding primitive - switches to the next thread in the ready queue, if
 -- one exists.  If not, it simply returns and continues running the current
 -- thread.
@@ -96,11 +103,19 @@ yield = -- It should be okay to do the following non-atomically
 forkIO :: IO () -> IO ThreadId
 forkIO computation =
   do newThread <- newSCont $ do computation
-                                cPrint "Some thread just died"
+                                cPrint "Some thread just died\n"
                                 yieldAndDie
      atomically $ placeOnReadyQ newThread
      myThreadId -- WRONG!
      
+forkHighPriorityIO :: IO () -> IO ThreadId
+forkHighPriorityIO computation =
+  do newThread <- newSCont $ do computation
+                                cPrint "Some high priority thread just died\n"
+                                yieldAndDie
+     atomically $ placeAtFrontOfReadyQ newThread
+     myThreadId -- WRONG!
+
 queueLength :: IO Int
 queueLength = atomically $
   do q <- readPVar readyQ
