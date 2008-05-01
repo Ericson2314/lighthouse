@@ -103,7 +103,7 @@ yield = -- It should be okay to do the following non-atomically
 forkIO :: IO () -> IO ThreadId
 forkIO computation =
   do newThread <- newSCont $ do computation
-                                cPrint "Some thread just died\n"
+                                --cPrint "Some thread just died\n"
                                 yieldAndDie
      atomically $ placeOnReadyQ newThread
      myThreadId -- WRONG!
@@ -111,7 +111,7 @@ forkIO computation =
 forkHighPriorityIO :: IO () -> IO ThreadId
 forkHighPriorityIO computation =
   do newThread <- newSCont $ do computation
-                                cPrint "Some high priority thread just died\n"
+                                --cPrint "Some high priority thread just died\n"
                                 yieldAndDie
      atomically $ placeAtFrontOfReadyQ newThread
      myThreadId -- WRONG!

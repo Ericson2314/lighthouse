@@ -291,10 +291,9 @@ int allow_haskell_interrupts = 1;
 
 int getPendingIRQs()
 {
-    __asm__ __volatile__ ("cli");
+    // Do -not- use cli/sti here; it'd turn interrupts on when it shouldn't.
     int p = pending_irqs;
     pending_irqs = 0;
-    __asm__ __volatile__ ("sti");
     return p;
 }
 
@@ -305,11 +304,8 @@ void allowHaskellInterrupts(int flag)
 
 int disallowHaskellInterrupts()
 {
-    __asm__ __volatile__ ("cli");
     int a = allow_haskell_interrupts;
-    //__asm__ __volatile__ ("mfence");
     allow_haskell_interrupts = 0;
-    __asm__ __volatile__ ("sti");
     return a;
 }
 

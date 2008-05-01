@@ -74,9 +74,12 @@ import Foreign.C(CString,withCString)
 default(Int)
 
 foreign import ccall unsafe "start.h c_print" c_print :: CString -> IO ()
+foreign import ccall unsafe "start.h no_print" no_print :: CString -> IO ()
 
 cPrint :: String -> H ()
 cPrint str = liftIO (withCString str c_print)
+noPrint :: String -> H ()
+noPrint str = liftIO (withCString str no_print)
 
 main :: IO ()
 main = --trappedRunH mainH
@@ -87,24 +90,16 @@ mainH =
     do netState <- newMVar Nothing
        pciState <- newMVar (Nothing,Nothing) -- XXX
        trace "Tracing enabled"
-       --forkH (shell (netState, pciState))
-       forkH scratchMain
-       --forkH (coopTest "AAA")
-       --forkH (coopTest "BBB")
-       --forkH (coopTest "CCC")
-       --forkH (coopTest "DDD")
+       forkH (shell (netState, pciState))
+       forkH idleThread
+       --forkH scratchMain
        enableInterrupts
        liftIO $ yieldAndDie
 
-{-
-coopTest s = do i <- liftIO $ queueLength
-                cPrint (s ++ "[" ++ show i ++ " threads in queue]\n")
-                idle 10000000
-                liftIO $ LWCL.yield
-                coopTest s
-  where idle 0 = return ()
-        idle n = idle (n - 1)
-        -}
+idleThread :: H ()
+idleThread = do yield
+                noPrint "."
+                idleThread
 
 shell exestate =
   do optgfx <- VBE.initialize

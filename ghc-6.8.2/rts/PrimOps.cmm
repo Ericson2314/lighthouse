@@ -946,7 +946,7 @@ atomicSwitchzh_fast
   // foreign "C" debugBelch("switch# at SP %x.\n", Sp);
 
   if (CurrentTSO != tso) {
-    foreign "C" debugBelch("switch#ing from TSO %x to TSO %x.\n", CurrentTSO, tso);
+    //foreign "C" debugBelch("switch#ing from TSO %x to TSO %x.\n", CurrentTSO, tso);
     SAVE_THREAD_STATE();
     dirtyTSO(tso);
     CurrentTSO = tso;
@@ -1026,7 +1026,7 @@ newSContzh_fast
   closure = R1;
   ("ptr" tso) = foreign "C" createIOThread(MyCapability() "ptr",
                  RtsFlags_GcFlags_initialStkSize(RtsFlags), closure "ptr") [];
-  foreign "C" debugBelch("%x called newSCont# to create new TSO %x.\n", CurrentTSO, tso);
+  //foreign "C" debugBelch("%x called newSCont# to create new TSO %x.\n", CurrentTSO, tso);
   RET_P(tso);
 }
 

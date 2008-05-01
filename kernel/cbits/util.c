@@ -112,6 +112,10 @@ void c_print(char const * str)
   kprintf("%s", str);
 }
 
+void no_print(char const * str)
+{
+}
+
 void exit(int n) {
   while (1)
     __asm__("hlt");
