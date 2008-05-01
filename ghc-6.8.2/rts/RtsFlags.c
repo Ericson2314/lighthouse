@@ -168,13 +168,13 @@ void initRtsFlagsDefaults(void)
 #endif
 
 #ifdef DEBUG
-    RtsFlags.DebugFlags.scheduler	= rtsFalse;
+    RtsFlags.DebugFlags.scheduler	= rtsFalse; // handy
     RtsFlags.DebugFlags.interpreter	= rtsFalse;
     RtsFlags.DebugFlags.weak		= rtsFalse;
     RtsFlags.DebugFlags.gccafs		= rtsFalse;
     RtsFlags.DebugFlags.gc		= rtsFalse;
     RtsFlags.DebugFlags.block_alloc	= rtsFalse;
-    RtsFlags.DebugFlags.sanity		= rtsFalse;
+    RtsFlags.DebugFlags.sanity		= rtsFalse; // handy
     RtsFlags.DebugFlags.stable		= rtsFalse;
     RtsFlags.DebugFlags.stm             = rtsFalse;
     RtsFlags.DebugFlags.prof		= rtsFalse;

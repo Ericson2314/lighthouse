@@ -29,4 +29,5 @@ done
 c_objs=`echo -n 'cbits/start.o '; echo "$c_objs" | sed 's!cbits/start.o!!g'`
 
 #echo "$c_objs $objs"
-ld -s $LDFLAGS1 $c_objs $objs $LDFLAGS2
+#ld -s $LDFLAGS1 $c_objs $objs $LDFLAGS2
+ld $LDFLAGS1 $c_objs $objs $LDFLAGS2

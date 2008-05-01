@@ -780,14 +780,6 @@ printAllThreads(void)
   debugBelch("all threads:\n");
 # endif
 
-  for (i = 0; i < n_capabilities; i++) {
-      cap = &capabilities[i];
-      debugBelch("threads on capability %d:\n", cap->no);
-      for (t = cap->run_queue_hd; t != END_TSO_QUEUE; t = t->link) {
-	  printThreadStatus(t);
-      }
-  }
-
   debugBelch("other threads:\n");
   for (t = all_threads; t != END_TSO_QUEUE; t = next) {
       if (t->why_blocked != NotBlocked) {

@@ -186,7 +186,9 @@ printClosure( StgClosure *obj )
 	break;
 
     case BCO:
+#ifndef house_HOST_OS
             disassemble( (StgBCO*)obj );
+#endif
             break;
 
     case AP:
@@ -445,6 +447,7 @@ printStackObj( StgPtr sp )
 
         StgClosure* c = (StgClosure*)(*sp);
         printPtr((StgPtr)*sp);
+#ifdef ALLOW_INTERPRETER
         if (c == (StgClosure*)&stg_ctoi_R1p_info) {
            debugBelch("\t\t\tstg_ctoi_ret_R1p_info\n" );
 	} else
@@ -464,7 +467,9 @@ printStackObj( StgPtr sp )
            debugBelch("\t\t\t");
            debugBelch("BCO(...)\n"); 
         }
-        else {
+        else
+#endif
+        {
            debugBelch("\t\t\t");
            printClosure ( (StgClosure*)(*sp));
         }
@@ -949,7 +954,7 @@ static void printZcoded( const char *raw )
 /* Causing linking trouble on Win32 plats, so I'm
    disabling this for now. 
 */
-#ifdef USING_LIBBFD
+#if defined(USING_LIBBFD) && !defined(house_HOST_OS)
 
 #include <bfd.h>
 

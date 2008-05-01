@@ -108,8 +108,6 @@ struct Capability_ {
 // Task is bound, its thread has just blocked, and it may have been
 // moved to another Capability.
 #define ASSERT_PARTIAL_CAPABILITY_INVARIANTS(cap,task)	\
-  ASSERT(cap->run_queue_hd == END_TSO_QUEUE ?		\
-	    cap->run_queue_tl == END_TSO_QUEUE : 1);	\
   ASSERT(myTask() == task);				\
   ASSERT_TASK_ID(task);
 

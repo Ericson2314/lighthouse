@@ -270,7 +270,7 @@ check_target:
 
     case BlockedOnMVar:
     {
-        ASSERT(false);
+        ASSERT(rtsFalse);
     }
 
     case BlockedOnBlackHole:

@@ -307,6 +307,7 @@ checkClosure( StgClosure* p )
 	    return sizeW_fromITBL(info);
 	}
 
+#ifndef house_HOST_OS
     case BCO: {
 	StgBCO *bco = (StgBCO *)p;
 	ASSERT(LOOKS_LIKE_CLOSURE_PTR(bco->instrs));
@@ -314,6 +315,7 @@ checkClosure( StgClosure* p )
 	ASSERT(LOOKS_LIKE_CLOSURE_PTR(bco->ptrs));
 	return bco_sizeW(bco);
     }
+#endif
 
     case IND_STATIC: /* (1, 0) closure */
       ASSERT(LOOKS_LIKE_CLOSURE_PTR(((StgIndStatic*)p)->indirectee));
