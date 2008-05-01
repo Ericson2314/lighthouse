@@ -1102,6 +1102,11 @@ GetRoots( evac_fn evac )
     // Evacuate the TLS
     GetTLSRoots(evac);
 
+    // Evacuate the interrupt handler...ensures top-level globals like the
+    // run queue don't get garbage collected. :)
+    StgClosure* temp = &KernelziInterrupts_interruptHandler_closure;
+    evac(&temp);
+
     for (i = 0; i < n_capabilities; i++) {
 	cap = &capabilities[i];
 	for (task = cap->suspended_ccalling_tasks; task != NULL; 
