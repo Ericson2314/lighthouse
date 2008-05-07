@@ -61,6 +61,7 @@ Library {
             GHC.Unicode,
             GHC.Weak,
             GHC.Word,
+            LwConc.STM,
             LwConc.Substrate,
             LwConc.ConcLib,
             LwConc.MVar,

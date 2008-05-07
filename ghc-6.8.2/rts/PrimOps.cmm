@@ -932,7 +932,7 @@ isCurrentThreadBoundzh_fast
   RET_N(r);
 }
 
-atomicSwitchzh_fast
+switchzh_fast
 {
   /* R1: TSO */
   W_ tso;
@@ -959,64 +959,6 @@ atomicSwitchzh_fast
   jump %ENTRY_CODE(Sp(0));
 }
 
-#if 0
-atomicSwitchzh_fast
-{
-  W_ valid;
-  
-  /* R1: TSO */
-  W_ tso;
-
-  foreign "C" debugBelch("atomicSwitch# called.\n");
-
-  /* find target stack */
-  ("ptr" tso) = foreign "C" rts_findRelocatedTSO(R1) [];
-  ASSERT(tso != 0);
-  foreign "C" debugBelch("atomicSwitch# found TSO %x.\n", tso);
-
-  foreign "C" debugBelch("atomicSwitch# at SP %x.\n", Sp);
-  // roll back to the ATOMICALLY frame
-  W_ atomFrameSp;
-  (atomFrameSp) = foreign "C" findAtomicallyFrame(Sp) [];
-  Sp = atomFrameSp;
-
-  foreign "C" debugBelch("atomicSwitch# rolled back to atomFrameSp %x.\n", atomFrameSp);
-
-  // save thread state
-  StgTSO_sp(CurrentTSO) = Sp + SIZEOF_StgAtomicallyFrame;
-
-  /* I probably did the trec stuff completely wrong */
-  W_ trec;
-  trec = StgTSO_trec(CurrentTSO);
-  foreign "C" debugBelch("atomicSwitch# found trec %x.\n", trec);
-  (valid) = foreign "C" stmCommitTransaction(MyCapability() "ptr", trec "ptr") [];
-  if (valid != 0) {
-    /* Transaction was valid: commit succeeded */
-    if (CurrentTSO != tso) {
-      dirtyTSO(tso);
-      CurrentTSO = tso;
-      SpLim = CurrentTSO + TSO_OFFSET_StgTSO_stack + WDS(RESERVED_STACK_WORDS);
-    }
-    Sp = StgTSO_sp(CurrentTSO);
-    ASSERT(Hp != 0);                 
-    ASSERT(Sp != 0);                 
-    ASSERT(SpLim != 0);                      
-    ASSERT(HpLim != 0);                      
-    ASSERT(SpLim - WDS(RESERVED_STACK_WORDS) <= Sp); 
-    ASSERT(HpLim >= Hp);
-    foreign "C" debugBelch("atomicSwitch# jumping off Sp %x.\n", Sp);
-    jump %ENTRY_CODE(Sp(0));
-  } else {
-    /* Transaction was not valid: try again */
-    /* I probably did the trec stuff completely wrong */
-    foreign "C" debugBelch("atomicSwitch# transaction borked.\n");
-    foreign "C" stmStartTransaction(MyCapability() "ptr", NO_TREC "ptr") [];
-    R1 = StgAtomicallyFrame_code(Sp);
-    jump stg_ap_v_fast;
-  }
-}
-#endif
-
 newSContzh_fast
 {
   /* args: R1 = closure to spark */
@@ -1030,10 +972,9 @@ newSContzh_fast
   RET_P(tso);
 }
 
-getSContzh_fast
+getTSOzh_fast
 {
   /* no args. */
-  //foreign "C" debugBelch("getSCont# called.\n");
   RET_P(CurrentTSO);
 }
 

@@ -1,10 +1,11 @@
 module LwConcTests where
 
+import qualified LwConc.STM as STM
 import qualified LwConc.Substrate as S
 --import LwConc.ConcLib(readCounter)
 import H.Monad(H, liftIO)
 
-atomically = liftIO . S.atomically
+atomically = liftIO . STM.atomically
 newTLSKey = liftIO . S.newTLSKey
 getTLS = S.getTLS
 setTLS :: S.TLSKey a -> a -> H ()

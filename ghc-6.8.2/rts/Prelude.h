@@ -35,8 +35,6 @@ extern W_ ZCMain_main_closure[];
 extern StgClosure ZCMain_main_closure;
 #endif
 
-#define timerHandler_closure   base_LwConcziConcLib_timerHandler_closure
-PRELUDE_CLOSURE(base_LwConcziConcLib_timerHandler_closure);
 PRELUDE_CLOSURE(KernelziInterrupts_interruptHandler_closure);
 
 PRELUDE_CLOSURE(base_GHCziIOBase_stackOverflow_closure);

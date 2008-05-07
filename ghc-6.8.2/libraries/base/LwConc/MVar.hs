@@ -41,10 +41,10 @@ import LwConc.ConcLib
 import Data.IORef
 import Data.Sequence as Seq
 
-newtype MVar a = MVar (PVar (MVState a)) deriving Eq -- Typeable, Data?
+newtype MVar a = MVar (TVar (MVState a)) deriving Eq -- Typeable, Data?
 
 data MVState a = Full a (Seq (a, SCont))        -- queue of blocked writers
-               | Empty  (Seq (IORef a, SCont))  -- queue of blocked readers
+               | Empty  (Seq (TVar a, SCont))   -- queue of blocked readers
 
 -- FIXME: We need an instance of Eq for MVar, or else Chans break...but...
 -- I really don't want to do a structural comparison, that could be horrifically slow.
@@ -54,13 +54,13 @@ data MVState a = Full a (Seq (a, SCont))        -- queue of blocked writers
 -- |Create an 'MVar' which is initially empty.
 newEmptyMVar :: IO (MVar a)
 newEmptyMVar = 
-  do p <- newPVarIO (Empty empty)
+  do p <- newTVarIO (Empty empty)
      return $ MVar p
 
 -- |Create an 'MVar' which contains the supplied value.
 newMVar :: a -> IO (MVar a)
 newMVar x =
-  do p <- newPVarIO (Full x empty)
+  do p <- newTVarIO (Full x empty)
      return $ MVar p
 
 -- |Return the contents of the 'MVar'.  If the 'MVar' is currently
@@ -80,21 +80,21 @@ newMVar x =
 --
 takeMVar :: MVar a -> IO a
 takeMVar (MVar p) =
-  do hole <- newIORef undefined
+  do hole <- newTVarIO undefined
      switch $ \currThread ->
-       do st <- readPVar p
+       do st <- readTVar p
           case st of
             Full x bq -> case viewl bq of
-                           EmptyL -> do writePVar p (Empty empty)
-                                        unsafeIOToPTM $ writeIORef hole x
+                           EmptyL -> do writeTVar p (Empty empty)
+                                        writeTVar hole x
                                         return currThread
-                           ((x',t) :< ts) -> do writePVar p (Full x' ts)
-                                                unsafeIOToPTM $ writeIORef hole x -- put value in hole so we can return it at the end
+                           ((x',t) :< ts) -> do writeTVar p (Full x' ts)
+                                                writeTVar hole x -- put value in hole so we can return it at the end
                                                 placeOnReadyQ currThread -- place us on the ready queue
                                                 return t                 -- switch to the next blocked thread (could do the other way around)
-            Empty bq -> do writePVar p (Empty (bq |> (hole, currThread))) -- block (queueing hole for answer)
+            Empty bq -> do writeTVar p (Empty (bq |> (hole, currThread))) -- block (queueing hole for answer)
                            fetchRunnableThread                            -- and run something else
-     readIORef hole
+     atomically $ readTVar hole
 
 -- |Put a value into an 'MVar'.  If the 'MVar' is currently full,
 -- 'putMVar' will wait until it becomes empty.
@@ -113,16 +113,16 @@ takeMVar (MVar p) =
 {-# INLINE putMVar #-}
 putMVar :: MVar a -> a -> IO ()
 putMVar (MVar p) x = switch $ \currThread ->
-  do st <- readPVar p
+  do st <- readTVar p
      case st of
        Empty bq -> case viewl bq of
-                     EmptyL -> do writePVar p (Full x empty) -- nobody waiting, just store value
+                     EmptyL -> do writeTVar p (Full x empty) -- nobody waiting, just store value
                                   return currThread
-                     ((hole,t) :< ts) -> do unsafeIOToPTM $ writeIORef hole x -- pass value through hole to blocked reader
-                                            writePVar p (Empty ts)            -- unblock them
+                     ((hole,t) :< ts) -> do writeTVar hole x -- pass value through hole to blocked reader
+                                            writeTVar p (Empty ts)            -- unblock them
                                             placeOnReadyQ currThread          -- place us on the ready queue
                                             return t                          -- switch to them
-       Full y bq -> do writePVar p (Full y (bq |> (x, currThread))) -- block (queueing value to write)
+       Full y bq -> do writeTVar p (Full y (bq |> (x, currThread))) -- block (queueing value to write)
                        fetchRunnableThread                          -- and run something else
 
 -- |A non-blocking version of 'takeMVar'.  The 'tryTakeMVar' function
@@ -131,11 +131,11 @@ putMVar (MVar p) x = switch $ \currThread ->
 -- the 'MVar' is left empty.
 tryTakeMVar :: MVar a -> IO (Maybe a)
 tryTakeMVar (MVar p) = atomically $
-  do st <- readPVar p
+  do st <- readTVar p
      case st of
        Full x bq -> do case viewl bq of
-                         EmptyL -> writePVar p (Empty empty)
-                         ((x',t) :< ts) -> do writePVar p (Full x' ts)
+                         EmptyL -> writeTVar p (Empty empty)
+                         ((x',t) :< ts) -> do writeTVar p (Full x' ts)
                                               placeOnReadyQ t
                        return (Just x)
        Empty bq -> return Nothing
@@ -145,12 +145,12 @@ tryTakeMVar (MVar p) = atomically $
 -- it was successful, or 'False' otherwise.
 tryPutMVar  :: MVar a -> a -> IO Bool
 tryPutMVar (MVar p) x = atomically $
-  do st <- readPVar p
+  do st <- readTVar p
      case st of
        Empty bq -> do case viewl bq of
-                        EmptyL -> writePVar p (Full x empty) -- nobody waiting, just store value
-                        ((hole,t) :< ts) -> do unsafeIOToPTM $ writeIORef hole x -- pass value through hole to blocked reader
-                                               writePVar p (Empty ts)            -- unblock them
+                        EmptyL -> writeTVar p (Full x empty) -- nobody waiting, just store value
+                        ((hole,t) :< ts) -> do writeTVar hole x -- pass value through hole to blocked reader
+                                               writeTVar p (Empty ts)            -- unblock them
                                                placeOnReadyQ t                   -- place them on the ready queue
                       return True
        Full y bq -> return False
@@ -163,7 +163,7 @@ tryPutMVar (MVar p) x = atomically $
 -- careful when using this operation.   Use 'tryTakeMVar' instead if possible.
 isEmptyMVar :: MVar a -> IO Bool
 isEmptyMVar (MVar p) = atomically $
-  do st <- readPVar p
+  do st <- readTVar p
      return $ case st of
                 Empty _  -> True
                 Full _ _ -> False

@@ -1420,13 +1420,14 @@ section "Lightweight concurrency"
 ------------------------------------------------------------------------
 primtype TSO#
 
-primop  AtomicSwitchOp "atomicSwitch#" GenPrimOp
+primop  SwitchOp "switch#" GenPrimOp
    TSO# -> State# RealWorld -> State# RealWorld
    with
    has_side_effects = True
    out_of_line = True
 
-primop  GetSContOp "getSCont#" GenPrimOp
+-- This really should be inline, but I'm not sure how to do that properly.
+primop  GetTSOOp "getTSO#" GenPrimOp
    State# RealWorld -> (# State# RealWorld, TSO# #)
    with
    out_of_line = True
@@ -1444,10 +1445,8 @@ primop  NewTLSKeyOp "newTLSKey#" GenPrimOp
    out_of_line      = True
 
 primop  GetTLSOp "getTLS#" GenPrimOp
-   Int# -> State# RealWorld -> (# State# RealWorld, a #)
-   with
-   has_side_effects = True
-   out_of_line      = True
+   Int# -> a
+   with out_of_line = True
 
 primop  SetTLSOp "setTLS#" GenPrimOp
    Int# -> a -> State# RealWorld -> State# RealWorld

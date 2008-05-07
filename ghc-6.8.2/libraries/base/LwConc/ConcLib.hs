@@ -1,6 +1,8 @@
 {-# OPTIONS_GHC -fglasgow-exts #-}
 module LwConc.ConcLib
-( timerHandler
+( module LwConc.STM
+, module LwConc.Substrate
+, timerHandler
 , blackholeHandler
 , yieldAndDie
 , fetchRunnableThread -- only for MVar code
@@ -11,24 +13,14 @@ module LwConc.ConcLib
 , queueLength
 ) where
 
---import GHC.Prim(ThreadId#)
 import GHC.Conc(ThreadId,myThreadId)
 import System.IO.Unsafe (unsafePerformIO)
-import LwConc.Substrate
 import Data.Sequence as Seq
+import LwConc.STM
+import LwConc.Substrate
 
------- debugging ------
-import Foreign.C(CString, withCString)
-
-foreign import ccall unsafe "start.h c_print" c_print :: CString -> IO ()
-
-cPrint :: String -> IO ()
-cPrint str = withCString str c_print
-
------- debugging ------
-
-readyQ :: PVar (Seq SCont)
-readyQ = unsafePerformIO $ newPVarIO Seq.empty
+readyQ :: TVar (Seq SCont)
+readyQ = unsafePerformIO $ newTVarIO Seq.empty
 
 timerHandler :: IO ()
 timerHandler = yield
@@ -53,17 +45,17 @@ yieldAndDie =
 -- |Pops a thread off the ready queue and returns it, when there is one.
 -- Note that if there is only one thread in the system, and it tries to yield,
 -- there will be nothing in the ready queue.
-tryFetchRunnableThread :: PTM (Maybe SCont)
+tryFetchRunnableThread :: STM (Maybe SCont)
 tryFetchRunnableThread =
-  do q <- readPVar readyQ
+  do q <- readTVar readyQ
      case viewl q of
        EmptyL -> return Nothing
-       (x :< xs) -> do writePVar readyQ xs
+       (x :< xs) -> do writeTVar readyQ xs
                        return (Just x)
 
 -- |Pops a thread off the ready queue and returns it.  Throws an exception if
 -- there is no runnable thread, as this is probably a bad thing.
-fetchRunnableThread :: PTM SCont
+fetchRunnableThread :: STM SCont
 fetchRunnableThread =
   do maybeThread <- tryFetchRunnableThread
      case maybeThread of
@@ -71,16 +63,16 @@ fetchRunnableThread =
        Just t  -> return t
 
 -- |Stores a thread at the end of the ready queue.
-placeOnReadyQ :: SCont -> PTM ()
+placeOnReadyQ :: SCont -> STM ()
 placeOnReadyQ thread =
-  do q <- readPVar readyQ
-     writePVar readyQ (q |> thread)
+  do q <- readTVar readyQ
+     writeTVar readyQ (q |> thread)
 
 -- |Stores a thread at the front of the ready queue.
-placeAtFrontOfReadyQ :: SCont -> PTM ()
+placeAtFrontOfReadyQ :: SCont -> STM ()
 placeAtFrontOfReadyQ thread =
-  do q <- readPVar readyQ
-     writePVar readyQ (thread <| q)
+  do q <- readTVar readyQ
+     writeTVar readyQ (thread <| q)
 
 -- |Yielding primitive - switches to the next thread in the ready queue, if
 -- one exists.  If not, it simply returns and continues running the current
@@ -103,7 +95,6 @@ yield = -- It should be okay to do the following non-atomically
 forkIO :: IO () -> IO ThreadId
 forkIO computation =
   do newThread <- newSCont $ do computation
-                                --cPrint "Some thread just died\n"
                                 yieldAndDie
      atomically $ placeOnReadyQ newThread
      myThreadId -- WRONG!
@@ -111,12 +102,11 @@ forkIO computation =
 forkHighPriorityIO :: IO () -> IO ThreadId
 forkHighPriorityIO computation =
   do newThread <- newSCont $ do computation
-                                --cPrint "Some high priority thread just died\n"
                                 yieldAndDie
      atomically $ placeAtFrontOfReadyQ newThread
      myThreadId -- WRONG!
 
 queueLength :: IO Int
 queueLength = atomically $
-  do q <- readPVar readyQ
+  do q <- readTVar readyQ
      return (Seq.length q)
