@@ -15,6 +15,7 @@ module LwConc.STM
 , newTVarIO
 , readTVar
 , writeTVar
+, unsafeIOToSTM
 ) where
 
 import Prelude hiding (catch)
@@ -64,6 +65,10 @@ atomically (STM m) =
                 return a
         else do allowHaskellInterrupts hsiStatus
                 atomically (STM m)
+
+{-# INLINE unsafeIOToSTM #-}
+unsafeIOToSTM :: IO a -> STM a
+unsafeIOToSTM m = STM $ \r -> m >>= return
 
 {-# INLINE newTVar #-}
 newTVar :: a -> STM (TVar a)
