@@ -289,12 +289,22 @@ void initIDT() {
 int pending_irqs = 0;
 int allow_haskell_interrupts = 1;
 
-int getPendingIRQs()
+int getPendingIRQ()
 {
     // Do -not- use cli/sti here; it'd turn interrupts on when it shouldn't.
-    int p = pending_irqs;
-    pending_irqs = 0;
-    return p;
+    int irq;
+    for (irq = 1; irq < 16; irq++) {
+        if (pending_irqs & (1 << irq)) {
+            pending_irqs &= ~(1 << irq);
+            return irq;
+        }
+    }
+    // Check the timer last.
+    if (pending_irqs & 1) {
+        pending_irqs &= ~1;
+        return 0;
+    }
+    return -1;
 }
 
 void allowHaskellInterrupts(int flag)
