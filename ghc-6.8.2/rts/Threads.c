@@ -776,12 +776,11 @@ printAllThreads(void)
 		       time_string, rtsFalse/*no commas!*/);
 
   debugBelch("all threads at [%s]:\n", time_string);
-# else
-  debugBelch("all threads:\n");
 # endif
 
   debugBelch("other threads:\n");
   for (t = all_threads; t != END_TSO_QUEUE; t = next) {
+      debugBelch("%x, ", t);
       if (t->why_blocked != NotBlocked) {
 	  printThreadStatus(t);
       }
@@ -791,6 +790,7 @@ printAllThreads(void)
 	  next = t->global_link;
       }
   }
+  debugBelch("\n", t);
 }
 
 // useful from gdb

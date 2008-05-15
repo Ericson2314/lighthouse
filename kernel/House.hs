@@ -91,10 +91,12 @@ mainH =
        pciState <- newMVar (Nothing,Nothing) -- XXX
        trace "Tracing enabled"
        forkH (shell (netState, pciState))
-       forkH idleThread
+       --forkH idleThread
+       forkH $ cPrint "This is a thread that dies right away."
        --forkH scratchMain
        enableInterrupts
-       liftIO $ yieldAndDie
+       --liftIO $ yieldAndDie
+       idleThread
 
 idleThread :: H ()
 idleThread = do yield

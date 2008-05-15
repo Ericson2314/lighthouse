@@ -1109,6 +1109,9 @@ GetRoots( evac_fn evac )
 
     for (i = 0; i < n_capabilities; i++) {
 	cap = &capabilities[i];
+        temp = &cap->r.rCurrentTSO;
+        evac(temp);
+
 	for (task = cap->suspended_ccalling_tasks; task != NULL; 
 	     task=task->next) {
 	    debugTrace(DEBUG_sched,
@@ -1446,6 +1449,7 @@ raiseExceptionHelper (StgRegTable *reg, StgTSO *tso, StgClosure *exception)
 void
 resurrectThreads (StgTSO *threads)
 {
+#if 0
     StgTSO *tso, *next;
     Capability *cap;
 
@@ -1453,7 +1457,7 @@ resurrectThreads (StgTSO *threads)
 	next = tso->global_link;
 	tso->global_link = all_threads;
 	all_threads = tso;
-	debugTrace(DEBUG_sched, "resurrecting thread %lu", (unsigned long)tso->id);
+	debugTrace(DEBUG_sched, "resurrecting thread %lu aka %x", (unsigned long)tso->id, tso);
 	
 	// Wake up the thread on the Capability it was last on
 	cap = tso->cap;
@@ -1483,4 +1487,5 @@ resurrectThreads (StgTSO *threads)
 	    barf("resurrectThreads: thread blocked in a strange way");
 	}
     }
+#endif
 }
