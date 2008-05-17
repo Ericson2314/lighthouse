@@ -80,12 +80,6 @@ StgTSO *blackhole_queue = NULL;
  */
 rtsBool blackholes_need_checking = rtsFalse;
 
-/* Linked list of all threads.
- * Used for detecting garbage collected threads.
- * LOCK: sched_mutex+capability, or all capabilities
- */
-StgTSO *all_threads = NULL;
-
 /* flag that tracks whether we have done any execution in this time slice.
  * LOCK: currently none, perhaps we should lock (but needs to be
  * updated in the fast path of the scheduler).
@@ -140,7 +134,6 @@ static rtsBool checkBlackHoles(Capability *cap);
 static StgTSO *threadStackOverflow(Capability *cap, StgTSO *tso);
 
 static void deleteThread (Capability *cap, StgTSO *tso);
-static void deleteAllThreads (Capability *cap);
 
 #ifdef FORKPROCESS_PRIMOP_SUPPORTED
 static void deleteThread_(Capability *cap, StgTSO *tso);
@@ -320,67 +313,12 @@ scheduleDoGC (Capability *cap, rtsBool force_major)
 {
     StgTSO *t;
     rtsBool heap_census;
-
-    /* Kick any transactions which are invalid back to their
-     * atomically frames.  When next scheduled they will try to
-     * commit, this commit will fail and they will retry.
-     */
-    { 
-	StgTSO *next;
-
-	for (t = all_threads; t != END_TSO_QUEUE; t = next) {
-	    if (t->what_next == ThreadRelocated) {
-		next = t->link;
-	    } else {
-		next = t->global_link;
-		
-		// This is a good place to check for blocked
-		// exceptions.  It might be the case that a thread is
-		// blocked on delivering an exception to a thread that
-		// is also blocked - we try to ensure that this
-		// doesn't happen in throwTo(), but it's too hard (or
-		// impossible) to close all the race holes, so we
-		// accept that some might get through and deal with
-		// them here.  A GC will always happen at some point,
-		// even if the system is otherwise deadlocked.
-		maybePerformBlockedException (&capabilities[0], t);
-
-		if (t -> trec != NO_TREC && t -> why_blocked == NotBlocked) {
-		    if (!stmValidateNestOfTransactions (t -> trec)) {
-			debugTrace(DEBUG_sched | DEBUG_stm,
-				   "trec %p found wasting its time", t);
-			
-			// strip the stack back to the
-			// ATOMICALLY_FRAME, aborting the (nested)
-			// transaction, and saving the stack of any
-			// partially-evaluated thunks on the heap.
-			throwToSingleThreaded_(&capabilities[0], t, 
-					       NULL, rtsTrue, NULL);
-			
-#ifdef REG_R1
-			ASSERT(get_itbl((StgClosure *)t->sp)->type == ATOMICALLY_FRAME);
-#endif
-		    }
-		}
-	    }
-	}
-    }
     
     // so this happens periodically:
     if (cap) scheduleCheckBlackHoles(cap);
     
     IF_DEBUG(scheduler, printAllThreads());
 
-    /*
-     * We now have all the capabilities; if we're in an interrupting
-     * state, then we should take the opportunity to delete all the
-     * threads in the system.
-     */
-    //if (sched_state >= SCHED_INTERRUPTING) {
-	//deleteAllThreads(&capabilities[0]);
-	//sched_state = SCHED_SHUTTING_DOWN;
-    //}
-    
     /* everybody back, start the GC.
      * Could do it in this thread, or signal a condition var
      * to do it in another thread.  Either way, we need to
@@ -486,34 +424,6 @@ forkProcess(HsStablePtr *entry
     barf("forkProcess#: primop not supported on this platform, sorry!\n");
     return -1;
 #endif
-}
-
-/* ---------------------------------------------------------------------------
- * Delete all the threads in the system
- * ------------------------------------------------------------------------- */
-   
-static void
-deleteAllThreads ( Capability *cap )
-{
-    debugBelch("/!\ deleteAllThreads() called!\n");
-    // NOTE: only safe to call if we own all capabilities.
-
-    StgTSO* t, *next;
-    debugTrace(DEBUG_sched,"deleting all threads");
-    for (t = all_threads; t != END_TSO_QUEUE; t = next) {
-	if (t->what_next == ThreadRelocated) {
-	    next = t->link;
-	} else {
-	    next = t->global_link;
-	    deleteThread(cap,t);
-	}
-    }      
-
-    // The run queue now contains a bunch of ThreadKilled threads.  We
-    // must not throw these away: the main thread(s) will be in there
-    // somewhere, and the main scheduler loop has to deal with it.
-    // Also, the run queue is the only thing keeping these threads from
-    // being GC'd, and we don't want the "main thread has been GC'd" panic.
 }
 
 /* -----------------------------------------------------------------------------
@@ -788,7 +698,6 @@ void
 initScheduler(void)
 {
   blackhole_queue   = END_TSO_QUEUE;
-  all_threads       = END_TSO_QUEUE;
 
   sched_state    = SCHED_RUNNING;
   recent_activity = ACTIVITY_YES;
@@ -1076,44 +985,6 @@ checkBlackHoles (Capability *cap)
 }
 
 /* -----------------------------------------------------------------------------
-   Deleting threads
-
-   This is used for interruption (^C) and forking, and corresponds to
-   raising an exception but without letting the thread catch the
-   exception.
-   -------------------------------------------------------------------------- */
-
-static void 
-deleteThread (Capability *cap, StgTSO *tso)
-{
-    // NOTE: must only be called on a TSO that we have exclusive
-    // access to, because we will call throwToSingleThreaded() below.
-    // The TSO must be on the run queue of the Capability we own, or 
-    // we must own all Capabilities.
-
-    if (tso->why_blocked != BlockedOnCCall &&
-	tso->why_blocked != BlockedOnCCall_NoUnblockExc) {
-	throwToSingleThreaded(cap,tso,NULL);
-    }
-}
-
-#ifdef FORKPROCESS_PRIMOP_SUPPORTED
-static void 
-deleteThread_(Capability *cap, StgTSO *tso)
-{ // for forkProcess only:
-  // like deleteThread(), but we delete threads in foreign calls, too.
-
-    if (tso->why_blocked == BlockedOnCCall ||
-	tso->why_blocked == BlockedOnCCall_NoUnblockExc) {
-	unblockOne(cap,tso);
-	tso->what_next = ThreadKilled;
-    } else {
-	deleteThread(cap,tso);
-    }
-}
-#endif
-
-/* -----------------------------------------------------------------------------
    raiseExceptionHelper
    
    This function is called by the raise# primitve, just so that we can
@@ -1195,56 +1066,3 @@ raiseExceptionHelper (StgRegTable *reg, StgTSO *tso, StgClosure *exception)
     }
 }
 
-/* -----------------------------------------------------------------------------
-   resurrectThreads is called after garbage collection on the list of
-   threads found to be garbage.  Each of these threads will be woken
-   up and sent a signal: BlockedOnDeadMVar if the thread was blocked
-   on an MVar, or NonTermination if the thread was blocked on a Black
-   Hole.
-
-   Locks: assumes we hold *all* the capabilities.
-   -------------------------------------------------------------------------- */
-
-void
-resurrectThreads (StgTSO *threads)
-{
-#if 0
-    StgTSO *tso, *next;
-    Capability *cap;
-
-    for (tso = threads; tso != END_TSO_QUEUE; tso = next) {
-	next = tso->global_link;
-	tso->global_link = all_threads;
-	all_threads = tso;
-	debugTrace(DEBUG_sched, "resurrecting thread %lu aka %x", (unsigned long)tso->id, tso);
-	
-	// Wake up the thread on the Capability it was last on
-	cap = tso->cap;
-	
-	switch (tso->why_blocked) {
-	case BlockedOnMVar:
-	case BlockedOnException:
-	    /* Called by GC - sched_mutex lock is currently held. */
-	    throwToSingleThreaded(cap, tso,
-				  (StgClosure *)BlockedOnDeadMVar_closure);
-	    break;
-	case BlockedOnBlackHole:
-	    throwToSingleThreaded(cap, tso,
-				  (StgClosure *)NonTermination_closure);
-	    break;
-	case BlockedOnSTM:
-	    throwToSingleThreaded(cap, tso,
-				  (StgClosure *)BlockedIndefinitely_closure);
-	    break;
-	case NotBlocked:
-	    /* This might happen if the thread was blocked on a black hole
-	     * belonging to a thread that we've just woken up (raiseAsync
-	     * can wake up threads, remember...).
-	     */
-	    continue;
-	default:
-	    barf("resurrectThreads: thread blocked in a strange way");
-	}
-    }
-#endif
-}

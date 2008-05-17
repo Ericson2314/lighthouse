@@ -146,8 +146,6 @@ createThread(Capability *cap, nat size)
      */
     ACQUIRE_LOCK(&sched_mutex);
     tso->id = next_thread_id++;  // while we have the mutex
-    tso->global_link = all_threads;
-    all_threads = tso;
     RELEASE_LOCK(&sched_mutex);
     
 #if defined(DIST)
@@ -777,20 +775,6 @@ printAllThreads(void)
 
   debugBelch("all threads at [%s]:\n", time_string);
 # endif
-
-  debugBelch("other threads:\n");
-  for (t = all_threads; t != END_TSO_QUEUE; t = next) {
-      debugBelch("%x, ", t);
-      if (t->why_blocked != NotBlocked) {
-	  printThreadStatus(t);
-      }
-      if (t->what_next == ThreadRelocated) {
-	  next = t->link;
-      } else {
-	  next = t->global_link;
-      }
-  }
-  debugBelch("\n", t);
 }
 
 // useful from gdb

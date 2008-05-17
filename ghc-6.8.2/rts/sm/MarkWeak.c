@@ -48,15 +48,6 @@
      evacuate the finalizers of all the dead weak pointers in order to
      run them.
 
-   - weak_stage == WeakThreads
-
-     Now, we discover which *threads* are still alive.  Pointers to
-     threads from the all_threads and main thread lists are the
-     weakest of all: a pointers from the finalizer of a dead weak
-     pointer can keep a thread alive.  Any threads found to be unreachable
-     are evacuated and placed on the resurrected_threads list so we 
-     can send them a signal later.
-
    - weak_stage == WeakDone
 
      No more evacuation is done.
@@ -66,17 +57,12 @@
 /* Which stage of processing various kinds of weak pointer are we at?
  * (see traverse_weak_ptr_list() below for discussion).
  */
-typedef enum { WeakPtrs, WeakThreads, WeakDone } WeakStage;
+typedef enum { WeakPtrs, WeakDone } WeakStage;
 static WeakStage weak_stage;
 
 /* Weak pointers
  */
 StgWeak *old_weak_ptr_list; // also pending finaliser list
-
-/* List of all threads during GC
- */
-StgTSO *resurrected_threads;
-static StgTSO *old_all_threads;
 
 void
 initWeakForGC(void)
@@ -84,13 +70,6 @@ initWeakForGC(void)
     old_weak_ptr_list = weak_ptr_list;
     weak_ptr_list = NULL;
     weak_stage = WeakPtrs;
-
-    /* The all_threads list is like the weak_ptr_list.  
-     * See traverseWeakPtrList() for the details.
-     */
-    old_all_threads = all_threads;
-    all_threads = END_TSO_QUEUE;
-    resurrected_threads = END_TSO_QUEUE;
 }
 
 rtsBool 
@@ -172,98 +151,11 @@ traverseWeakPtrList(void)
 	      w->finalizer = evacuate(w->finalizer);
 	  }
 
-	  // Next, move to the WeakThreads stage after fully
-	  // scavenging the finalizers we've just evacuated.
-	  weak_stage = WeakThreads;
+	  // We're done...
+	  weak_stage = WeakDone;
       }
 
-      return rtsTrue;
-
-  case WeakThreads:
-      /* Now deal with the all_threads list, which behaves somewhat like
-       * the weak ptr list.  If we discover any threads that are about to
-       * become garbage, we wake them up and administer an exception.
-       */
-      {
-	  StgTSO *t, *tmp, *next, **prev;
-	  
-	  prev = &old_all_threads;
-	  for (t = old_all_threads; t != END_TSO_QUEUE; t = next) {
-	      
-	      tmp = (StgTSO *)isAlive((StgClosure *)t);
-	      
-	      if (tmp != NULL) {
-		  t = tmp;
-	      }
-	      
-	      ASSERT(get_itbl(t)->type == TSO);
-	      switch (t->what_next) {
-	      case ThreadRelocated:
-		  next = t->link;
-		  *prev = next;
-		  continue;
-	      case ThreadKilled:
-	      case ThreadComplete:
-		  // finshed or died.  The thread might still be alive, but we
-		  // don't keep it on the all_threads list.  Don't forget to
-		  // stub out its global_link field.
-		  next = t->global_link;
-		  t->global_link = END_TSO_QUEUE;
-		  *prev = next;
-		  continue;
-	      default:
-		  ;
-	      }
-	      
-	      if (tmp == NULL) {
-		  // not alive (yet): leave this thread on the
-		  // old_all_threads list.
-		  prev = &(t->global_link);
-		  next = t->global_link;
-	      } 
-	      else {
-		  // alive: move this thread onto the all_threads list.
-		  next = t->global_link;
-		  t->global_link = all_threads;
-		  all_threads  = t;
-		  *prev = next;
-	      }
-	  }
-      }
-      
-      /* If we evacuated any threads, we need to go back to the scavenger.
-       */
-      if (flag) return rtsTrue;
-
-      /* And resurrect any threads which were about to become garbage.
-       */
-      {
-	  StgTSO *t, *tmp, *next;
-	  for (t = old_all_threads; t != END_TSO_QUEUE; t = next) {
-	      next = t->global_link;
-	      tmp = (StgTSO *)evacuate((StgClosure *)t);
-	      tmp->global_link = resurrected_threads;
-	      resurrected_threads = tmp;
-	  }
-      }
-      
-      /* Finally, we can update the blackhole_queue.  This queue
-       * simply strings together TSOs blocked on black holes, it is
-       * not intended to keep anything alive.  Hence, we do not follow
-       * pointers on the blackhole_queue until now, when we have
-       * determined which TSOs are otherwise reachable.  We know at
-       * this point that all TSOs have been evacuated, however.
-       */
-      { 
-	  StgTSO **pt;
-	  for (pt = &blackhole_queue; *pt != END_TSO_QUEUE; pt = &((*pt)->link)) {
-	      *pt = (StgTSO *)isAlive((StgClosure *)*pt);
-	      ASSERT(*pt != NULL);
-	  }
-      }
-
-      weak_stage = WeakDone;  // *now* we're done,
-      return rtsTrue;         // but one more round of scavenging, please
+      return rtsTrue; // ...but one more round of scavenging, please
 
   default:
       barf("traverse_weak_ptr_list");

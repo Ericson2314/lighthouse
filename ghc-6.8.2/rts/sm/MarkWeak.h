@@ -12,7 +12,6 @@
  * ---------------------------------------------------------------------------*/
 
 extern StgWeak *old_weak_ptr_list;
-extern StgTSO *resurrected_threads;
 
 void    initWeakForGC          ( void );
 rtsBool traverseWeakPtrList    ( void );

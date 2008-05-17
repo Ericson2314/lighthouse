@@ -755,23 +755,6 @@ checkThreadQsSanity (rtsBool check_TSO_too)
 }
 #endif /* GRAN */
 
-/* 
-   Check that all TSOs have been evacuated.
-   Optionally also check the sanity of the TSOs.
-*/
-void
-checkGlobalTSOList (rtsBool checkTSOs)
-{
-  extern  StgTSO *all_threads;
-  StgTSO *tso;
-  for (tso=all_threads; tso != END_TSO_QUEUE; tso = tso->global_link) {
-      ASSERT(LOOKS_LIKE_CLOSURE_PTR(tso));
-      ASSERT(get_itbl(tso)->type == TSO);
-      if (checkTSOs)
-	  checkTSO(tso);
-  }
-}
-
 /* -----------------------------------------------------------------------------
    Check mutable list sanity.
    -------------------------------------------------------------------------- */

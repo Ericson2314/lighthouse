@@ -562,34 +562,6 @@ GarbageCollect ( rtsBool force_major_gc )
     }
   }
 
-  /* Update the pointers from the task list - these are
-   * treated as weak pointers because we want to allow a main thread
-   * to get a BlockedOnDeadMVar exception in the same way as any other
-   * thread.  Note that the threads should all have been retained by
-   * GC by virtue of being on the all_threads list, we're just
-   * updating pointers here.
-   */
-  {
-      Task *task;
-      StgTSO *tso;
-      for (task = all_tasks; task != NULL; task = task->all_link) {
-	  if (!task->stopped && task->tso) {
-	      ASSERT(task->tso->bound == task);
-	      tso = (StgTSO *) isAlive((StgClosure *)task->tso);
-	      if (tso == NULL) {
-		  barf("task %p: main thread %d has been GC'd", 
-#ifdef THREADED_RTS
-		       (void *)task->id, 
-#else
-		       (void *)task,
-#endif
-		       task->tso->id);
-	      }
-	      task->tso = tso;
-	  }
-      }
-  }
-
   // Now see which stable names are still alive.
   gcStablePtrTable();
 
@@ -620,14 +592,6 @@ GarbageCollect ( rtsBool force_major_gc )
       oldgen_saved_blocks = oldest_gen->steps[0].n_old_blocks;
       compact();
   }
-
-#ifdef PERFORM_SANITY_CHECKS
-  if (RtsFlags.GcFlags.nonDebugSanityChecks) {
-    checkGlobalTSOList(rtsFalse);
-  }
-#else
-  IF_DEBUG(sanity, checkGlobalTSOList(rtsFalse));
-#endif
 
   /* run through all the generations/steps and tidy up 
    */
@@ -989,20 +953,11 @@ GarbageCollect ( rtsBool force_major_gc )
   scheduleFinalizers(last_free_capability, old_weak_ptr_list);
   ACQUIRE_SM_LOCK;
   
-  // send exceptions to any threads which were about to die 
-  RELEASE_SM_LOCK;
-  resurrectThreads(resurrected_threads);
-  ACQUIRE_SM_LOCK;
-
   // Update the stable pointer hash table.
   updateStablePtrTable(major_gc);
 
   // check sanity after GC 
-#ifdef PERFORM_SANITY_CHECKS
-  if (RtsFlags.GcFlags.nonDebugSanityChecks) {
-    checkGlobalTSOList(rtsFalse);
-  }
-#else
+#ifndef PERFORM_SANITY_CHECKS
   IF_DEBUG(sanity, checkSanity());
 #endif
 

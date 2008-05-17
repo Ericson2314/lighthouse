@@ -977,12 +977,6 @@ compact(void)
 	}
     }
 
-    // the global thread list
-    thread((void *)&all_threads);
-
-    // any threads resurrected during this GC
-    thread((void *)&resurrected_threads);
-
     // the task list
     {
 	Task *task;
