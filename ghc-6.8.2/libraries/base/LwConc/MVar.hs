@@ -85,8 +85,8 @@ takeMVar (MVar p) =
                                         return currThread
                            ((x',t) :< ts) -> do writeTVar p (Full x' ts)
                                                 unsafeIOToSTM $ writeIORef hole x -- put value in hole so we can return it at the end
-                                                placeOnReadyQ currThread -- place us on the ready queue
-                                                return t                 -- switch to the next blocked thread (could do the other way around)
+                                                placeOnReadyQ t -- wake them up
+                                                return currThread -- continue
             Empty bq -> do writeTVar p (Empty (bq |> (hole, currThread))) -- block (queueing hole for answer)
                            fetchRunnableThread                            -- and run something else
      readIORef hole
@@ -115,8 +115,8 @@ putMVar (MVar p) x = switch $ \currThread ->
                                   return currThread
                      ((hole,t) :< ts) -> do unsafeIOToSTM $ writeIORef hole x -- pass value through hole to blocked reader
                                             writeTVar p (Empty ts)            -- take them off the blocked queue
-                                            placeOnReadyQ currThread          -- place us on the ready queue
-                                            return t                          -- switch to them
+                                            placeOnReadyQ t                   -- put them back on the ready queue
+                                            return currThread
        Full y bq -> do writeTVar p (Full y (bq |> (x, currThread))) -- block (queueing value to write)
                        fetchRunnableThread                          -- and run something else
 
