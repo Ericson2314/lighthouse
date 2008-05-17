@@ -86,10 +86,6 @@ import LeaveCriticalSection;
    PRE_RETURN(HeapOverflow, ThreadRunGHC)	\
   jump stg_returnToSched;
 
-#define BLOCK_GENERIC				\
-   PRE_RETURN(ThreadBlocked,  ThreadRunGHC)	\
-  jump stg_returnToSched;
-
 #define BLOCK_BUT_FIRST(c)			\
   PRE_RETURN(ThreadBlocked, ThreadRunGHC)	\
   R2 = c;					\
@@ -612,25 +608,6 @@ stg_gc_gen_hp
    Blocks
    -------------------------------------------------------------------------- */
 
-stg_gen_block
-{
-    SAVE_EVERYTHING;
-    BLOCK_GENERIC;
-}
-
-stg_block_noregs
-{
-    BLOCK_GENERIC;
-}
-
-stg_block_1
-{
-    Sp_adj(-2);
-    Sp(1) = R1;
-    Sp(0) = stg_enter_info;
-    BLOCK_GENERIC;
-}
-
 // code fragment executed just before we return to the scheduler
 stg_block_blackhole_finally
 {
@@ -648,6 +625,8 @@ stg_block_blackhole
     Sp_adj(-2);
     Sp(1) = R1;
     Sp(0) = stg_enter_info;
+
+    DEBUG_ONLY(foreign "C" debugBelch("stg_block_blackhole hit!\n"););
     BLOCK_BUT_FIRST(stg_block_blackhole_finally);
 }
 
@@ -673,6 +652,7 @@ stg_block_throwto
     Sp(2) = R2;
     Sp(1) = R1;
     Sp(0) = stg_block_throwto_info;
+    DEBUG_ONLY(foreign "C" debugBelch("stg_block_throwto hit!\n"););
     BLOCK_BUT_FIRST(stg_block_throwto_finally);
 }
 

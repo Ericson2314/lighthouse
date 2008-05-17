@@ -46,11 +46,6 @@ newtype MVar a = MVar (TVar (MVState a)) deriving Eq -- Typeable, Data?
 data MVState a = Full a (Seq (a, SCont))        -- queue of blocked writers
                | Empty  (Seq (IORef a, SCont))  -- queue of blocked readers
 
--- FIXME: We need an instance of Eq for MVar, or else Chans break...but...
--- I really don't want to do a structural comparison, that could be horrifically slow.
---instance Eq MVar where
-  --(MVar m) == (MVar m) = sameMVar# mvar1# mvar2#
-
 -- |Create an 'MVar' which is initially empty.
 newEmptyMVar :: IO (MVar a)
 newEmptyMVar = 
@@ -119,7 +114,7 @@ putMVar (MVar p) x = switch $ \currThread ->
                      EmptyL -> do writeTVar p (Full x empty) -- nobody waiting, just store value
                                   return currThread
                      ((hole,t) :< ts) -> do unsafeIOToSTM $ writeIORef hole x -- pass value through hole to blocked reader
-                                            writeTVar p (Empty ts)            -- unblock them
+                                            writeTVar p (Empty ts)            -- take them off the blocked queue
                                             placeOnReadyQ currThread          -- place us on the ready queue
                                             return t                          -- switch to them
        Full y bq -> do writeTVar p (Full y (bq |> (x, currThread))) -- block (queueing value to write)
@@ -150,7 +145,7 @@ tryPutMVar (MVar p) x = atomically $
        Empty bq -> do case viewl bq of
                         EmptyL -> writeTVar p (Full x empty) -- nobody waiting, just store value
                         ((hole,t) :< ts) -> do unsafeIOToSTM $ writeIORef hole x -- pass value through hole to blocked reader
-                                               writeTVar p (Empty ts)            -- unblock them
+                                               writeTVar p (Empty ts)            -- take them off the blocked queue
                                                placeOnReadyQ t                   -- place them on the ready queue
                       return True
        Full y bq -> return False

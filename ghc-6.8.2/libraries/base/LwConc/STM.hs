@@ -91,7 +91,6 @@ writeTVar (TVar ref) new = STM $ \r ->
             writeIORef r (LogEntry ref current new : log)
        Just (LogEntry _ expected _) ->
          writeIORef r (LogEntry (unsafeCoerce ref) expected (unsafeCoerce new) : (delete_log_entry ref log))
-         --writeIORef r (LogEntry ref (unsafeCoerce expected) new : (delete_log_entry ref log))
 
 {-# INLINE readTVar #-}
 readTVar :: TVar a -> STM a

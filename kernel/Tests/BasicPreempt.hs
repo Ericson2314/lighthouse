@@ -4,7 +4,6 @@ import Foreign.C(CString, withCString)
 
 import H.Monad(H, liftIO)
 import H.Concurrency
-import LwConc.ConcLib(queueLength)
 -- for faking allocation
 import Data.IORef
 
@@ -27,11 +26,7 @@ scratchMain =
      cPrint "Scratch exiting...\n"
      return ()
 
-preemptTest s = do i <- liftIO $ queueLength
-                   --t <- liftIO $ newIORef [1..50]
-                   --u <- liftIO $ readIORef t
-                   --cPrint (s ++ "[" ++ show i ++ " threads in queue]\n")
-                   idle $ 10000000 + length s
+preemptTest s = do idle $ 10000000 + length s
                    cPrint s
                    preemptTest s
 
