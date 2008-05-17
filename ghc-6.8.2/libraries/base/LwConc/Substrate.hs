@@ -43,12 +43,13 @@ setTLS (TLSKey key) x = IO $ \s10# ->
 -- a boolean flag to indicate whether the SCont is "used up", i.e. already
 -- switched to.
 data SContStatus = Used | Usable
-data SCont = SCont TSO# SContStatus
+data SCont = SCont TSO# (IORef SContStatus)
 
 {-# INLINE newSCont #-}
 newSCont :: IO () -> IO SCont
-newSCont x = IO $ \s -> case newSCont# x s of
-                          (# s', tso #) -> (# s', SCont tso Usable #)
+newSCont x = do ref <- newIORef Usable
+                IO $ \s -> case newSCont# x s of
+                             (# s', tso #) -> (# s', SCont tso ref #)
 
 {-# INLINE switch #-}
 switch :: (SCont -> STM SCont) -> IO ()
@@ -56,8 +57,13 @@ switch scheduler = do s1 <- getSCont
                       s2 <- atomically (scheduler s1)
                       switchTo s2
   where getSCont :: IO SCont
-        getSCont = IO $ \s -> case getTSO# s of (# s', tso #) -> (# s', SCont tso Usable #)
+        getSCont = do ref <- newIORef Usable
+                      IO $ \s -> case getTSO# s of (# s', tso #) -> (# s', SCont tso ref #)
         switchTo :: SCont -> IO ()
-        switchTo (SCont tso Usable) = IO $ \s -> case switch# tso s of s' -> (# s', () #)
-        switchTo (SCont _ Used) = error "Attempted to switch to used SCont!"
+        switchTo (SCont tso ref) =
+          do status <- readIORef ref
+             case status of
+               Used   -> error "Attempted to switch to used SCont!"
+               Usable -> do writeIORef ref Used
+                            IO $ \s -> case switch# tso s of s' -> (# s', () #)
 
