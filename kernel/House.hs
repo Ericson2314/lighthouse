@@ -288,12 +288,54 @@ execute3 extra exestate@(netstate,pciState) user =
 
     debugcommands =
       oneof [cmd "lambda" (putStrLn "Too much to abstract!"),
+             cmd "createmv" createmv, -- comparable
+             cmd "takemv" takemv,     -- LwConc is 2x faster
+             cmd "putmv" putmv,       -- LwConc is significantly faster
+             cmd "forkbomb" forkbomb,
+             cmd "forkbomb2" forkbomb2,
+             cmd "block20k" block20k,
+             cmd "hammer1" hammer1,
+             cmd "chanpc10k" (chanpc 10000),
+             cmd "chanpc100k" (chanpc 100000),
+             --cmd "invalid" invalid,
              cmd "preempt" preempt,
              cmd "preempt2" preempt2,
              cmd "preempt3" preempt3,
              cmd "preempt4" preempt4,
              cmd "wastemem" wasteMem <@ number]
       where
+        {- PERFORMANCE TESTS -}
+        createmv = mapM_ newMVar [1..10000000] -- ten million
+        takemv = do mvars <- mapM newMVar [1..100000] -- only 100 thousand
+                    return $! map takeMVar mvars
+                    return ()
+        putmv = do mvars <- sequence (replicate 100000 newEmptyMVar) -- only 100 thousand
+                   return $! zipWith putMVar mvars [1..100000]
+                   return ()
+                   {- hits a blackhole...eventually :)
+        fork100k = do waits <- sequence (replicate 100000 newEmptyMVar)
+                      mapM_ forkH [putMVar done 1 | done <- waits]
+                      mapM_ takeMVar waits
+                      -}
+        forkbomb = mapM_ forkH (replicate 100000 (return ())) -- only 100 thousand
+        forkbomb2 = sequence_ [forkH (cPrint (show i ++ "\n")) >> cPrint ("Just forked " ++ show i ++ "\n") | i <- [1..100]] -- only 100 thousand
+        block20k = do waits <- sequence $! (replicate 20000 newEmptyMVar)
+                      mapM_ forkH [putMVar done 1 | done <- waits]
+                      mapM_ takeMVar waits
+        hammer1 = do cPrint "Wait for the 1. 2. 3. ...\n"
+                     mv <- newMVar 42
+                     forkH (sequence_ (replicate 100000 (readMVar mv)) >> cPrint "1.\n")
+                     forkH (sequence_ (replicate 100000 (readMVar mv)) >> cPrint "2.\n")
+                     forkH (sequence_ (replicate 100000 (readMVar mv)) >> cPrint "3.\n")
+                     return ()
+        chanpc n = do chan <- newChan
+                      forkH (mapM_ (writeChan chan) [1..n])
+                      sequence_ (replicate n (readChan chan))
+
+        -- prints the number of invalid logs/aborted transactions
+        --invalid = do i <- liftIO $ readIORef invalidLogs
+                     --putStrLn (show i ++ " invalid logs")
+
 	preempt = do forkH (putStrLn (repeat 'a'))
 		     putStrLn (repeat 'b')
         p2helper s = do putStr s
