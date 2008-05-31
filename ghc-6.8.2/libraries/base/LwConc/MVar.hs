@@ -36,7 +36,6 @@ module LwConc.MVar
 	, addMVarFinalizer -- :: MVar a -> IO () -> IO ()
 ) where
 
-import LwConc.Substrate
 import LwConc.ConcLib
 import Data.IORef
 import Data.Sequence as Seq

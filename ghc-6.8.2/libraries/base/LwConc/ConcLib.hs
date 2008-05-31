@@ -36,11 +36,7 @@ blackholeHandler = yield
 -- useful when a thread is about to finish - another thread must take its place,
 -- and the RTS cannot schedule one for us.  Called by both forkIO and main.
 yieldAndDie :: IO ()
-yieldAndDie =
-  do maybeThread <- atomically $ tryFetchRunnableThread
-     case maybeThread of
-       Nothing -> error "No threads to run! Invalid." -- maybe just return ()
-       Just newThread -> switch $ \dyingThread -> return newThread
+yieldAndDie = switch $ \dyingThread -> fetchRunnableThread
 
 -- |Pops a thread off the ready queue and returns it, when there is one.
 -- Note that if there is only one thread in the system, and it tries to yield,

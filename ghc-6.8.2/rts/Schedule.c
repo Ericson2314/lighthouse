@@ -122,9 +122,8 @@ static Capability *schedule (Capability *initialCapability, Task *task);
 //
 static void scheduleStartSignalHandlers (Capability *cap);
 static void scheduleCheckBlackHoles (Capability *cap);
-static rtsBool scheduleHandleHeapOverflow( Capability *cap, StgTSO *t );
-static void scheduleHandleStackOverflow( Capability *cap, Task *task, 
-					 StgTSO *t);
+static Capability *scheduleHandleHeapOverflow(Capability *cap);
+static void scheduleHandleStackOverflow(Capability *cap);
 static rtsBool scheduleHandleThreadFinished( Capability *cap, Task *task,
 					     StgTSO *t );
 static Capability *scheduleDoGC(Capability *cap, rtsBool force_major);
@@ -190,9 +189,10 @@ scheduleCheckBlackHoles (Capability *cap)
  * Handle a thread that returned to the scheduler with ThreadHeepOverflow
  * -------------------------------------------------------------------------- */
 
-static rtsBool
-scheduleHandleHeapOverflow( Capability *cap, StgTSO *t )
+static Capability *
+scheduleHandleHeapOverflow(Capability *cap)
 {
+    StgTSO *t = cap->r.rCurrentTSO;
     // did the task ask for a large block?
     if (cap->r.rHpAlloc > BLOCK_SIZE) {
 	// if so, get one and push it on the front of the nursery.
@@ -252,12 +252,7 @@ scheduleHandleHeapOverflow( Capability *cap, StgTSO *t )
 	    // now update the nursery to point to the new block
 	    cap->r.rCurrentNursery = bd;
 	    
-	    // we might be unlucky and have another thread get on the
-	    // run queue before us and steal the large block, but in that
-	    // case the thread will just end up requesting another large
-	    // block.
-	    //pushOnRunQueue(cap,t);
-	    return rtsFalse;  /* not actually GC'ing */
+	    return cap; /* not actually GC'ing */
 	}
     }
     
@@ -265,11 +260,7 @@ scheduleHandleHeapOverflow( Capability *cap, StgTSO *t )
 	       "--<< thread %ld (%s) stopped: HeapOverflow\n", 
 	       (long)t->id, whatNext_strs[t->what_next]);
 
-    //pushOnRunQueue(cap,t);
-    if (cap->r.rCurrentTSO != t)
-        debugBelch("scheduleHandleHeapOverflow: CurrentTSO != t\n");
-    return rtsTrue;
-    /* actual GC is done at the end of the while loop in schedule() */
+    return scheduleDoGC(cap, rtsFalse);
 }
 
 /* -----------------------------------------------------------------------------
@@ -277,31 +268,21 @@ scheduleHandleHeapOverflow( Capability *cap, StgTSO *t )
  * -------------------------------------------------------------------------- */
 
 static void
-scheduleHandleStackOverflow (Capability *cap, Task *task, StgTSO *t)
+scheduleHandleStackOverflow (Capability *cap)
 {
+    StgTSO *t = cap->r.rCurrentTSO;
     debugTrace (DEBUG_sched,
 		"--<< thread %ld (%s) stopped, StackOverflow", 
 		(long)t->id, whatNext_strs[t->what_next]);
 
-    if (t != cap->r.rCurrentTSO)
-        debugBelch("scheduleHandleStackOverflow: called with the wrong TSO\n");
-    /* just adjust the stack for this thread, then pop it back
-     * on the run queue.
-     */
-    { 
-	/* enlarge the stack */
-	StgTSO *new_t = threadStackOverflow(cap, t);
+    /* enlarge the stack */
+    cap->r.rCurrentTSO = threadStackOverflow(cap, t);
 	
-	/* The TSO attached to this Task may have moved, so update the
-	 * pointer to it.
-	 */
-	if (task->tso == t) {
-	    task->tso = new_t;
-	} else {
-            //debugBelch("scheduleHandleStackOverflow: task->tso out of sync.\n");
-        }
-        cap->r.rCurrentTSO = new_t;
-    }
+    /* The TSO attached to this Task may have moved, so update the
+     * pointer to it.
+     */
+    if (cap->running_task->tso == t)
+        cap->running_task->tso = cap->r.rCurrentTSO;
 }
 
 /* -----------------------------------------------------------------------------
@@ -585,13 +566,6 @@ resumeThread (void *task_)
     return &cap->r;
 }
 
-Capability *
-scheduleWaitThread (StgTSO* tso, /*[out]*/HaskellObj* ret, Capability *cap)
-{
-    barf("scheduleWaitThread called - not implemented anymore!\n");
-    return cap; // shouldn't happen actually
-}
-
 /* LwConc scheduling */
 Capability *
 runTheWorld (Capability *cap, HaskellObj closure)
@@ -610,48 +584,37 @@ runTheWorld (Capability *cap, HaskellObj closure)
 
     while (rtsTrue) {
         StgThreadReturnCode ret;
-        rtsBool ready_to_gc = rtsFalse;
 
         dirtyTSO(cap->r.rCurrentTSO);
         switch (cap->r.rCurrentTSO->what_next) {
             case ThreadKilled:
             case ThreadComplete:
-                //debugBelch("RTW[%x]: what_next was ThreadKilled or ThreadComplete\n", cap->r.rCurrentTSO);
+                debugTrace(DEBUG_sched, "RTW[%x]: what_next was ThreadKilled or ThreadComplete\n", cap->r.rCurrentTSO);
                 ret = ThreadFinished;
                 break;
             case ThreadRunGHC:
             {
-                //debugBelch("RTW[%x]: what_next was ThreadRunGHC\n", cap->r.rCurrentTSO);
+                debugBelch("RTW[%x]: what_next was ThreadRunGHC\n", cap->r.rCurrentTSO);
                 StgRegTable *r;
                 r = StgRun((StgFunPtr) stg_returnToStackTop, &cap->r);
                 cap = regTableToCapability(r);
                 ret = r->rRet;
-
-                /*
-                StgRegTable *r_new;
-                ASSERT(cap->r.rCurrentTSO->header.info == &stg_TSO_info);
-                cap->r.rRet = 0;
-                r_new = StgRun((StgFunPtr) stg_returnToStackTop, &cap->r);
-                ASSERT(&cap->r == r_new);
-                ret = cap->r.rRet;
-                */
                 break;
             }
             default:
-                debugBelch("runTheWorld: invalid what_next field\n");
-                ASSERT(rtsFalse);
+                barf("runTheWorld: invalid what_next field\n");
         }
 
         switch (ret)
         {
             case HeapOverflow:
-                //debugBelch("RTW[%x]: ret was HeapOverflow\n", cap->r.rCurrentTSO);
-                ready_to_gc = scheduleHandleHeapOverflow(cap, cap->r.rCurrentTSO);
+                debugTrace(DEBUG_sched, "RTW[%x]: ret was HeapOverflow\n", cap->r.rCurrentTSO);
+                cap = scheduleHandleHeapOverflow(cap);
                 break;
             case StackOverflow:
-                //debugBelch("RTW[%x]: ret was StackOverflow -> ", cap->r.rCurrentTSO);
-                scheduleHandleStackOverflow(cap, cap->running_task, cap->r.rCurrentTSO);
-                //debugBelch("handled: TSO is now %x\n; ", cap->r.rCurrentTSO);
+                debugTrace(DEBUG_sched, "RTW[%x]: ret was StackOverflow -> ", cap->r.rCurrentTSO);
+                scheduleHandleStackOverflow(cap);
+                debugTrace(DEBUG_sched, "handled: TSO is now %x\n; ", cap->r.rCurrentTSO);
                 break;
             case ThreadFinished:
                 // Returning with ThreadFinished is a very dangerous thing...
@@ -663,18 +626,12 @@ runTheWorld (Capability *cap, HaskellObj closure)
                 // For now, this corresponds to shutting down...but it gives
                 // a warning because some code (like exceptions) likely hasn't
                 // been properly converted yet.
-                debugBelch("WARNING: Thread %x returned with ThreadFinished\n", cap->r.rCurrentTSO);
-                return cap;
+                barf("WARNING: Thread %x returned with ThreadFinished\n", cap->r.rCurrentTSO);
+                //exit(0);
             case ThreadBlocked:
                 barf("runTheWorld: got ThreadBlocked return status...should never happen!\n");
             default:
-                debugBelch("runTheWorld: invalid thread return code %d", (int)ret);
-                ASSERT(rtsFalse);
-        }
-
-        if (ready_to_gc) {
-            //debugBelch("RTW[%x]: doing a GC\n", cap->r.rCurrentTSO);
-            cap = scheduleDoGC(cap, rtsFalse);
+                barf("runTheWorld: invalid thread return code %d", (int)ret);
         }
     }
 
