@@ -45,6 +45,7 @@ GHCOPTS = -W -pgmc $(CC) -odir $(ODIR) -hidir $(ODIR) -fglasgow-exts -fallow-und
 HOUSE_SRC= -Icbits -iGadgets/Images -iGadgets -iGadgets/lib House.hs
 
 $(HOUSE):: cobjs $(ODIR)
+	rm -f $(HOUSE)
 	$(GHC) --make -pgml ./ldhouse $(GHCOPTS) $(OPT) $(HOUSE_SRC) $(C_OBJS) -o $@
 	# check if kernel respects the format of a Multiboot (GRUB) kernel
 	mbchk $(HOUSE)

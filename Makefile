@@ -3,16 +3,17 @@ KERNEL = kernel/house
 MKBE2GBF = ./mkbe2gbf
 
 TOP	= $(shell pwd)
-GHCSRC  = ghc-6.2-src.tar.bz2
-GHCMD5  = cc495e263f4384e1d6b38e851bf6eca0
-GHCURL  = http://www.haskell.org/ghc/dist/6.2
-GHCTOP	= $(TOP)/ghc-6.8.2
-#GRUBDIR	= /usr/lib/grub/grub/i386-pc
-#GRUBDIR	= /usr/share/grub/i386-redhat
-#GRUBDIR	= /tmp/grub/share/grub/i386-pc
+GHCVER  = 6.8.2
+GHCSRC  = ghc-$(GHCVER)-src.tar.bz2
+GHCXSRC = ghc-$(GHCVER)-src-extralibs.tar.bz2
+GHCMD5  = 43108417594be7eba0918c459e871e40
+GHCXMD5 = d199c50814188fb77355d41058b8613c
+GHCURL  = http://www.haskell.org/ghc/dist/$(GHCVER)
+GHCTOP	= $(TOP)/ghc-$(GHCVER)
 GRUBDIR	= /boot/grub/
 MPOINT	= $(TOP)/floppy_dir
-FLOPPYSIZE=1440
+# impractical, but stuff is too big for 1440kB floppies. :/
+FLOPPYSIZE=2880
 
 all:
 	@$(MAKE) -C support
@@ -25,77 +26,88 @@ all:
 	@echo "Enter 'make cdrom' now to build an ISO9660 image, which can be written on a CD-R to boot on a PC, and can also be used in an emulator.  Note that this requires mkisofs to be installed."
 	@echo
 
+# Helper function for downloading and checksumming. $(1) = filename, $(2) = md5sum.
+download = @if [ ! -f "$(1)" ]; then\
+	    echo "Downloading $(1)...";\
+	    wget "$(GHCURL)/$(1)";\
+	    echo -n "Testing checksum of $(1)...";\
+	    if echo "$(2)  $(1)" | md5sum -c > /dev/null; then\
+	      echo "OK";\
+	    else\
+	      echo "failed!";\
+	      echo "You will need to fix this problem yourself, sorry.";\
+	      exit 1;\
+	    fi\
+	  fi
+
 boot:
-	# TODO: Rewrite for 6.8.2 patchset
-	#@if [ ! -f $(GHCSRC) ] ; then \
-	  #echo "Downloading $(GHCSRC)..." ;\
-	  #wget $(GHCURL)/$(GHCSRC) ;\
-        #fi
-	#@echo -n "Testing checksum of $(GHCSRC)..."
-	#@if echo "$(GHCMD5)  $(GHCSRC)" | md5sum -c > /dev/null ; then \
-	  #echo OK ;\
-	#else \
-	  #echo "failed!" ;\
-	  #echo "You will need to fix this problem yourself, sorry." ;\
-	  #exit 1 ;\
-	#fi
-	#@if [ -e $(GHCTOP) ] ; then \
-	  #echo "The old directory containing the patched GHC:" ;\
-	  #echo "	$(GHCTOP)" ;\
-	  #echo "will be deleted;  press Return to continue, or Ctrl-C to abort." ;\
-	  #read ;\
-	  #rm -rf $(GHCTOP) ;\
-	#fi
-	#@echo "Unpacking $(GHCSRC)..."
-	#@tar --get --bzip2 --file $(GHCSRC)
-	#@echo "Done.  Now please do 'make'."
+	$(call download,$(GHCSRC),$(GHCMD5))
+	$(call download,$(GHCXSRC),$(GHCXMD5))
+	@if [ -e $(GHCTOP) ] ; then \
+	  echo "The old directory containing the patched GHC:" ;\
+	  echo "	$(GHCTOP)" ;\
+	  echo "will be deleted;  press Return to continue, or Ctrl-C to abort." ;\
+	  read ;\
+	  rm -rf $(GHCTOP) ;\
+	fi
+	@echo "Unpacking $(GHCSRC)..."
+	@tar --get --bzip2 --file $(GHCSRC)
+	@echo "Unpacking $(GHCXSRC)..."
+	@tar --get --bzip2 --file $(GHCXSRC)
+	@echo "Done.  Now please do 'make'."
 
-floppy: hOp.flp
-	@echo
-	@echo "The floppy image is called 'hOp.flp'."
-
-cdrom: hOp.iso
-	@echo
-	@echo "The cdrom image is called 'hOp.iso'."
-
-#patch-stamp: standalone.diff
-patch-stamp:
-	@if test ! -d $(GHCTOP); then \
-		echo "No 'ghc-6.8.2' directory found." ; \
-		echo "Please use 'make boot' to download and unpack GHC 6.8.2" ; \
-		echo "(or do it yourself if you have ghc-6.8.2-src.tar.bz2 handy)."; \
+patch:
+	@if [ ! -d $(GHCTOP) ]; then \
+		echo "No 'ghc-6.8.2' directory found."; \
+		echo "Please use 'make boot' to download and unpack GHC 6.8.2"; \
+		echo "(or do it yourself if you have the sources handy)."; \
 		exit 1; \
 	fi
-	#patch -p0 < standalone.diff
-	touch $@
+	@if [ ! -f patches/halvm-patches.tar.gz ]; then\
+		echo "No 'patches/halvm-patches.tar.gz' file found."; \
+		exit 1; \
+	fi
+	@if [ ! -d $(GHCTOP)/rts/house ]; then\
+		rm -rf patches/halvm;\
+		tar xzf patches/halvm-patches.tar.gz;\
+		mv halvm-patches patches/halvm;\
+		cd $(GHCTOP);\
+		echo "Applying halvm patches...";\
+		for patch in $(TOP)/patches/halvm/*; do sed 's/xen_HOST_OS/house_HOST_OS/g' < $$patch | patch -p1; done;\
+		echo "Applying house patches...";\
+		for patch in $(TOP)/patches/house/*; do patch -p1 < $$patch; done;\
+		cp -pr $(TOP)/patches/new/rts/house rts/;\
+	fi
 
-configure-stamp: build.mk patch-stamp
-	cp build.mk $(GHCTOP)/mk
-	(cd $(GHCTOP) && autoreconf && ./configure --enable-standalone-rts)
-	touch $@
+GHCLIBS = ghc-$(GHCVER)/rts/libHSrts.a ghc-$(GHCVER)/libraries/*/dist/build/libHS*.a
+ghc-$(GHCVER)/config.log: | patch
+	cp build.mk $(GHCTOP)/mk;\
+	cd $(GHCTOP) && autoreconf && ./configure --build=i386-unknown-house;\
 
-ghc-stamp:
-	#(cd $(GHCTOP) && $(MAKE) boot && $(MAKE) all)
-	touch $@
+$(GHCLIBS): ghc-$(GHCVER)/config.log
+	cd $(GHCTOP) && $(MAKE) stage1
 
-# Quick fix:
-ghc-inplace:
-	echo "#!/bin/sh" >ghc-6.8.2/compiler/stage1/ghc-inplace
-	echo "exec $(GHCTOP)/compiler/stage1/ghc-6.8.2 -B$(GHCTOP) \"\$$@\"" >>ghc-6.8.2/compiler/stage1/ghc-inplace
-
-$(KERNEL): ghc-stamp .phony
+$(KERNEL): $(GHCLIBS) .phony
 	$(MAKE) -C kernel
 
 G=$(MPOINT)/boot/grub
 F=$(MPOINT)/fonts.hf
 P=$(MPOINT)/pci.ids.gz
 
-hOp.flp: $G/stage2 $(KERNEL) $G/grub.conf $F $P
-	gzip -9 <$(KERNEL) >$(MPOINT)/boot/kernel
+floppy: House.flp
+	@echo
+	@echo "The floppy image is called 'House.flp'."
+
+cdrom: House.iso
+	@echo
+	@echo "The cdrom image is called 'House.iso'."
+
+House.flp: $G/stage2 kernel/house $G/grub.conf $F $P
+	gzip -9 < kernel/house >$(MPOINT)/boot/kernel
 	$(MKBE2GBF) $(MPOINT) $@ $(FLOPPYSIZE) $(GRUBDIR)
 
 osker.flp: $G/stage2 kernel/osker $G/grub.conf $F $P
-	gzip -9 <kernel/osker >$(MPOINT)/boot/kernel
+	gzip -9 < kernel/osker >$(MPOINT)/boot/kernel
 	$(MKBE2GBF) $(MPOINT) $@ $(FLOPPYSIZE) $(GRUBDIR)
 
 kernel/osker: ghc-stamp .phony
@@ -124,7 +136,7 @@ $P:
 stage2:
 	wget http://www.cse.ogi.edu/~hallgren/House/stage2
 
-hOp.iso: hOp.flp
+House.iso: hOp.flp
 	rm -rf iso
 	mkdir iso
 	ln hOp.flp iso/
@@ -136,8 +148,7 @@ clean:
 
 distclean:
 	$(MAKE) -C support clean
-	rm -rf ghc-6.8.2 ghc-6.2-src.tar.bz2 ghc-stamp glafp-utils-stamp \
-		configure-stamp patch-stamp
+	rm -rf ghc-$(GHCVER) $(GHCSRC) $(GHCXSRC) $(GHCTOP)/stamp patches/halvm
 
 .phony:
 	# dummy target to force rebuilding
