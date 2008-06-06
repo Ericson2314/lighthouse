@@ -1454,6 +1454,14 @@ primop  SetTLSOp "setTLS#" GenPrimOp
    has_side_effects = True
    out_of_line      = True
 
+primop  RestoreHsIRQsOp "restoreHsIRQs#" GenPrimOp
+   Int# -> State# RealWorld -> State# RealWorld
+   with has_side_effects = True
+
+primop  DisableHsIRQsOp "disableHsIRQs#" GenPrimOp
+   State# RealWorld -> (# State# RealWorld, Int# #)
+   with has_side_effects = True
+
 ------------------------------------------------------------------------
 section "Weak pointers"
 ------------------------------------------------------------------------

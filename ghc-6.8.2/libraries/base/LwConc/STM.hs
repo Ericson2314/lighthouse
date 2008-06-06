@@ -16,18 +16,26 @@ module LwConc.STM
 , readTVar
 , writeTVar
 , unsafeIOToSTM
+, disableHsIRQs
+, restoreHsIRQs
 ) where
 
 import Prelude hiding (catch)
 import Control.Exception
 import Data.IORef
 import Data.List(find)
-import GHC.Prim(reallyUnsafePtrEquality#)
+import GHC.Prim(reallyUnsafePtrEquality#, disableHsIRQs#, restoreHsIRQs#)
+import GHC.IOBase(IO(..))
 import Unsafe.Coerce
-import Foreign.C.Types(CInt)
 
-foreign import ccall unsafe allowHaskellInterrupts :: CInt -> IO ()
-foreign import ccall unsafe disallowHaskellInterrupts :: IO CInt
+disableHsIRQs :: IO Bool
+disableHsIRQs = IO $ \s ->
+  case disableHsIRQs# s of
+    (# s', 0# #) -> (# s', False #)
+    (# s', _  #) -> (# s', True  #)
+
+restoreHsIRQs :: Bool -> IO ()
+restoreHsIRQs hsiStatus = IO $ \s -> (# restoreHsIRQs# (if hsiStatus then 1# else 0#) s, () #)
 
 newtype TVar a = TVar (IORef a)
   deriving Eq
@@ -47,9 +55,9 @@ atomically (STM m) =
   do r <- newIORef []
      a <- m r `catch` \ex -> do
             log <- readIORef r
-            hsiStatus <- disallowHaskellInterrupts
+            hsiStatus <- disableHsIRQs
             ok <- validate_log log
-            allowHaskellInterrupts hsiStatus
+            restoreHsIRQs hsiStatus
             if ok
                then throw ex -- propagate exception out of atomically block
                else do -- exception may have been due to fact that we saw an
@@ -57,13 +65,13 @@ atomically (STM m) =
                        writeIORef r []
                        atomically (STM m)
      log <- readIORef r
-     hsiStatus <- disallowHaskellInterrupts
+     hsiStatus <- disableHsIRQs
      ok <- validate_log log
      if ok
         then do commit_log log
-                allowHaskellInterrupts hsiStatus
+                restoreHsIRQs hsiStatus
                 return a
-        else do allowHaskellInterrupts hsiStatus
+        else do restoreHsIRQs hsiStatus
                 atomically (STM m)
 
 {-# INLINE unsafeIOToSTM #-}

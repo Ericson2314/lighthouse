@@ -307,18 +307,6 @@ int getPendingIRQ()
     return -1;
 }
 
-void allowHaskellInterrupts(int flag)
-{
-    allow_haskell_interrupts = flag;
-}
-
-int disallowHaskellInterrupts()
-{
-    int a = allow_haskell_interrupts;
-    allow_haskell_interrupts = 0;
-    return a;
-}
-
 void initPIC(StgWord8 pic1, StgWord8 pic2)
 {
   // configure PICs and mask all IRQs

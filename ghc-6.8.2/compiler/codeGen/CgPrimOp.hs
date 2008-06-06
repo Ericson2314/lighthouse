@@ -148,6 +148,14 @@ emitPrimOp [] WriteMutVarOp [mutv,var] live
                 NoC_SRT -- No SRT b/c we do PlayRisky
                 CmmMayReturn
 
+emitPrimOp [] RestoreHsIRQsOp [arg] live
+   = stmtC $ CmmStore (mkLblExpr (mkRtsDataLabel SLIT("allow_haskell_interrupts"))) arg
+
+emitPrimOp [res] DisableHsIRQsOp [] live
+   = stmtsC [CmmAssign (CmmLocal res) (CmmLoad allowed cIntRep),
+             CmmStore allowed (CmmLit (mkIntCLit 0))]
+   where allowed = (mkLblExpr (mkRtsDataLabel SLIT("allow_haskell_interrupts")))
+
 --  #define sizzeofByteArrayzh(r,a) \
 --     r = (((StgArrWords *)(a))->words * sizeof(W_))
 emitPrimOp [res] SizeofByteArrayOp [arg] live
