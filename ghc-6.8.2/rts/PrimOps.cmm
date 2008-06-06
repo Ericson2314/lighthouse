@@ -972,12 +972,6 @@ newSContzh_fast
   RET_P(tso);
 }
 
-getTSOzh_fast
-{
-  /* no args. */
-  RET_P(CurrentTSO);
-}
-
 newTLSKeyzh_fast
 { /* args: R1 = closure as default */
   MAYBE_GC(R1_PTR, newTLSKeyzh_fast);

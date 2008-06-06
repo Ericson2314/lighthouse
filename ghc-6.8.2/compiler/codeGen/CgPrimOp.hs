@@ -156,6 +156,9 @@ emitPrimOp [res] DisableHsIRQsOp [] live
              CmmStore allowed (CmmLit (mkIntCLit 0))]
    where allowed = (mkLblExpr (mkRtsDataLabel SLIT("allow_haskell_interrupts")))
 
+emitPrimOp [res] GetTSOOp [] live
+   = stmtC $ CmmAssign (CmmLocal res) (CmmReg (CmmGlobal CurrentTSO))
+
 --  #define sizzeofByteArrayzh(r,a) \
 --     r = (((StgArrWords *)(a))->words * sizeof(W_))
 emitPrimOp [res] SizeofByteArrayOp [arg] live

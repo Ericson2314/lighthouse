@@ -1426,11 +1426,8 @@ primop  SwitchOp "switch#" GenPrimOp
    has_side_effects = True
    out_of_line = True
 
--- This really should be inline, but I'm not sure how to do that properly.
 primop  GetTSOOp "getTSO#" GenPrimOp
    State# RealWorld -> (# State# RealWorld, TSO# #)
-   with
-   out_of_line = True
 
 primop  NewSContOp "newSCont#" GenPrimOp
    a -> State# RealWorld -> (# State# RealWorld, TSO# #)
