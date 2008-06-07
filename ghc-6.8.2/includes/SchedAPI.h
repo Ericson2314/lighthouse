@@ -24,9 +24,6 @@ StgTSO *createThread (Capability *cap, nat stack_size, StgInt pri);
 StgTSO *createThread (Capability *cap, nat stack_size);
 #endif
 
-Capability *scheduleWaitThread (StgTSO *tso, /*out*/HaskellObj* ret,
-				Capability *cap);
-
 StgTSO *createGenThread       (Capability *cap, nat stack_size,  
 			       StgClosure *closure);
 StgTSO *createIOThread        (Capability *cap, nat stack_size,  

@@ -101,7 +101,6 @@ createThread(Capability *cap, nat size)
     tso->flags = TSO_DIRTY;
     
     tso->saved_errno = 0;
-    tso->bound = NULL;
     tso->cap = cap;
     tso->tls_max = 0;
     
@@ -747,40 +746,6 @@ printThreadStatus(StgTSO *t)
 	}
 	debugBelch("\n");
     }
-}
-
-void
-printAllThreads(void)
-{
-  StgTSO *t, *next;
-  nat i;
-  Capability *cap;
-
-# if defined(GRAN)
-  char time_string[TIME_STR_LEN], node_str[NODE_STR_LEN];
-  ullong_format_string(TIME_ON_PROC(CurrentProc), 
-		       time_string, rtsFalse/*no commas!*/);
-
-  debugBelch("all threads at [%s]:\n", time_string);
-# elif defined(PARALLEL_HASKELL)
-  char time_string[TIME_STR_LEN], node_str[NODE_STR_LEN];
-  ullong_format_string(CURRENT_TIME,
-		       time_string, rtsFalse/*no commas!*/);
-
-  debugBelch("all threads at [%s]:\n", time_string);
-# endif
-}
-
-// useful from gdb
-void 
-printThreadQueue(StgTSO *t)
-{
-    nat i = 0;
-    for (; t != END_TSO_QUEUE; t = t->link) {
-	printThreadStatus(t);
-	i++;
-    }
-    debugBelch("%d threads on queue\n", i);
 }
 
 /* 

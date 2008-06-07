@@ -31,8 +31,6 @@ StgBool isThreadBound (StgTSO* tso);
 #ifdef DEBUG
 void printThreadBlockage (StgTSO *tso);
 void printThreadStatus (StgTSO *t);
-void printAllThreads (void);
-void printThreadQueue (StgTSO *t);
 # if defined(PARALLEL_HASKELL)
 void print_bq (StgClosure *node);
 void print_bqe (StgBlockingQueueElement *bqe);

@@ -467,9 +467,6 @@ hs_exit_(rtsBool wait_foreign)
     // also outputs the stats (+RTS -s) info.
     exitStorage();
     
-    /* free the tasks */
-    freeScheduler();
-
     /* free shared Typeable store */
     exitTypeableStore();
 

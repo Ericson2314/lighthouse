@@ -902,16 +902,6 @@ compact(void)
 	}
     }
 
-    // the task list
-    {
-	Task *task;
-	for (task = all_tasks; task != NULL; task = task->all_link) {
-	    if (task->tso) {
-		thread_(&task->tso);
-	    }
-	}
-    }
-
     // the static objects
     thread_static(scavenged_static_objects);
 

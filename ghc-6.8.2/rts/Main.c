@@ -12,10 +12,10 @@
 #include "Rts.h"
 #include "RtsAPI.h"
 #include "SchedAPI.h"
+#include "Schedule.h"
 #include "RtsFlags.h"
 #include "RtsUtils.h"
 #include "Prelude.h"
-#include "Task.h"
 #if defined(mingw32_HOST_OS)
 #include "win32/seh_excn.h"
 #endif
@@ -106,44 +106,11 @@ static void real_main(void)
 #  else /* !PAR && !GRAN */
 
     /* ToDo: want to start with a larger stack size */
-    { 
-        // KAYDEN: This is the main entry point, where things get set up
-        //         ... rts_evalLazyIO creates a TSO (using the same method
-        //         as newSCont: createIOThread), and passes it off to
-        //         scheduleWaitThread, which sticks it on the capability's
-        //         run queue, starts the scheduler, and off we go...
-	Capability *cap = rts_lock();
-	cap = rts_evalLazyIO(cap,(HaskellObj)(void *)mainIO_closure, NULL);
-	status = rts_getSchedStatus(cap);
-	taskTimeStamp(myTask());
-	rts_unlock(cap);
-    }
+    runTheWorld((HaskellObj)(void *) mainIO_closure);
 
-#  endif /* !PAR && !GRAN */
+#  endif
 
-    /* check the status of the entire Haskell computation */
-    switch (status) {
-    case Killed:
-      errorBelch("main thread exited (uncaught exception)");
-      exit_status = EXIT_KILLED;
-      break;
-    case Interrupted:
-      errorBelch("interrupted");
-      exit_status = EXIT_INTERRUPTED;
-      break;
-    case Success:
-      exit_status = EXIT_SUCCESS;
-      break;
-#if defined(PAR)
-    case NoStatus:
-      errorBelch("main thread PE killed; probably due to failure of another PE; check /tmp/pvml...");
-      exit_status = EXIT_KILLED;
-      break;
-#endif 
-    default:
-      barf("main thread completed with invalid status");
-    }
-    shutdownHaskellAndExit(exit_status);
+    shutdownHaskellAndExit(EXIT_SUCCESS);
 }
 int main(int argc, char *argv[])
 {

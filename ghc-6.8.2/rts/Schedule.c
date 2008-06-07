@@ -33,7 +33,6 @@
 #include "ProfHeap.h"
 #include "Sparks.h"
 #include "Capability.h"
-#include "Task.h"
 #include "AwaitEvent.h"
 #if defined(mingw32_HOST_OS)
 #include "win32/IOManager.h"
@@ -85,11 +84,6 @@ rtsBool blackholes_need_checking = rtsFalse;
  */
 nat recent_activity = ACTIVITY_YES;
 
-/* if this flag is set as well, give up execution
- * LOCK: none (changes once, from false->true)
- */
-rtsBool sched_state = SCHED_RUNNING;
-
 /*  This is used in `TSO.h' and gcc 2.96 insists that this variable actually 
  *  exists - earlier gccs apparently didn't.
  *  -= chak
@@ -112,8 +106,6 @@ rtsBool shutting_down_scheduler = rtsFalse;
  * static function prototypes
  * -------------------------------------------------------------------------- */
 
-static Capability *schedule (Capability *initialCapability, Task *task);
-
 //
 // These function all encapsulate parts of the scheduler loop, and are
 // abstracted only to make the structure and control flow of the
@@ -123,8 +115,6 @@ static void scheduleStartSignalHandlers (Capability *cap);
 static void scheduleCheckBlackHoles (Capability *cap);
 static Capability *scheduleHandleHeapOverflow(Capability *cap);
 static void scheduleHandleStackOverflow(Capability *cap);
-static rtsBool scheduleHandleThreadFinished( Capability *cap, Task *task,
-					     StgTSO *t );
 static Capability *scheduleDoGC(Capability *cap, rtsBool force_major);
 
 static rtsBool checkBlackHoles(Capability *cap);
@@ -192,7 +182,7 @@ static Capability *
 scheduleHandleHeapOverflow(Capability *cap)
 {
     StgTSO *t = cap->r.rCurrentTSO;
-    // did the task ask for a large block?
+    // did the thread ask for a large block?
     if (cap->r.rHpAlloc > BLOCK_SIZE) {
 	// if so, get one and push it on the front of the nursery.
 	bdescr *bd;
@@ -276,12 +266,6 @@ scheduleHandleStackOverflow (Capability *cap)
 
     /* enlarge the stack */
     cap->r.rCurrentTSO = threadStackOverflow(cap, t);
-	
-    /* The TSO attached to this Task may have moved, so update the
-     * pointer to it.
-     */
-    if (cap->running_task->tso == t)
-        cap->running_task->tso = cap->r.rCurrentTSO;
 }
 
 /* -----------------------------------------------------------------------------
@@ -297,8 +281,6 @@ scheduleDoGC (Capability *cap, rtsBool force_major)
     // so this happens periodically:
     if (cap) scheduleCheckBlackHoles(cap);
     
-    IF_DEBUG(scheduler, printAllThreads());
-
     /* everybody back, start the GC.
      * Could do it in this thread, or signal a condition var
      * to do it in another thread.  Either way, we need to
@@ -309,277 +291,14 @@ scheduleDoGC (Capability *cap, rtsBool force_major)
     return cap;
 }
 
-/* ---------------------------------------------------------------------------
- * Singleton fork(). Do not copy any running threads.
- * ------------------------------------------------------------------------- */
-
-pid_t
-forkProcess(HsStablePtr *entry
-#ifndef FORKPROCESS_PRIMOP_SUPPORTED
-	    STG_UNUSED
-#endif
-           )
+void
+runTheWorld (HaskellObj closure)
 {
-#ifdef FORKPROCESS_PRIMOP_SUPPORTED
-    Task *task;
-    pid_t pid;
-    StgTSO* t,*next;
-    Capability *cap;
-    
-    debugTrace(DEBUG_sched, "forking!");
-    
-    // ToDo: for SMP, we should probably acquire *all* the capabilities
-    cap = rts_lock();
-    
-    // no funny business: hold locks while we fork, otherwise if some
-    // other thread is holding a lock when the fork happens, the data
-    // structure protected by the lock will forever be in an
-    // inconsistent state in the child.  See also #1391.
-    ACQUIRE_LOCK(&sched_mutex);
-    ACQUIRE_LOCK(&cap->lock);
-    ACQUIRE_LOCK(&cap->running_task->lock);
-
-    pid = fork();
-    
-    if (pid) { // parent
-	
-        RELEASE_LOCK(&sched_mutex);
-        RELEASE_LOCK(&cap->lock);
-        RELEASE_LOCK(&cap->running_task->lock);
-
-	// just return the pid
-	rts_unlock(cap);
-	return pid;
-	
-    } else { // child
-	
-	// Now, all OS threads except the thread that forked are
-	// stopped.  We need to stop all Haskell threads, including
-	// those involved in foreign calls.  Also we need to delete
-	// all Tasks, because they correspond to OS threads that are
-	// now gone.
-
-	for (t = all_threads; t != END_TSO_QUEUE; t = next) {
-	    if (t->what_next == ThreadRelocated) {
-		next = t->link;
-	    } else {
-		next = t->global_link;
-		// don't allow threads to catch the ThreadKilled
-		// exception, but we do want to raiseAsync() because these
-		// threads may be evaluating thunks that we need later.
-		deleteThread_(cap,t);
-	    }
-	}
-	
-	// Any suspended C-calling Tasks are no more, their OS threads
-	// don't exist now:
-	cap->suspended_ccalling_tasks = NULL;
-
-	// Empty the all_threads list.  Otherwise, the garbage
-	// collector may attempt to resurrect some of these threads.
-	all_threads = END_TSO_QUEUE;
-
-	// Wipe the task list, except the current Task.
-	ACQUIRE_LOCK(&sched_mutex);
-	for (task = all_tasks; task != NULL; task=task->all_link) {
-	    if (task != cap->running_task) {
-		discardTask(task);
-	    }
-	}
-	RELEASE_LOCK(&sched_mutex);
-
-        // On Unix, all timers are reset in the child, so we need to start
-        // the timer again.
-        initTimer();
-        startTimer();
-
-	cap = rts_evalStableIO(cap, entry, NULL);  // run the action
-	rts_checkSchedStatus("forkProcess",cap);
-	
-	rts_unlock(cap);
-	hs_exit();                      // clean up and exit
-	stg_exit(EXIT_SUCCESS);
-    }
-#else /* !FORKPROCESS_PRIMOP_SUPPORTED */
-    barf("forkProcess#: primop not supported on this platform, sorry!\n");
-    return -1;
-#endif
-}
-
-/* -----------------------------------------------------------------------------
-   Managing the suspended_ccalling_tasks list.
-   Locks required: sched_mutex
-   -------------------------------------------------------------------------- */
-
-STATIC_INLINE void
-suspendTask (Capability *cap, Task *task)
-{
-    ASSERT(task->next == NULL && task->prev == NULL);
-    task->next = cap->suspended_ccalling_tasks;
-    task->prev = NULL;
-    if (cap->suspended_ccalling_tasks) {
-	cap->suspended_ccalling_tasks->prev = task;
-    }
-    cap->suspended_ccalling_tasks = task;
-}
-
-STATIC_INLINE void
-recoverSuspendedTask (Capability *cap, Task *task)
-{
-    if (task->prev) {
-	task->prev->next = task->next;
-    } else {
-	ASSERT(cap->suspended_ccalling_tasks == task);
-	cap->suspended_ccalling_tasks = task->next;
-    }
-    if (task->next) {
-	task->next->prev = task->prev;
-    }
-    task->next = task->prev = NULL;
-}
-
-/* ---------------------------------------------------------------------------
- * Suspending & resuming Haskell threads.
- * 
- * When making a "safe" call to C (aka _ccall_GC), the task gives back
- * its capability before calling the C function.  This allows another
- * task to pick up the capability and carry on running Haskell
- * threads.  It also means that if the C call blocks, it won't lock
- * the whole system.
- *
- * The Haskell thread making the C call is put to sleep for the
- * duration of the call, on the susepended_ccalling_threads queue.  We
- * give out a token to the task, which it can use to resume the thread
- * on return from the C function.
- * ------------------------------------------------------------------------- */
-   
-void *
-suspendThread (StgRegTable *reg)
-{
-  Capability *cap;
-  int saved_errno;
-  StgTSO *tso;
-  Task *task;
-#if mingw32_HOST_OS
-  StgWord32 saved_winerror;
-#endif
-
-  saved_errno = errno;
-#if mingw32_HOST_OS
-  saved_winerror = GetLastError();
-#endif
-
-  /* assume that *reg is a pointer to the StgRegTable part of a Capability.
-   */
-  cap = regTableToCapability(reg);
-
-  task = cap->running_task;
-  tso = cap->r.rCurrentTSO;
-
-  debugTrace(DEBUG_sched, 
-	     "thread %lu did a safe foreign call", 
-	     (unsigned long)cap->r.rCurrentTSO->id);
-
-  // XXX this might not be necessary --SDM
-  tso->what_next = ThreadRunGHC;
-
-  threadPaused(cap,tso);
-
-  if ((tso->flags & TSO_BLOCKEX) == 0)  {
-      tso->why_blocked = BlockedOnCCall;
-      tso->flags |= TSO_BLOCKEX;
-      tso->flags &= ~TSO_INTERRUPTIBLE;
-  } else {
-      tso->why_blocked = BlockedOnCCall_NoUnblockExc;
-  }
-
-  // Hand back capability
-  task->suspended_tso = tso;
-
-  ACQUIRE_LOCK(&cap->lock);
-
-  suspendTask(cap,task);
-  cap->in_haskell = rtsFalse;
-  releaseCapability_(cap);
-  
-  RELEASE_LOCK(&cap->lock);
-
-  errno = saved_errno;
-#if mingw32_HOST_OS
-  SetLastError(saved_winerror);
-#endif
-  return task;
-}
-
-StgRegTable *
-resumeThread (void *task_)
-{
-    StgTSO *tso;
-    Capability *cap;
-    Task *task = task_;
-    int saved_errno;
-#if mingw32_HOST_OS
-    StgWord32 saved_winerror;
-#endif
-
-    saved_errno = errno;
-#if mingw32_HOST_OS
-    saved_winerror = GetLastError();
-#endif
-
-    cap = task->cap;
-    // Wait for permission to re-enter the RTS with the result.
-    waitForReturnCapability(&cap,task);
-    // we might be on a different capability now... but if so, our
-    // entry on the suspended_ccalling_tasks list will also have been
-    // migrated.
-
-    // Remove the thread from the suspended list
-    recoverSuspendedTask(cap,task);
-
-    tso = task->suspended_tso;
-    task->suspended_tso = NULL;
-    tso->link = END_TSO_QUEUE;
-    debugTrace(DEBUG_sched, "thread %lu: re-entering RTS", (unsigned long)tso->id);
-    
-    if (tso->why_blocked == BlockedOnCCall) {
-	awakenBlockedExceptionQueue(cap,tso);
-	tso->flags &= ~(TSO_BLOCKEX | TSO_INTERRUPTIBLE);
-    }
-    
-    /* Reset blocking status */
-    tso->why_blocked  = NotBlocked;
-    
-    cap->r.rCurrentTSO = tso;
-    cap->in_haskell = rtsTrue;
-    errno = saved_errno;
-#if mingw32_HOST_OS
-    SetLastError(saved_winerror);
-#endif
-
-    /* We might have GC'd, mark the TSO dirty again */
-    dirtyTSO(tso);
-
-    IF_DEBUG(sanity, checkTSO(tso));
-
-    return &cap->r;
-}
-
-/* LwConc scheduling */
-Capability *
-runTheWorld (Capability *cap, HaskellObj closure)
-{
-    // need to start signal handlers here somewhere...
+    Capability *cap = &MainCapability;
 
     cap->r.rCurrentTSO = createIOThread(cap, RtsFlags.GcFlags.initialStkSize, closure);
 
-    // This TSO is now a bound thread; make the Task and TSO
-    // point to each other.
-    cap->r.rCurrentTSO->bound = cap->running_task;
     cap->r.rCurrentTSO->cap = cap;
-
-    cap->running_task->tso = cap->r.rCurrentTSO;
-    cap->running_task->stat = NoStatus;
 
     while (rtsTrue) {
         StgThreadReturnCode ret;
@@ -633,13 +352,22 @@ runTheWorld (Capability *cap, HaskellObj closure)
                 barf("runTheWorld: invalid thread return code %d", (int)ret);
         }
     }
-
-    return cap;
 }
 
-/* ----------------------------------------------------------------------------
- * Starting Tasks
- * ------------------------------------------------------------------------- */
+void *
+suspendThread (StgRegTable *reg)
+{
+    debugTrace(DEBUG_sched, "HEC %p makes an out-call, deactivated\n", regTableToCapability(reg));
+    return reg;
+}
+
+StgRegTable *
+resumeThread (void *reg)
+{
+    dirtyTSO(((StgRegTable*)reg)->rCurrentTSO);
+    debugTrace(DEBUG_sched, "HEC %p returns from an out-call, activated\n", regTableToCapability(reg));
+    return reg;
+}
 
 /* ---------------------------------------------------------------------------
  * initScheduler()
@@ -655,7 +383,6 @@ initScheduler(void)
 {
   blackhole_queue   = END_TSO_QUEUE;
 
-  sched_state    = SCHED_RUNNING;
   recent_activity = ACTIVITY_YES;
 
   ACQUIRE_LOCK(&sched_mutex);
@@ -665,8 +392,6 @@ initScheduler(void)
    * floating around (only THREADED_RTS builds have more than one).
    */
   initCapabilities();
-
-  initTaskManager();
 
   trace(TRACE_sched, "start: %d capabilities", n_capabilities);
 
@@ -682,25 +407,9 @@ exitScheduler(
 )
                /* see Capability.c, shutdownCapability() */
 {
-    Task *task = NULL;
-
-    // If we haven't killed all the threads yet, do it now.
-    if (sched_state < SCHED_SHUTTING_DOWN) {
-	sched_state = SCHED_INTERRUPTING;
-	scheduleDoGC(NULL,rtsFalse);
-    }
-    sched_state = SCHED_SHUTTING_DOWN;
+    scheduleDoGC(NULL,rtsFalse);
 
     freeCapability(&MainCapability);
-}
-
-void
-freeScheduler( void )
-{
-    freeTaskManager();
-    if (n_capabilities != 1) {
-        stgFree(capabilities);
-    }
 }
 
 /* ---------------------------------------------------------------------------
@@ -721,7 +430,6 @@ GetRoots( evac_fn evac )
 {
     nat i;
     Capability *cap;
-    Task *task;
 
     // Evacuate the TLS
     GetTLSRoots(evac);
@@ -735,24 +443,7 @@ GetRoots( evac_fn evac )
 	cap = &capabilities[i];
         temp = &cap->r.rCurrentTSO;
         evac(temp);
-
-	for (task = cap->suspended_ccalling_tasks; task != NULL; 
-	     task=task->next) {
-	    debugTrace(DEBUG_sched,
-		       "evac'ing suspended TSO %lu", (unsigned long)task->suspended_tso->id);
-	    evac((StgClosure **)(void *)&task->suspended_tso);
-	}
-
     }
-
-    // evac((StgClosure **)&blackhole_queue);
-
-#if defined(RTS_USER_SIGNALS)
-    // mark the signal handlers (signals should be already blocked)
-    if (RtsFlags.MiscFlags.install_signal_handlers) {
-        markSignalHandlers(evac);
-    }
-#endif
 }
 
 /* -----------------------------------------------------------------------------
@@ -763,30 +454,16 @@ GetRoots( evac_fn evac )
    collect when called from Haskell via _ccall_GC.
    -------------------------------------------------------------------------- */
 
-static void
-performGC_(rtsBool force_major)
-{
-    Task *task;
-    // We must grab a new Task here, because the existing Task may be
-    // associated with a particular Capability, and chained onto the 
-    // suspended_ccalling_tasks queue.
-    ACQUIRE_LOCK(&sched_mutex);
-    task = newBoundTask();
-    RELEASE_LOCK(&sched_mutex);
-    scheduleDoGC(NULL,force_major);
-    boundTaskExiting(task);
-}
-
 void
 performGC(void)
 {
-    performGC_(rtsFalse);
+    scheduleDoGC(NULL, rtsFalse);
 }
 
 void
 performMajorGC(void)
 {
-    performGC_(rtsTrue);
+    scheduleDoGC(NULL, rtsTrue);
 }
 
 /* -----------------------------------------------------------------------------

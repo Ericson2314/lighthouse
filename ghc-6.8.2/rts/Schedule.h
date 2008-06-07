@@ -19,26 +19,6 @@
  */
 void initScheduler (void);
 void exitScheduler (rtsBool wait_foreign);
-void freeScheduler (void);
-
-Capability * runTheWorld (Capability *cap, HaskellObj closure);
-
-/* awakenBlockedQueue()
- *
- * Takes a pointer to the beginning of a blocked TSO queue, and
- * wakes up the entire queue.
- * Called from STG :  yes
- * Locks assumed   :  none
- */
-void awakenBlockedQueue (Capability *cap, StgTSO *tso);
-
-/* unblockOne()
- *
- * Put the specified thread on the run queue of the given Capability.
- * Called from STG :  yes
- * Locks assumed   :  we own the Capability.
- */
-StgTSO * unblockOne (Capability *cap, StgTSO *tso);
 
 /* raiseExceptionHelper */
 StgWord raiseExceptionHelper (StgRegTable *reg, StgTSO *tso, StgClosure *exception);
@@ -52,18 +32,8 @@ StgWord raiseExceptionHelper (StgRegTable *reg, StgTSO *tso, StgClosure *excepti
  */
 void GetRoots(evac_fn);
 
-/* workerStart()
- * 
- * Entry point for a new worker task.
- * Called from STG :  NO
- * Locks assumed   :  none
- */
-void workerStart(Task *task);
-
 char   *info_type(StgClosure *closure);    // dummy
 char   *info_type_by_ip(StgInfoTable *ip); // dummy
-void    awaken_blocked_queue(StgTSO *q);
-void    initThread(StgTSO *tso, nat stack_size);
 
 /* Flag indicating if any interrupts are pending (and should be handled at the
  * next safe point)
@@ -71,16 +41,6 @@ void    initThread(StgTSO *tso, nat stack_size);
  */
 extern int pending_irqs;
 extern int allow_haskell_interrupts;
-
-/* The state of the scheduler.  This is used to control the sequence
- * of events during shutdown, and when the runtime is interrupted
- * using ^C.
- */
-#define SCHED_RUNNING       0  /* running as normal */
-#define SCHED_INTERRUPTING  1  /* ^C detected, before threads are deleted */
-#define SCHED_SHUTTING_DOWN 2  /* final shutdown */
-
-extern rtsBool RTS_VAR(sched_state);
 
 /* 
  * flag that tracks whether we have done any execution in this time slice.
@@ -109,11 +69,6 @@ extern  StgTSO *RTS_VAR(blocked_queue_hd), *RTS_VAR(blocked_queue_tl);
 extern  StgTSO *RTS_VAR(sleeping_queue);
 #endif
 
-/* Linked list of all threads.
- * Locks required  : sched_mutex
- */
-extern  StgTSO *RTS_VAR(all_threads);
-
 /* Set to rtsTrue if there are threads on the blackhole_queue, and
  * it is possible that one or more of them may be available to run.
  * This flag is set to rtsFalse after we've checked the queue, and
@@ -122,10 +77,6 @@ extern  StgTSO *RTS_VAR(all_threads);
  * Locks required  : none (see scheduleCheckBlackHoles()).
  */
 extern rtsBool blackholes_need_checking;
-
-void resurrectThreads (StgTSO *);
-
-void printAllThreads(void);
 
 /* debugging only 
  */
