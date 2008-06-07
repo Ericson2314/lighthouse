@@ -938,8 +938,14 @@ switchzh_fast
   W_ tso;
 
   /* find target stack */
-  ("ptr" tso) = foreign "C" rts_findRelocatedTSO(R1) [];
+  tso = R1;
+while:
+  if (StgTSO_what_next(tso) == ThreadRelocated::I16) {
+    tso = StgTSO_link(tso);
+    goto while;
+  }
   ASSERT(tso != 0);
+
   if (CInt[allow_haskell_interrupts] == 0) {
     foreign "C" debugBelch("BAD! BAD! BAD! Tried to switch from %x to %x with HSI off!.\n", CurrentTSO, tso);
   }
