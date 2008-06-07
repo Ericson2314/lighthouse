@@ -282,7 +282,6 @@ main(int argc, char *argv[])
     closure_field(StgTSO, id);
     closure_field(StgTSO, cap);
     closure_field(StgTSO, saved_errno);
-    closure_field(StgTSO, trec);
     closure_field(StgTSO, flags);
     closure_field_("StgTSO_CCCS", StgTSO, prof.CCCS);
     tso_field(StgTSO, sp);
@@ -328,24 +327,6 @@ main(int argc, char *argv[])
 
     closure_size(StgMutVar);
     closure_field(StgMutVar, var);
-
-    closure_size(StgAtomicallyFrame);
-    closure_field(StgAtomicallyFrame, code);
-    closure_field(StgAtomicallyFrame, next_invariant_to_check);
-
-    closure_field(StgInvariantCheckQueue, invariant);
-    closure_field(StgInvariantCheckQueue, my_execution);
-    closure_field(StgInvariantCheckQueue, next_queue_entry);
-
-    closure_field(StgAtomicInvariant, code);
-
-    closure_size(StgCatchSTMFrame);
-    closure_field(StgCatchSTMFrame, handler);
-    closure_field(StgCatchSTMFrame, code);
-
-    closure_field(StgTVarWatchQueue, closure);
-    closure_field(StgTVarWatchQueue, next_queue_entry);
-    closure_field(StgTVarWatchQueue, prev_queue_entry);
 
     closure_size(StgWeak);
     closure_field(StgWeak,link);

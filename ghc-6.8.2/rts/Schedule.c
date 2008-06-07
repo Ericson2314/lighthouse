@@ -23,7 +23,6 @@
 #include "RtsSignals.h"
 #include "Sanity.h"
 #include "Stats.h"
-#include "STM.h"
 #include "Timer.h"
 #include "TLS.h"
 #include "Prelude.h"
@@ -594,7 +593,7 @@ runTheWorld (Capability *cap, HaskellObj closure)
                 break;
             case ThreadRunGHC:
             {
-                debugBelch("RTW[%x]: what_next was ThreadRunGHC\n", cap->r.rCurrentTSO);
+                debugTrace(DEBUG_sched, "RTW[%x]: what_next was ThreadRunGHC\n", cap->r.rCurrentTSO);
                 StgRegTable *r;
                 r = StgRun((StgFunPtr) stg_returnToStackTop, &cap->r);
                 cap = regTableToCapability(r);
@@ -998,20 +997,10 @@ raiseExceptionHelper (StgRegTable *reg, StgTSO *tso, StgClosure *exception)
 	    p = next;
 	    continue;
 
-        case ATOMICALLY_FRAME:
-	    debugTrace(DEBUG_stm, "found ATOMICALLY_FRAME at %p", p);
-            tso->sp = p;
-            return ATOMICALLY_FRAME;
-	    
 	case CATCH_FRAME:
 	    tso->sp = p;
 	    return CATCH_FRAME;
 
-        case CATCH_STM_FRAME:
-	    debugTrace(DEBUG_stm, "found CATCH_STM_FRAME at %p", p);
-            tso->sp = p;
-            return CATCH_STM_FRAME;
-	    
 	case STOP_FRAME:
 	    tso->sp = p;
 	    return STOP_FRAME;

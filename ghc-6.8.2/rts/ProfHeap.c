@@ -162,17 +162,11 @@ static char *type_names[] = {
     "RBH",
     "EVACUATED",
     "REMOTE_REF",
-    "TVAR_WATCH_QUEUE",
-    "INVARIANT_CHECK_QUEUE",
-    "ATOMIC_INVARIANT",
-    "TVAR",
-    "TREC_CHUNK",
-    "TREC_HEADER",
-    "ATOMICALLY_FRAME",
-    "CATCH_RETRY_FRAME",
-    "CATCH_STM_FRAME",
     "N_CLOSURE_TYPES"
   };
+#endif
+#if N_CLOSURE_TYPES != 61
+#error Closure types changed: update ClosureFlags.c!
 #endif
 
 /* ----------------------------------------------------------------------------
@@ -1031,36 +1025,6 @@ heapCensusChain( Census *census, bdescr *bd )
 		size = tso_sizeW((StgTSO *)p);
 		break;
 #endif
-
-	    case TREC_HEADER: 
-		prim = rtsTrue;
-		size = sizeofW(StgTRecHeader);
-		break;
-
-	    case TVAR_WATCH_QUEUE:
-		prim = rtsTrue;
-		size = sizeofW(StgTVarWatchQueue);
-		break;
-		
-	    case INVARIANT_CHECK_QUEUE:
-		prim = rtsTrue;
-		size = sizeofW(StgInvariantCheckQueue);
-		break;
-		
-	    case ATOMIC_INVARIANT:
-		prim = rtsTrue;
-		size = sizeofW(StgAtomicInvariant);
-		break;
-		
-	    case TVAR:
-		prim = rtsTrue;
-		size = sizeofW(StgTVar);
-		break;
-		
-	    case TREC_CHUNK:
-		prim = rtsTrue;
-		size = sizeofW(StgTRecChunk);
-		break;
 
 	    default:
 		barf("heapCensus, unknown object: %d", info->type);

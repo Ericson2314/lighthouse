@@ -705,16 +705,10 @@ static char *closure_type_names[] = {
     "RBH",
     "EVACUATED",
     "REMOTE_REF",
-    "TVAR_WATCH_QUEUE",
-    "INVARIANT_CHECK_QUEUE",
-    "ATOMIC_INVARIANT",
-    "TVAR",
-    "TREC_CHUNK",
-    "TREC_HEADER",
-    "ATOMICALLY_FRAME",
-    "CATCH_RETRY_FRAME"
 };
-
+#if N_CLOSURE_TYPES != 61
+#error Closure types changed: update Printer.c!
+#endif
 
 char *
 info_type(StgClosure *closure){ 

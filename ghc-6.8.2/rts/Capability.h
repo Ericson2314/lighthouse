@@ -80,13 +80,6 @@ struct Capability_ {
     StgTSO *wakeup_queue_hd;
     StgTSO *wakeup_queue_tl;
 #endif
-
-    // Per-capability STM-related data
-    StgTVarWatchQueue *free_tvar_watch_queues;
-    StgInvariantCheckQueue *free_invariant_check_queues;
-    StgTRecChunk *free_trec_chunks;
-    StgTRecHeader *free_trec_headers;
-    nat transaction_tokens;
 }; // typedef Capability, defined in RtsAPI.h
 
 

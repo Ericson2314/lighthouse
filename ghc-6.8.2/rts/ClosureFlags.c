@@ -86,17 +86,9 @@ StgWord16 closure_flags[] = {
 /* FETCH_ME_BQ          = */ ( 	        _NS|         _MUT|_UPT           ),
 /* RBH                  = */ ( 	        _NS|         _MUT|_UPT           ),
 /* EVACUATED		= */ ( 0                                         ),
-/* REMOTE_REF		= */ (_HNF|     _NS|              _UPT           ),
-/* TVAR_WATCH_QUEUE     = */ (          _NS|         _MUT|_UPT           ),
-/* INVARIANT_CHECK_QUEUE= */ (          _NS|         _MUT|_UPT           ),
-/* ATOMIC_INVARIANT     = */ (          _NS|         _MUT|_UPT           ),
-/* TVAR                 = */ (_HNF|     _NS|         _MUT|_UPT           ), 
-/* TREC_CHUNK           = */ (          _NS|         _MUT|_UPT           ),
-/* TREC_HEADER          = */ (          _NS|         _MUT|_UPT           ),
-/* ATOMICALLY_FRAME     = */ (     _BTM                                  ),
-/* CATCH_STM_FRAME      = */ (     _BTM                                  )
+/* REMOTE_REF		= */ (_HNF|     _NS|              _UPT           )
 };
 
-#if N_CLOSURE_TYPES != 69
+#if N_CLOSURE_TYPES != 61
 #error Closure types changed: update ClosureFlags.c!
 #endif

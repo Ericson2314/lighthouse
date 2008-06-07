@@ -146,9 +146,6 @@ scavengeTSO (StgTSO *tso)
 	tso->link = (StgTSO *)evacuate((StgClosure *)tso->link);
     }
 
-    // scavange current transaction record
-    tso->trec = (StgTRecHeader *)evacuate((StgClosure *)tso->trec);
-    
     // scavenge this thread's local state
     StgWord32 i;
     for (i = 0; i < tso->tls_max; i++)
@@ -559,87 +556,6 @@ scavenge(step *stp)
 	break;
     }
 
-    case TVAR_WATCH_QUEUE:
-      {
-	StgTVarWatchQueue *wq = ((StgTVarWatchQueue *) p);
-	evac_gen = 0;
-	wq->closure = (StgClosure*)evacuate((StgClosure*)wq->closure);
-	wq->next_queue_entry = (StgTVarWatchQueue *)evacuate((StgClosure*)wq->next_queue_entry);
-	wq->prev_queue_entry = (StgTVarWatchQueue *)evacuate((StgClosure*)wq->prev_queue_entry);
-	evac_gen = saved_evac_gen;
-	failed_to_evac = rtsTrue; // mutable
-	p += sizeofW(StgTVarWatchQueue);
-	break;
-      }
-
-    case TVAR:
-      {
-	StgTVar *tvar = ((StgTVar *) p);
-	evac_gen = 0;
-	tvar->current_value = evacuate((StgClosure*)tvar->current_value);
-	tvar->first_watch_queue_entry = (StgTVarWatchQueue *)evacuate((StgClosure*)tvar->first_watch_queue_entry);
-	evac_gen = saved_evac_gen;
-	failed_to_evac = rtsTrue; // mutable
-	p += sizeofW(StgTVar);
-	break;
-      }
-
-    case TREC_HEADER:
-      {
-        StgTRecHeader *trec = ((StgTRecHeader *) p);
-        evac_gen = 0;
-	trec->enclosing_trec = (StgTRecHeader *)evacuate((StgClosure*)trec->enclosing_trec);
-	trec->current_chunk = (StgTRecChunk *)evacuate((StgClosure*)trec->current_chunk);
-	trec->invariants_to_check = (StgInvariantCheckQueue *)evacuate((StgClosure*)trec->invariants_to_check);
-	evac_gen = saved_evac_gen;
-	failed_to_evac = rtsTrue; // mutable
-	p += sizeofW(StgTRecHeader);
-        break;
-      }
-
-    case TREC_CHUNK:
-      {
-	StgWord i;
-	StgTRecChunk *tc = ((StgTRecChunk *) p);
-	TRecEntry *e = &(tc -> entries[0]);
-	evac_gen = 0;
-	tc->prev_chunk = (StgTRecChunk *)evacuate((StgClosure*)tc->prev_chunk);
-	for (i = 0; i < tc -> next_entry_idx; i ++, e++ ) {
-	  e->tvar = (StgTVar *)evacuate((StgClosure*)e->tvar);
-	  e->expected_value = evacuate((StgClosure*)e->expected_value);
-	  e->new_value = evacuate((StgClosure*)e->new_value);
-	}
-	evac_gen = saved_evac_gen;
-	failed_to_evac = rtsTrue; // mutable
-	p += sizeofW(StgTRecChunk);
-	break;
-      }
-
-    case ATOMIC_INVARIANT:
-      {
-        StgAtomicInvariant *invariant = ((StgAtomicInvariant *) p);
-        evac_gen = 0;
-	invariant->code = (StgClosure *)evacuate(invariant->code);
-	invariant->last_execution = (StgTRecHeader *)evacuate((StgClosure*)invariant->last_execution);
-	evac_gen = saved_evac_gen;
-	failed_to_evac = rtsTrue; // mutable
-	p += sizeofW(StgAtomicInvariant);
-        break;
-      }
-
-    case INVARIANT_CHECK_QUEUE:
-      {
-        StgInvariantCheckQueue *queue = ((StgInvariantCheckQueue *) p);
-        evac_gen = 0;
-	queue->invariant = (StgAtomicInvariant *)evacuate((StgClosure*)queue->invariant);
-	queue->my_execution = (StgTRecHeader *)evacuate((StgClosure*)queue->my_execution);
-	queue->next_queue_entry = (StgInvariantCheckQueue *)evacuate((StgClosure*)queue->next_queue_entry);
-	evac_gen = saved_evac_gen;
-	failed_to_evac = rtsTrue; // mutable
-	p += sizeofW(StgInvariantCheckQueue);
-        break;
-      }
-
     default:
 	barf("scavenge: unimplemented/strange closure type %d @ %p", 
 	     info->type, p);
@@ -909,81 +825,6 @@ linear_scan:
 	    break;
 	}
 
-	case TVAR_WATCH_QUEUE:
-	  {
-	    StgTVarWatchQueue *wq = ((StgTVarWatchQueue *) p);
-	    evac_gen = 0;
-            wq->closure = (StgClosure*)evacuate((StgClosure*)wq->closure);
-	    wq->next_queue_entry = (StgTVarWatchQueue *)evacuate((StgClosure*)wq->next_queue_entry);
-	    wq->prev_queue_entry = (StgTVarWatchQueue *)evacuate((StgClosure*)wq->prev_queue_entry);
-	    evac_gen = saved_evac_gen;
-	    failed_to_evac = rtsTrue; // mutable
-	    break;
-	  }
-	  
-	case TVAR:
-	  {
-	    StgTVar *tvar = ((StgTVar *) p);
-	    evac_gen = 0;
-	    tvar->current_value = evacuate((StgClosure*)tvar->current_value);
-	    tvar->first_watch_queue_entry = (StgTVarWatchQueue *)evacuate((StgClosure*)tvar->first_watch_queue_entry);
-	    evac_gen = saved_evac_gen;
-	    failed_to_evac = rtsTrue; // mutable
-	    break;
-	  }
-	  
-	case TREC_CHUNK:
-	  {
-	    StgWord i;
-	    StgTRecChunk *tc = ((StgTRecChunk *) p);
-	    TRecEntry *e = &(tc -> entries[0]);
-	    evac_gen = 0;
-	    tc->prev_chunk = (StgTRecChunk *)evacuate((StgClosure*)tc->prev_chunk);
-	    for (i = 0; i < tc -> next_entry_idx; i ++, e++ ) {
-	      e->tvar = (StgTVar *)evacuate((StgClosure*)e->tvar);
-	      e->expected_value = evacuate((StgClosure*)e->expected_value);
-	      e->new_value = evacuate((StgClosure*)e->new_value);
-	    }
-	    evac_gen = saved_evac_gen;
-	    failed_to_evac = rtsTrue; // mutable
-	    break;
-	  }
-
-	case TREC_HEADER:
-	  {
-	    StgTRecHeader *trec = ((StgTRecHeader *) p);
-	    evac_gen = 0;
-	    trec->enclosing_trec = (StgTRecHeader *)evacuate((StgClosure*)trec->enclosing_trec);
-	    trec->current_chunk = (StgTRecChunk *)evacuate((StgClosure*)trec->current_chunk);
-  	    trec->invariants_to_check = (StgInvariantCheckQueue *)evacuate((StgClosure*)trec->invariants_to_check);
-	    evac_gen = saved_evac_gen;
-	    failed_to_evac = rtsTrue; // mutable
-	    break;
-	  }
-
-        case ATOMIC_INVARIANT:
-          {
-            StgAtomicInvariant *invariant = ((StgAtomicInvariant *) p);
-            evac_gen = 0;
-	    invariant->code = (StgClosure *)evacuate(invariant->code);
-    	    invariant->last_execution = (StgTRecHeader *)evacuate((StgClosure*)invariant->last_execution);
-	    evac_gen = saved_evac_gen;
-	    failed_to_evac = rtsTrue; // mutable
-            break;
-          }
-
-        case INVARIANT_CHECK_QUEUE:
-          {
-            StgInvariantCheckQueue *queue = ((StgInvariantCheckQueue *) p);
-            evac_gen = 0;
-    	    queue->invariant = (StgAtomicInvariant *)evacuate((StgClosure*)queue->invariant);
-	    queue->my_execution = (StgTRecHeader *)evacuate((StgClosure*)queue->my_execution);
-            queue->next_queue_entry = (StgInvariantCheckQueue *)evacuate((StgClosure*)queue->next_queue_entry);
-	    evac_gen = saved_evac_gen;
-	    failed_to_evac = rtsTrue; // mutable
-            break;
-          }
-
 	default:
 	    barf("scavenge_mark_stack: unimplemented/strange closure type %d @ %p", 
 		 info->type, p);
@@ -1221,81 +1062,6 @@ scavenge_one(StgPtr p)
 	break;
     }
   
-    case TVAR_WATCH_QUEUE:
-      {
-	StgTVarWatchQueue *wq = ((StgTVarWatchQueue *) p);
-	evac_gen = 0;
-        wq->closure = (StgClosure*)evacuate((StgClosure*)wq->closure);
-        wq->next_queue_entry = (StgTVarWatchQueue *)evacuate((StgClosure*)wq->next_queue_entry);
-        wq->prev_queue_entry = (StgTVarWatchQueue *)evacuate((StgClosure*)wq->prev_queue_entry);
-	evac_gen = saved_evac_gen;
-	failed_to_evac = rtsTrue; // mutable
-	break;
-      }
-
-    case TVAR:
-      {
-	StgTVar *tvar = ((StgTVar *) p);
-	evac_gen = 0;
-	tvar->current_value = evacuate((StgClosure*)tvar->current_value);
-        tvar->first_watch_queue_entry = (StgTVarWatchQueue *)evacuate((StgClosure*)tvar->first_watch_queue_entry);
-	evac_gen = saved_evac_gen;
-	failed_to_evac = rtsTrue; // mutable
-	break;
-      }
-
-    case TREC_HEADER:
-      {
-        StgTRecHeader *trec = ((StgTRecHeader *) p);
-        evac_gen = 0;
-	trec->enclosing_trec = (StgTRecHeader *)evacuate((StgClosure*)trec->enclosing_trec);
-	trec->current_chunk = (StgTRecChunk *)evacuate((StgClosure*)trec->current_chunk);
-        trec->invariants_to_check = (StgInvariantCheckQueue *)evacuate((StgClosure*)trec->invariants_to_check);
-	evac_gen = saved_evac_gen;
-	failed_to_evac = rtsTrue; // mutable
-        break;
-      }
-
-    case TREC_CHUNK:
-      {
-	StgWord i;
-	StgTRecChunk *tc = ((StgTRecChunk *) p);
-	TRecEntry *e = &(tc -> entries[0]);
-	evac_gen = 0;
-	tc->prev_chunk = (StgTRecChunk *)evacuate((StgClosure*)tc->prev_chunk);
-	for (i = 0; i < tc -> next_entry_idx; i ++, e++ ) {
-	  e->tvar = (StgTVar *)evacuate((StgClosure*)e->tvar);
-	  e->expected_value = evacuate((StgClosure*)e->expected_value);
-	  e->new_value = evacuate((StgClosure*)e->new_value);
-	}
-	evac_gen = saved_evac_gen;
-	failed_to_evac = rtsTrue; // mutable
-	break;
-      }
-
-    case ATOMIC_INVARIANT:
-    {
-      StgAtomicInvariant *invariant = ((StgAtomicInvariant *) p);
-      evac_gen = 0;
-      invariant->code = (StgClosure *)evacuate(invariant->code);
-      invariant->last_execution = (StgTRecHeader *)evacuate((StgClosure*)invariant->last_execution);
-      evac_gen = saved_evac_gen;
-      failed_to_evac = rtsTrue; // mutable
-      break;
-    }
-
-    case INVARIANT_CHECK_QUEUE:
-    {
-      StgInvariantCheckQueue *queue = ((StgInvariantCheckQueue *) p);
-      evac_gen = 0;
-      queue->invariant = (StgAtomicInvariant *)evacuate((StgClosure*)queue->invariant);
-      queue->my_execution = (StgTRecHeader *)evacuate((StgClosure*)queue->my_execution);
-      queue->next_queue_entry = (StgInvariantCheckQueue *)evacuate((StgClosure*)queue->next_queue_entry);
-      evac_gen = saved_evac_gen;
-      failed_to_evac = rtsTrue; // mutable
-      break;
-    }
-
     case IND_OLDGEN:
     case IND_OLDGEN_PERM:
     case IND_STATIC:
@@ -1617,8 +1383,6 @@ scavenge_stack(StgPtr p, StgPtr stack_end)
 	continue;
 
       // small bitmap (< 32 entries, or 64 on a 64-bit machine) 
-    case CATCH_STM_FRAME:
-    case ATOMICALLY_FRAME:
     case STOP_FRAME:
     case CATCH_FRAME:
     case RET_SMALL:

@@ -30,7 +30,6 @@
 #include "Prelude.h"
 #include "ParTicky.h"		// ToDo: move into Rts.h
 #include "RtsSignals.h"
-#include "STM.h"
 #include "HsFFI.h"
 #include "Linker.h"
 #if defined(RTS_GTK_FRONTPANEL)
@@ -213,9 +212,6 @@ GarbageCollect ( rtsBool force_major_gc )
     blockUserSignals();
   }
 #endif
-
-  // tell the STM to discard any cached closures its hoping to re-use
-  stmPreGCHook();
 
   // tell the stats department that we've started a GC 
   stat_startGC();

@@ -16,7 +16,6 @@
 #include "OSThreads.h"
 #include "Schedule.h"   /* initScheduler */
 #include "Stats.h"      /* initStats */
-#include "STM.h"        /* initSTM */
 #include "Signals.h"
 #include "RtsSignals.h"
 #include "ThrIOManager.h"

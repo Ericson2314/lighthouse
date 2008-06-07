@@ -15,7 +15,6 @@
 #include "Schedule.h"
 #include "LdvProfile.h"
 #include "Updates.h"
-#include "STM.h"
 #include "Sanity.h"
 #include "Profiling.h"
 #if defined(mingw32_HOST_OS)
@@ -361,25 +360,6 @@ check_target:
 	}
     }	
 
-    case BlockedOnSTM:
-	lockTSO(target);
-	// Unblocking BlockedOnSTM threads requires the TSO to be
-	// locked; see STM.c:unpark_tso().
-	if (target->why_blocked != BlockedOnSTM) {
-	    goto retry;
-	}
-	if ((target->flags & TSO_BLOCKEX) &&
-	    ((target->flags & TSO_INTERRUPTIBLE) == 0)) {
-	    blockedThrowTo(source,target);
-	    *out = target;
-	    return THROWTO_BLOCKED;
-	} else {
-	    raiseAsync(cap, target, exception, rtsFalse, NULL);
-	    unblockOne(cap, target);
-	    unlockTSO(target);
-	    return THROWTO_SUCCESS;
-	}
-
     case BlockedOnCCall:
     case BlockedOnCCall_NoUnblockExc:
 	// I don't think it's possible to acquire ownership of a
@@ -612,9 +592,6 @@ raiseAsync(Capability *cap, StgTSO *tso, StgClosure *exception,
 	// top of the stack applied to the exception.
 	// 
 	// 5. If it's a STOP_FRAME, then kill the thread.
-        // 
-        // NB: if we pass an ATOMICALLY_FRAME then abort the associated 
-        // transaction
        
 	info = get_ret_itbl((StgClosure *)frame);
 
@@ -721,27 +698,6 @@ raiseAsync(Capability *cap, StgTSO *tso, StgClosure *exception,
 	    return;
 	}
 	    
-	case ATOMICALLY_FRAME:
-	    if (stop_at_atomically) {
-		ASSERT(stmGetEnclosingTRec(tso->trec) == NO_TREC);
-		stmCondemnTransaction(cap, tso -> trec);
-#ifdef REG_R1
-		tso->sp = frame;
-#else
-		// R1 is not a register: the return convention for IO in
-		// this case puts the return value on the stack, so we
-		// need to set up the stack to return to the atomically
-		// frame properly...
-		tso->sp = frame - 2;
-		tso->sp[1] = (StgWord) &stg_NO_FINALIZER_closure; // why not?
-		tso->sp[0] = (StgWord) &stg_ut_1_0_unreg_info;
-#endif
-		tso->what_next = ThreadRunGHC;
-		return;
-	    }
-	    // Not stop_at_atomically... fall through and abort the
-	    // transaction.
-    
 	default:
 	    break;
 	}

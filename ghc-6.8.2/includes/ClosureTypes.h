@@ -82,14 +82,6 @@
 #define RBH                     58
 #define EVACUATED               59
 #define REMOTE_REF              60
-#define TVAR_WATCH_QUEUE        61
-#define INVARIANT_CHECK_QUEUE   62
-#define ATOMIC_INVARIANT        63
-#define TVAR                    64
-#define TREC_CHUNK              65
-#define TREC_HEADER             66
-#define ATOMICALLY_FRAME        67
-#define CATCH_STM_FRAME         68
-#define N_CLOSURE_TYPES         69
+#define N_CLOSURE_TYPES         61
 
 #endif /* CLOSURETYPES_H */

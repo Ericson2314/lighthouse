@@ -570,24 +570,6 @@ instance Data ThreadId where
 
 
 ------------------------------------------------------------------------------
-
-
-instance Typeable a => Data (TVar a) where
-  toConstr _   = error "toConstr"
-  gunfold _ _  = error "gunfold"
-  dataTypeOf _ = mkNorepType "GHC.Conc.TVar"
-
-
-------------------------------------------------------------------------------
-
-
-instance Typeable a => Data (STM a) where
-  toConstr _   = error "toConstr"
-  gunfold _ _  = error "gunfold"
-  dataTypeOf _ = mkNorepType "GHC.Conc.STM"
-
-
-------------------------------------------------------------------------------
 -- The Data instance for Array preserves data abstraction at the cost of inefficiency.
 -- We omit reflection services for the sake of data abstraction.
 instance (Typeable a, Data b, Ix a) => Data (Array a b)

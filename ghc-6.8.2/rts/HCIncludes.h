@@ -8,7 +8,6 @@
 #include "Schedule.h"
 #include "Printer.h"
 #include "Sanity.h"
-#include "STM.h"
 #include "SchedAPI.h"
 #include "Timer.h"
 #include "ProfHeap.h"

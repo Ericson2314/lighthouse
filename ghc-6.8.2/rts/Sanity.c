@@ -133,8 +133,6 @@ checkStackFrame( StgPtr c )
 
     case UPDATE_FRAME:
       ASSERT(LOOKS_LIKE_CLOSURE_PTR(((StgUpdateFrame*)c)->updatee));
-    case ATOMICALLY_FRAME:
-    case CATCH_STM_FRAME:
     case CATCH_FRAME:
       // small bitmap cases (<= 32 entries)
     case STOP_FRAME:
@@ -356,8 +354,6 @@ checkClosure( StgClosure* p )
     case UPDATE_FRAME:
     case STOP_FRAME:
     case CATCH_FRAME:
-    case ATOMICALLY_FRAME:
-    case CATCH_STM_FRAME:
 	    barf("checkClosure: stack frame");
 
     case AP:
@@ -433,61 +429,6 @@ checkClosure( StgClosure* p )
 
 #endif
 
-    case TVAR_WATCH_QUEUE:
-      {
-        StgTVarWatchQueue *wq = (StgTVarWatchQueue *)p;
-        ASSERT(LOOKS_LIKE_CLOSURE_PTR(wq->next_queue_entry));
-        ASSERT(LOOKS_LIKE_CLOSURE_PTR(wq->prev_queue_entry));
-        return sizeofW(StgTVarWatchQueue);
-      }
-
-    case INVARIANT_CHECK_QUEUE:
-      {
-        StgInvariantCheckQueue *q = (StgInvariantCheckQueue *)p;
-        ASSERT(LOOKS_LIKE_CLOSURE_PTR(q->invariant));
-        ASSERT(LOOKS_LIKE_CLOSURE_PTR(q->my_execution));
-        ASSERT(LOOKS_LIKE_CLOSURE_PTR(q->next_queue_entry));
-        return sizeofW(StgInvariantCheckQueue);
-      }
-
-    case ATOMIC_INVARIANT:
-      {
-        StgAtomicInvariant *invariant = (StgAtomicInvariant *)p;
-        ASSERT(LOOKS_LIKE_CLOSURE_PTR(invariant->code));
-        ASSERT(LOOKS_LIKE_CLOSURE_PTR(invariant->last_execution));
-        return sizeofW(StgAtomicInvariant);
-      }
-
-    case TVAR:
-      {
-        StgTVar *tv = (StgTVar *)p;
-        ASSERT(LOOKS_LIKE_CLOSURE_PTR(tv->current_value));
-        ASSERT(LOOKS_LIKE_CLOSURE_PTR(tv->first_watch_queue_entry));
-        return sizeofW(StgTVar);
-      }
-
-    case TREC_CHUNK:
-      {
-        nat i;
-        StgTRecChunk *tc = (StgTRecChunk *)p;
-        ASSERT(LOOKS_LIKE_CLOSURE_PTR(tc->prev_chunk));
-        for (i = 0; i < tc -> next_entry_idx; i ++) {
-          ASSERT(LOOKS_LIKE_CLOSURE_PTR(tc->entries[i].tvar));
-          ASSERT(LOOKS_LIKE_CLOSURE_PTR(tc->entries[i].expected_value));
-          ASSERT(LOOKS_LIKE_CLOSURE_PTR(tc->entries[i].new_value));
-        }
-        return sizeofW(StgTRecChunk);
-      }
-
-    case TREC_HEADER:
-      {
-        StgTRecHeader *trec = (StgTRecHeader *)p;
-        ASSERT(LOOKS_LIKE_CLOSURE_PTR(trec -> enclosing_trec));
-        ASSERT(LOOKS_LIKE_CLOSURE_PTR(trec -> current_chunk));
-        return sizeofW(StgTRecHeader);
-      }
-      
-      
     case EVACUATED:
 	    barf("checkClosure: found EVACUATED closure %d",
 		 info->type);
@@ -678,9 +619,6 @@ checkTSO(StgTSO *tso)
       break;
     case BlockedOnMVar:
       ASSERT(false);
-      break;
-    case BlockedOnSTM:
-      ASSERT(tso->block_info.closure == END_TSO_QUEUE);
       break;
     default:
       /* 

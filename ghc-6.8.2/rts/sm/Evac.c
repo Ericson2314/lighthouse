@@ -586,8 +586,6 @@ loop:
   case UPDATE_FRAME:
   case STOP_FRAME:
   case CATCH_FRAME:
-  case CATCH_STM_FRAME:
-  case ATOMICALLY_FRAME:
     // shouldn't see these 
     barf("evacuate: stack frame at %p\n", q);
 
@@ -667,24 +665,6 @@ loop:
 	  return (StgClosure *)new_tso;
       }
     }
-
-  case TREC_HEADER: 
-    return copy(q,sizeofW(StgTRecHeader),stp);
-
-  case TVAR_WATCH_QUEUE:
-    return copy(q,sizeofW(StgTVarWatchQueue),stp);
-
-  case TVAR:
-    return copy(q,sizeofW(StgTVar),stp);
-    
-  case TREC_CHUNK:
-    return copy(q,sizeofW(StgTRecChunk),stp);
-
-  case ATOMIC_INVARIANT:
-    return copy(q,sizeofW(StgAtomicInvariant),stp);
-
-  case INVARIANT_CHECK_QUEUE:
-    return copy(q,sizeofW(StgInvariantCheckQueue),stp);
 
   default:
     barf("evacuate: strange closure type %d", (int)(info->type));

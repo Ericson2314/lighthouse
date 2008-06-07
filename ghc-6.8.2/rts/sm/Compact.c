@@ -326,8 +326,6 @@ thread_stack(StgPtr p, StgPtr stack_end)
 	}
 	    
 	    // small bitmap (<= 32 entries, or 64 on a 64-bit machine) 
-        case CATCH_STM_FRAME:
-        case ATOMICALLY_FRAME:
 	case UPDATE_FRAME:
 	case STOP_FRAME:
 	case CATCH_FRAME:
@@ -475,8 +473,6 @@ thread_TSO (StgTSO *tso)
     }
     thread_(&tso->blocked_exceptions);
     
-    thread_(&tso->trec);
-
     thread_stack(tso->sp, &(tso->stack[tso->stack_size]));
     return (StgPtr)tso + tso_sizeW(tso);
 }
@@ -525,20 +521,6 @@ update_fwd_large( bdescr *bd )
     case PAP:
 	thread_PAP((StgPAP *)p);
 	continue;
-
-    case TREC_CHUNK:
-    {
-        StgWord i;
-        StgTRecChunk *tc = (StgTRecChunk *)p;
-	TRecEntry *e = &(tc -> entries[0]);
-	thread_(&tc->prev_chunk);
-	for (i = 0; i < tc -> next_entry_idx; i ++, e++ ) {
-	  thread_(&e->tvar);
-	  thread(&e->expected_value);
-	  thread(&e->new_value);
-	}
-	continue;
-    }
 
     default:
       barf("update_fwd_large: unknown/strange object  %d", (int)(info->type));
@@ -691,63 +673,6 @@ thread_obj (StgInfoTable *info, StgPtr p)
     case TSO:
 	return thread_TSO((StgTSO *)p);
     
-    case TVAR_WATCH_QUEUE:
-    {
-        StgTVarWatchQueue *wq = (StgTVarWatchQueue *)p;
-	thread_(&wq->closure);
-	thread_(&wq->next_queue_entry);
-	thread_(&wq->prev_queue_entry);
-	return p + sizeofW(StgTVarWatchQueue);
-    }
-    
-    case TVAR:
-    {
-        StgTVar *tvar = (StgTVar *)p;
-	thread((void *)&tvar->current_value);
-	thread((void *)&tvar->first_watch_queue_entry);
-	return p + sizeofW(StgTVar);
-    }
-    
-    case TREC_HEADER:
-    {
-        StgTRecHeader *trec = (StgTRecHeader *)p;
-	thread_(&trec->enclosing_trec);
-	thread_(&trec->current_chunk);
-	thread_(&trec->invariants_to_check);
-	return p + sizeofW(StgTRecHeader);
-    }
-
-    case TREC_CHUNK:
-    {
-        StgWord i;
-        StgTRecChunk *tc = (StgTRecChunk *)p;
-	TRecEntry *e = &(tc -> entries[0]);
-	thread_(&tc->prev_chunk);
-	for (i = 0; i < tc -> next_entry_idx; i ++, e++ ) {
-	  thread_(&e->tvar);
-	  thread(&e->expected_value);
-	  thread(&e->new_value);
-	}
-	return p + sizeofW(StgTRecChunk);
-    }
-
-    case ATOMIC_INVARIANT:
-    {
-        StgAtomicInvariant *invariant = (StgAtomicInvariant *)p;
-	thread_(&invariant->code);
-	thread_(&invariant->last_execution);
-	return p + sizeofW(StgAtomicInvariant);
-    }
-
-    case INVARIANT_CHECK_QUEUE:
-    {
-        StgInvariantCheckQueue *queue = (StgInvariantCheckQueue *)p;
-	thread_(&queue->invariant);
-	thread_(&queue->my_execution);
-	thread_(&queue->next_queue_entry);
-	return p + sizeofW(StgInvariantCheckQueue);
-    }
-
     default:
 	barf("update_fwd: unknown/strange object  %d", (int)(info->type));
 	return NULL;

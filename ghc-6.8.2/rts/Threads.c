@@ -12,7 +12,6 @@
 #include "Storage.h"
 #include "Threads.h"
 #include "RtsFlags.h"
-#include "STM.h"
 #include "Schedule.h"
 #include "Trace.h"
 #include "ThreadLabels.h"
@@ -111,8 +110,6 @@ createThread(Capability *cap, nat size)
 	                  - TSO_STRUCT_SIZEW;
     tso->sp             = (P_)&(tso->stack) + stack_size;
 
-    tso->trec = NO_TREC;
-    
 #ifdef PROFILING
     tso->prof.CCCS = CCS_MAIN;
 #endif
@@ -720,9 +717,6 @@ printThreadBlockage(StgTSO *tso)
     break;
   case BlockedOnCCall_NoUnblockExc:
     debugBelch("is blocked on an external call (exceptions were already blocked)");
-    break;
-  case BlockedOnSTM:
-    debugBelch("is blocked on an STM operation");
     break;
   default:
     barf("printThreadBlockage: strange tso->why_blocked: %d for TSO %d (%d)",

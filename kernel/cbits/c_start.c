@@ -336,7 +336,6 @@ void irq_handler(IA32_FaultContext* p) {
 	user_fault(0x20+n,p);
       } else {
 	// flag it...GHC RTS will execute it when convenient
-        //kprintf("!!! IRQ%d => bit %u\n", n, 1 << n);
         pending_irqs |= (1 << n);
 #if 0   // EOI will be done after handler actually executes
 	if (n >= 8) {
