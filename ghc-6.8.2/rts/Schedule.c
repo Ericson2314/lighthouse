@@ -115,7 +115,7 @@ static void scheduleStartSignalHandlers (Capability *cap);
 static void scheduleCheckBlackHoles (Capability *cap);
 static Capability *scheduleHandleHeapOverflow(Capability *cap);
 static void scheduleHandleStackOverflow(Capability *cap);
-static Capability *scheduleDoGC(Capability *cap, rtsBool force_major);
+static void scheduleDoGC(Capability *cap, rtsBool force_major);
 
 static rtsBool checkBlackHoles(Capability *cap);
 
@@ -249,7 +249,8 @@ scheduleHandleHeapOverflow(Capability *cap)
 	       "--<< thread %ld (%s) stopped: HeapOverflow\n", 
 	       (long)t->id, whatNext_strs[t->what_next]);
 
-    return scheduleDoGC(cap, rtsFalse);
+    scheduleDoGC(cap, rtsFalse);
+    return cap;
 }
 
 /* -----------------------------------------------------------------------------
@@ -272,12 +273,9 @@ scheduleHandleStackOverflow (Capability *cap)
  * Perform a garbage collection if necessary
  * -------------------------------------------------------------------------- */
 
-static Capability *
+static void
 scheduleDoGC (Capability *cap, rtsBool force_major)
 {
-    StgTSO *t;
-    rtsBool heap_census;
-    
     // so this happens periodically:
     if (cap) scheduleCheckBlackHoles(cap);
     
@@ -286,7 +284,7 @@ scheduleDoGC (Capability *cap, rtsBool force_major)
      * to do it in another thread.  Either way, we need to
      * broadcast on gc_pending_cond afterward.
      */
-    GarbageCollect(force_major || heap_census);
+    GarbageCollect(force_major);
     
     return cap;
 }
