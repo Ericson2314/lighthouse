@@ -16,6 +16,7 @@ module LwConc.STM
 , readTVar
 , writeTVar
 , unsafeIOToSTM
+, retryButFirst
 , disableHsIRQs
 , restoreHsIRQs
 ) where
@@ -73,6 +74,20 @@ atomically (STM m) =
                 return a
         else do restoreHsIRQs hsiStatus
                 atomically (STM m)
+
+-- |Abort the current transaction, call the supplied function, then retry.
+-- Could be used to implement real STM retry.
+retryButFirst :: IO () -> STM a
+retryButFirst f = STM $ \r -> do log <- readIORef r
+                                 retryLoop r log
+  where retryLoop :: IORef [LogEntry] -> [LogEntry] -> IO a
+        retryLoop r log = do ok <- validate_log log -- don't bother to disable interrupts...we -want- it to become invalid.
+                             if ok
+                                then do f
+                                        retryLoop r log
+                                else do ref <- newIORef 1337
+                                        writeIORef r [LogEntry ref 0 42]
+                                        throw (AssertionFailed "retry called")
 
 {-# INLINE unsafeIOToSTM #-}
 unsafeIOToSTM :: IO a -> STM a
