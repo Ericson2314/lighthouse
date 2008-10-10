@@ -56,7 +56,7 @@ boot:
 	@tar --get --bzip2 --file $(GHCXSRC)
 	@echo "Done.  Now please do 'make'."
 
-patch:
+stamp-patch:
 	@if [ ! -d $(GHCTOP) ]; then \
 		echo "No 'ghc-6.8.2' directory found."; \
 		echo "Please use 'make boot' to download and unpack GHC 6.8.2"; \
@@ -78,16 +78,18 @@ patch:
 		for patch in $(TOP)/patches/house/*; do patch -p1 < $$patch; done;\
 		cp -pr $(TOP)/patches/new/rts/house rts/;\
 	fi
+	touch $@
 
-GHCLIBS = ghc-$(GHCVER)/rts/libHSrts.a ghc-$(GHCVER)/libraries/*/dist/build/libHS*.a
-ghc-$(GHCVER)/config.log: | patch
+stamp-configure: build.mk stamp-patch
 	cp build.mk $(GHCTOP)/mk;\
-	cd $(GHCTOP) && autoreconf && ./configure --build=i386-unknown-house;\
+	cd $(GHCTOP) && autoreconf && ./configure --build=i386-unknown-house
+	touch $@
 
-$(GHCLIBS): ghc-$(GHCVER)/config.log
+stamp-ghc: stamp-configure
 	cd $(GHCTOP) && $(MAKE) stage1
+	touch $@
 
-$(KERNEL): $(GHCLIBS) .phony
+$(KERNEL): stamp-ghc .phony
 	$(MAKE) -C kernel
 
 G=$(MPOINT)/boot/grub
