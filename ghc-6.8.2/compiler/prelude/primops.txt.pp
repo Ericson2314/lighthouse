@@ -1329,33 +1329,6 @@ primtype RealWorld
 	{\it unlifted} (hence {\tt ptrArg}).  We never manipulate values of type
 	{\tt RealWorld}; it's only used in the type system, to parameterise {\tt State\#}. }
 
-primtype ThreadId#
-	{(In a non-concurrent implementation, this can be a singleton
-	type, whose (unique) value is returned by {\tt myThreadId\#}.  The 
-	other operations can be omitted.)}
-
-primop  KillThreadOp "killThread#"  GenPrimOp
-   ThreadId# -> a -> State# RealWorld -> State# RealWorld
-   with
-   has_side_effects = True
-   out_of_line      = True
-
-primop  MyThreadIdOp "myThreadId#" GenPrimOp
-   State# RealWorld -> (# State# RealWorld, ThreadId# #)
-   with
-   out_of_line = True
-
-primop LabelThreadOp "labelThread#" GenPrimOp
-   ThreadId# -> Addr# -> State# RealWorld -> State# RealWorld
-   with
-   has_side_effects = True
-   out_of_line      = True
-   
-primop  IsCurrentThreadBoundOp "isCurrentThreadBound#" GenPrimOp
-   State# RealWorld -> (# State# RealWorld, Int# #)
-   with
-   out_of_line = True
-
 primop  NoDuplicateOp "noDuplicate#" GenPrimOp
    State# RealWorld -> State# RealWorld
    with

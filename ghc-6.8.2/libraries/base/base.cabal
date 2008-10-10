@@ -61,9 +61,10 @@ Library {
             GHC.Unicode,
             GHC.Weak,
             GHC.Word,
+            LwConc.Scheduler,
             LwConc.STM,
             LwConc.Substrate,
-            LwConc.ConcLib,
+            LwConc.Conc,
             LwConc.MVar,
             System.Timeout
     }

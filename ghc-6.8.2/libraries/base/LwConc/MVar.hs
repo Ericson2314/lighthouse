@@ -36,7 +36,9 @@ module LwConc.MVar
 	, addMVarFinalizer -- :: MVar a -> IO () -> IO ()
 ) where
 
-import LwConc.ConcLib
+import LwConc.Scheduler
+import LwConc.STM
+import LwConc.Substrate
 import Data.IORef
 import Data.Sequence as Seq
 
@@ -84,10 +86,10 @@ takeMVar (MVar p) =
                                         return currThread
                            ((x',t) :< ts) -> do writeTVar p (Full x' ts)
                                                 unsafeIOToSTM $ writeIORef hole x -- put value in hole so we can return it at the end
-                                                placeOnReadyQ t -- wake them up
+                                                schedule t -- wake them up
                                                 return currThread -- continue
             Empty bq -> do writeTVar p (Empty (bq |> (hole, currThread))) -- block (queueing hole for answer)
-                           fetchRunnableThread                            -- and run something else
+                           getNextThread                                  -- and run something else
      readIORef hole
 
 -- |Put a value into an 'MVar'.  If the 'MVar' is currently full,
@@ -114,10 +116,10 @@ putMVar (MVar p) x = switch $ \currThread ->
                                   return currThread
                      ((hole,t) :< ts) -> do unsafeIOToSTM $ writeIORef hole x -- pass value through hole to blocked reader
                                             writeTVar p (Empty ts)            -- take them off the blocked queue
-                                            placeOnReadyQ t                   -- put them back on the ready queue
+                                            schedule t                        -- put them back on the ready queue
                                             return currThread
        Full y bq -> do writeTVar p (Full y (bq |> (x, currThread))) -- block (queueing value to write)
-                       fetchRunnableThread                          -- and run something else
+                       getNextThread                                -- and run something else
 
 -- |A non-blocking version of 'takeMVar'.  The 'tryTakeMVar' function
 -- returns immediately, with 'Nothing' if the 'MVar' was empty, or
@@ -130,7 +132,7 @@ tryTakeMVar (MVar p) = atomically $
        Full x bq -> do case viewl bq of
                          EmptyL -> writeTVar p (Empty empty)
                          ((x',t) :< ts) -> do writeTVar p (Full x' ts)
-                                              placeOnReadyQ t
+                                              schedule t
                        return (Just x)
        Empty bq -> return Nothing
 
@@ -145,7 +147,7 @@ tryPutMVar (MVar p) x = atomically $
                         EmptyL -> writeTVar p (Full x empty) -- nobody waiting, just store value
                         ((hole,t) :< ts) -> do unsafeIOToSTM $ writeIORef hole x -- pass value through hole to blocked reader
                                                writeTVar p (Empty ts)            -- take them off the blocked queue
-                                               placeOnReadyQ t                   -- place them on the ready queue
+                                               schedule t                        -- place them on the ready queue
                       return True
        Full y bq -> return False
 

@@ -38,9 +38,6 @@ module Control.Exception (
 	throwIO,	-- :: Exception -> IO a
 	throw,		-- :: Exception -> a
 	ioError,	-- :: IOError -> IO a
-#ifdef __GLASGOW_HASKELL__
-	throwTo,	-- :: ThreadId -> Exception -> a
-#endif
 
 	-- * Catching Exceptions
 
@@ -82,9 +79,6 @@ module Control.Exception (
 
 	-- $dynamic
 	throwDyn, 	-- :: Typeable ex => ex -> b
-#ifdef __GLASGOW_HASKELL__
-	throwDynTo, 	-- :: Typeable ex => ThreadId -> ex -> b
-#endif
 	catchDyn, 	-- :: Typeable ex => IO a -> (ex -> IO a) -> IO a
 	
 	-- * Asynchronous Exceptions
@@ -128,7 +122,6 @@ module Control.Exception (
 #ifdef __GLASGOW_HASKELL__
 import GHC.Base		( assert )
 import GHC.Exception 	as ExceptionBase hiding (catch)
-import GHC.Conc		( throwTo, ThreadId )
 import Data.IORef	( IORef, newIORef, readIORef, writeIORef )
 import Foreign.C.String ( CString, withCString )
 #ifndef house_HOST_OS
@@ -342,13 +335,6 @@ throwDyn exception = throw (UserError "" "dynamic exception")
 #else
 throwDyn exception = throw (DynException (toDyn exception))
 #endif
-
-#ifdef __GLASGOW_HASKELL__
--- | A variant of 'throwDyn' that throws the dynamic exception to an
--- arbitrary thread (GHC only: c.f. 'throwTo').
-throwDynTo :: Typeable exception => ThreadId -> exception -> IO ()
-throwDynTo t exception = throwTo t (DynException (toDyn exception))
-#endif /* __GLASGOW_HASKELL__ */
 
 -- | Catch dynamic exceptions of the required type.  All other
 -- exceptions are re-thrown, including dynamic exceptions of the wrong

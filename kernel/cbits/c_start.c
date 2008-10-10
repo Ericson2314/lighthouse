@@ -295,7 +295,7 @@ int getPendingIRQ()
     int irq;
     for (irq = 1; irq < 16; irq++) {
         if (pending_irqs & (1 << irq)) {
-            pending_irqs &= ~(1 << irq);
+            pending_irqs &= ~(1 << irq); // use a compare and swap? cmpxchg
             return irq;
         }
     }

@@ -26,7 +26,6 @@
 #include "Prelude.h"		/* fixupRTStoPreludeRefs */
 #include "HsFFI.h"
 #include "Linker.h"
-#include "ThreadLabels.h"
 #include "BlockAlloc.h"
 #include "Trace.h"
 #include "RtsTypeable.h"
@@ -245,11 +244,6 @@ hs_init(int *argc, char **argv[])
     /* initialise file locking, if necessary */
 #if !defined(mingw32_HOST_OS) && !defined(house_HOST_OS)
     initFileLocking();
-#endif
-
-#if defined(DEBUG)
-    /* initialise thread label table (tso->char*) */
-    initThreadLabelTable();
 #endif
 
     initProfiling1();
@@ -477,11 +471,6 @@ hs_exit_(rtsBool wait_foreign)
 
     /* free the stable pointer table */
     exitStablePtrTable();
-
-#if defined(DEBUG)
-    /* free the thread label table */
-    freeThreadLabelTable();
-#endif
 
 #ifdef RTS_GTK_FRONTPANEL
     if (RtsFlags.GcFlags.frontpanel) {

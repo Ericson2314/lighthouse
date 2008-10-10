@@ -26,8 +26,6 @@ void awakenBlockedQueue (Capability *cap, StgTSO *tso);
 void removeThreadFromQueue     (StgTSO **queue, StgTSO *tso);
 void removeThreadFromDeQueue   (StgTSO **head, StgTSO **tail, StgTSO *tso);
 
-StgBool isThreadBound (StgTSO* tso);
-
 #ifdef DEBUG
 void printThreadBlockage (StgTSO *tso);
 void printThreadStatus (StgTSO *t);

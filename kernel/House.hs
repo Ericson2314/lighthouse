@@ -66,8 +66,7 @@ import qualified Util.CmdLineParser as P
        
 import LwConcTests
 import Scratch
-import LwConc.ConcLib(yieldAndDie)
-import qualified LwConc.ConcLib as LWCL
+import LwConc.Conc(startSystem)
 import H.Monad(liftIO)
 import Foreign.C(CString,withCString)
 
@@ -83,25 +82,15 @@ noPrint str = liftIO (withCString str no_print)
 
 main :: IO ()
 main = --trappedRunH mainH
-       runH mainH
+       startSystem $ runH mainH
 
 mainH :: H ()
 mainH =
     do netState <- newMVar Nothing
        pciState <- newMVar (Nothing,Nothing) -- XXX
        trace "Tracing enabled"
-       forkH (shell (netState, pciState))
-       --forkH idleThread
-       forkH $ cPrint "This is a thread that dies right away."
-       --forkH scratchMain
        enableInterrupts
-       --liftIO $ yieldAndDie
-       idleThread
-
-idleThread :: H ()
-idleThread = do yield
-                noPrint "."
-                idleThread
+       shell (netState, pciState)
 
 shell exestate =
   do optgfx <- VBE.initialize

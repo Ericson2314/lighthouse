@@ -14,7 +14,6 @@
 #include "RtsFlags.h"
 #include "Schedule.h"
 #include "Trace.h"
-#include "ThreadLabels.h"
 
 /* Next thread ID to allocate.
  * LOCK: sched_mutex
@@ -652,18 +651,6 @@ rtsSupportsBoundThreads(void)
 #endif
 }
 
-/* ---------------------------------------------------------------------------
- * isThreadBound(tso): check whether tso is bound to an OS thread.
- * ------------------------------------------------------------------------- */
- 
-StgBool
-isThreadBound(StgTSO* tso USED_IF_THREADS)
-{
-#if defined(THREADED_RTS)
-  return (tso->bound != NULL);
-#endif
-  return rtsFalse;
-}
 
 /* ----------------------------------------------------------------------------
  * Debugging: why is a thread blocked
@@ -727,10 +714,6 @@ void
 printThreadStatus(StgTSO *t)
 {
   debugBelch("\tthread %4lu @ %p ", (unsigned long)t->id, (void *)t);
-    {
-      void *label = lookupThreadLabel(t->id);
-      if (label) debugBelch("[\"%s\"] ",(char *)label);
-    }
     if (t->what_next == ThreadRelocated) {
 	debugBelch("has been relocated...\n");
     } else {

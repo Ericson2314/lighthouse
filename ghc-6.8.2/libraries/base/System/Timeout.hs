@@ -23,10 +23,18 @@ timeout n f = fmap Just f
 import Prelude             (IO, Ord((<)), Eq((==)), Int, (.), otherwise, fmap)
 import Data.Maybe          (Maybe(..))
 import Control.Monad       (Monad(..), guard)
-import Control.Concurrent  (forkIO, threadDelay, myThreadId, killThread)
-import Control.Exception   (handleJust, throwDynTo, dynExceptions, bracket)
-import Data.Dynamic        (Typeable, fromDynamic)
+import Control.Concurrent  (ThreadId, forkIO, threadDelay, throwTo, myThreadId, killThread)
+import Control.Exception   (handleJust, dynExceptions, bracket)
+import Data.Dynamic        (Typeable, fromDynamic, toDyn)
 import Data.Unique         (Unique, newUnique)
+import GHC.IOBase          (Exception(..))
+
+#ifdef __GLASGOW_HASKELL__
+-- | A variant of 'throwDyn' that throws the dynamic exception to an
+-- arbitrary thread (GHC only: c.f. 'throwTo').
+throwDynTo :: Typeable exception => ThreadId -> exception -> IO ()
+throwDynTo t exception = throwTo t (DynException (toDyn exception))
+#endif
 
 -- An internal type that is thrown as a dynamic exception to
 -- interrupt the running IO computation when the timeout has

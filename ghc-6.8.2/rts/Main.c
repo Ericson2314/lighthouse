@@ -106,6 +106,7 @@ static void real_main(void)
 #  else /* !PAR && !GRAN */
 
     /* ToDo: want to start with a larger stack size */
+    //base_LwConcziConc_startSystem_closure
     runTheWorld((HaskellObj)(void *) mainIO_closure);
 
 #  endif

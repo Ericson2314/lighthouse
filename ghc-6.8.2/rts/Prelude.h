@@ -36,6 +36,7 @@ extern StgClosure ZCMain_main_closure;
 #endif
 
 PRELUDE_CLOSURE(KernelziInterrupts_interruptHandler_closure);
+PRELUDE_CLOSURE(base_LwConcziConc_startSystem_closure);
 
 PRELUDE_CLOSURE(base_GHCziIOBase_stackOverflow_closure);
 PRELUDE_CLOSURE(base_GHCziIOBase_heapOverflow_closure);

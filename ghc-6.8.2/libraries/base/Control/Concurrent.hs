@@ -43,10 +43,6 @@ module Control.Concurrent (
 #ifdef __GLASGOW_HASKELL__
 	-- ** Waiting
 	threadDelay,		-- :: Int -> IO ()
-#ifndef house_HOST_OS
-	threadWaitRead,		-- :: Int -> IO ()
-	threadWaitWrite,	-- :: Int -> IO ()
-#endif
 #endif
 
 	-- * Communication abstractions
@@ -63,16 +59,6 @@ module Control.Concurrent (
 	nmergeIO,		-- :: [[a]] -> IO [a]
 #endif
 	-- $merge
-
-#if defined(__GLASGOW_HASKELL__) && !defined(house_HOST_OS)
-	-- * Bound Threads
-	-- $boundthreads
-	rtsSupportsBoundThreads,
-	forkOS,
-	isCurrentThreadBound,
-	runInBoundThread,
-	runInUnboundThread
-#endif
 
 	-- * GHC's implementation of concurrency
 
@@ -97,13 +83,8 @@ import Prelude
 import Control.Exception as Exception
 
 #ifdef __GLASGOW_HASKELL__
-import LwConc.ConcLib (yield, forkIO)
-import GHC.Conc		( ThreadId(..), myThreadId, killThread,
-			  threadDelay, 
-#ifndef house_HOST_OS
-                          threadWaitRead, threadWaitWrite,
-#endif
-			  childHandler )
+import LwConc.Conc (ThreadId, yield, forkIO, killThread, threadDelay, throwTo, myThreadId)
+import GHC.Conc		( childHandler )
 import GHC.TopHandler   ( reportStackOverflow, reportError )
 import GHC.IOBase	( IO(..) )
 import GHC.IOBase	( unsafeInterleaveIO )
@@ -115,19 +96,11 @@ import Foreign.C.Types  ( CInt )
 import Control.Monad    ( when )
 #endif
 
-#ifdef __HUGS__
-import Hugs.ConcBase
-#endif
-
 import Control.Concurrent.MVar
 import Control.Concurrent.Chan
 import Control.Concurrent.QSem
 import Control.Concurrent.QSemN
 import Control.Concurrent.SampleVar
-
-#ifdef __HUGS__
-type ThreadId = ()
-#endif
 
 {- $conc_intro
 
@@ -256,164 +229,6 @@ nmergeIO lss
   where
     mapIO f xs = sequence (map f xs)
 #endif /* __HUGS__ */
-
-#if defined(__GLASGOW_HASKELL__) && !defined(house_HOST_OS)
--- ---------------------------------------------------------------------------
--- Bound Threads
-
-{- $boundthreads
-   #boundthreads#
-
-Support for multiple operating system threads and bound threads as described
-below is currently only available in the GHC runtime system if you use the
-/-threaded/ option when linking.
-
-Other Haskell systems do not currently support multiple operating system threads.
-
-A bound thread is a haskell thread that is /bound/ to an operating system
-thread. While the bound thread is still scheduled by the Haskell run-time
-system, the operating system thread takes care of all the foreign calls made
-by the bound thread.
-
-To a foreign library, the bound thread will look exactly like an ordinary
-operating system thread created using OS functions like @pthread_create@
-or @CreateThread@.
-
-Bound threads can be created using the 'forkOS' function below. All foreign
-exported functions are run in a bound thread (bound to the OS thread that
-called the function). Also, the @main@ action of every Haskell program is
-run in a bound thread.
-
-Why do we need this? Because if a foreign library is called from a thread
-created using 'forkIO', it won't have access to any /thread-local state/ - 
-state variables that have specific values for each OS thread
-(see POSIX's @pthread_key_create@ or Win32's @TlsAlloc@). Therefore, some
-libraries (OpenGL, for example) will not work from a thread created using
-'forkIO'. They work fine in threads created using 'forkOS' or when called
-from @main@ or from a @foreign export@.
--}
-
--- | 'True' if bound threads are supported.
--- If @rtsSupportsBoundThreads@ is 'False', 'isCurrentThreadBound'
--- will always return 'False' and both 'forkOS' and 'runInBoundThread' will
--- fail.
-foreign import ccall rtsSupportsBoundThreads :: Bool
-
-{- |
-Like 'forkIO', this sparks off a new thread to run the 'IO' computation passed as the
-first argument, and returns the 'ThreadId' of the newly created
-thread.
-
-However, @forkOS@ uses operating system-supplied multithreading support to create
-a new operating system thread. The new thread is /bound/, which means that
-all foreign calls made by the 'IO' computation are guaranteed to be executed
-in this new operating system thread; also, the operating system thread is not
-used for any other foreign calls.
-
-This means that you can use all kinds of foreign libraries from this thread 
-(even those that rely on thread-local state), without the limitations of 'forkIO'.
-
-Just to clarify, 'forkOS' is /only/ necessary if you need to associate
-a Haskell thread with a particular OS thread.  It is not necessary if
-you only need to make non-blocking foreign calls (see
-"Control.Concurrent#osthreads").  Neither is it necessary if you want
-to run threads in parallel on a multiprocessor: threads created with
-'forkIO' will be shared out amongst the running CPUs (using GHC,
-@-threaded@, and the @+RTS -N@ runtime option).
-
--}
-forkOS :: IO () -> IO ThreadId
-
-foreign export ccall forkOS_entry
-    :: StablePtr (IO ()) -> IO ()
-
-foreign import ccall "forkOS_entry" forkOS_entry_reimported
-    :: StablePtr (IO ()) -> IO ()
-
-forkOS_entry stableAction = do
-	action <- deRefStablePtr stableAction
-	action
-
-foreign import ccall forkOS_createThread
-    :: StablePtr (IO ()) -> IO CInt
-
-failNonThreaded = fail $ "RTS doesn't support multiple OS threads "
-                       ++"(use ghc -threaded when linking)"
-    
-forkOS action 
-    | rtsSupportsBoundThreads = do
-	mv <- newEmptyMVar
-	let action_plus = Exception.catch action childHandler
-	entry <- newStablePtr (myThreadId >>= putMVar mv >> action_plus)
-	err <- forkOS_createThread entry
-	when (err /= 0) $ fail "Cannot create OS thread."
-	tid <- takeMVar mv
-	freeStablePtr entry
-	return tid
-    | otherwise = failNonThreaded
-
--- | Returns 'True' if the calling thread is /bound/, that is, if it is
--- safe to use foreign libraries that rely on thread-local state from the
--- calling thread.
-isCurrentThreadBound :: IO Bool
-isCurrentThreadBound = IO $ \ s# -> 
-    case isCurrentThreadBound# s# of
-        (# s2#, flg #) -> (# s2#, not (flg ==# 0#) #)
-
-
-{- | 
-Run the 'IO' computation passed as the first argument. If the calling thread
-is not /bound/, a bound thread is created temporarily. @runInBoundThread@
-doesn't finish until the 'IO' computation finishes.
-
-You can wrap a series of foreign function calls that rely on thread-local state
-with @runInBoundThread@ so that you can use them without knowing whether the
-current thread is /bound/.
--}
-runInBoundThread :: IO a -> IO a
-
-runInBoundThread action
-    | rtsSupportsBoundThreads = do
-	bound <- isCurrentThreadBound
-	if bound
-	    then action
-	    else do
-		ref <- newIORef undefined
-		let action_plus = Exception.try action >>= writeIORef ref
-		resultOrException <- 
-		    bracket (newStablePtr action_plus)
-			    freeStablePtr
-			    (\cEntry -> forkOS_entry_reimported cEntry >> readIORef ref)
-		case resultOrException of
-		    Left exception -> Exception.throw exception
-		    Right result -> return result
-    | otherwise = failNonThreaded
-
-{- | 
-Run the 'IO' computation passed as the first argument. If the calling thread
-is /bound/, an unbound thread is created temporarily using 'forkIO'.
-@runInBoundThread@ doesn't finish until the 'IO' computation finishes.
-
-Use this function /only/ in the rare case that you have actually observed a
-performance loss due to the use of bound threads. A program that
-doesn't need it's main thread to be bound and makes /heavy/ use of concurrency
-(e.g. a web server), might want to wrap it's @main@ action in
-@runInUnboundThread@.
--}
-runInUnboundThread :: IO a -> IO a
-
-runInUnboundThread action = do
-    bound <- isCurrentThreadBound
-    if bound
-        then do
-            mv <- newEmptyMVar
-            forkIO (Exception.try action >>= putMVar mv)
-            takeMVar mv >>= \either -> case either of
-                Left exception -> Exception.throw exception
-                Right result -> return result
-        else action
-	
-#endif /* __GLASGOW_HASKELL__ && !house_HOST_OS */
 
 -- ---------------------------------------------------------------------------
 -- More docs
