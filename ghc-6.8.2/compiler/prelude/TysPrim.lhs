@@ -39,7 +39,6 @@ module TysPrim(
 	stableNamePrimTyCon,		mkStableNamePrimTy,
 	bcoPrimTyCon,			bcoPrimTy,
 	weakPrimTyCon,  		mkWeakPrimTy,
-	threadIdPrimTyCon,		threadIdPrimTy,
 	tsoPrimTyCon,			tsoPrimTy,
 	
 	int32PrimTyCon,		int32PrimTy,
@@ -102,7 +101,6 @@ primTyCons
     , stablePtrPrimTyCon
     , stableNamePrimTyCon
     , statePrimTyCon
-    , threadIdPrimTyCon
     , tsoPrimTyCon
     , wordPrimTyCon
     , word32PrimTyCon
@@ -140,7 +138,6 @@ stableNamePrimTyConName       = mkPrimTc FSLIT("StableName#") stableNamePrimTyCo
 bcoPrimTyConName 	      = mkPrimTc FSLIT("BCO#") bcoPrimTyConKey bcoPrimTyCon
 weakPrimTyConName  	      = mkPrimTc FSLIT("Weak#") weakPrimTyConKey weakPrimTyCon
 tsoPrimTyConName	      = mkPrimTc FSLIT("TSO#") tsoPrimTyConKey tsoPrimTyCon
-threadIdPrimTyConName  	      = mkPrimTc FSLIT("ThreadId#") threadIdPrimTyConKey threadIdPrimTyCon
 anyPrimTyConName	      = mkPrimTc FSLIT("Any") anyPrimTyConKey anyPrimTyCon
 anyPrimTyCon1Name	      = mkPrimTc FSLIT("Any1") anyPrimTyCon1Key anyPrimTyCon
 \end{code}
@@ -408,26 +405,6 @@ bcoPrimTyCon = pcPrimTyCon0 bcoPrimTyConName PtrRep
 weakPrimTyCon = pcPrimTyCon weakPrimTyConName 1 PtrRep
 
 mkWeakPrimTy v = mkTyConApp weakPrimTyCon [v]
-\end{code}
-
-%************************************************************************
-%*									*
-\subsection[TysPrim-thread-ids]{The ``thread id'' type}
-%*									*
-%************************************************************************
-
-A thread id is represented by a pointer to the TSO itself, to ensure
-that they are always unique and we can always find the TSO for a given
-thread id.  However, this has the unfortunate consequence that a
-ThreadId# for a given thread is treated as a root by the garbage
-collector and can keep TSOs around for too long.
-
-Hence the programmer API for thread manipulation uses a weak pointer
-to the thread id internally.
-
-\begin{code}
-threadIdPrimTy    = mkTyConTy threadIdPrimTyCon
-threadIdPrimTyCon = pcPrimTyCon0 threadIdPrimTyConName PtrRep
 \end{code}
 
 %************************************************************************

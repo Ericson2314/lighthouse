@@ -11,6 +11,7 @@ forkH :: (H a) -> H ThreadId
 killH :: ThreadId -> H ()
 yield :: H ()
 threadDelay :: Int -> H ()
+myThreadId :: H ThreadId
 
 -- * Channels
 newChan         :: H (Chan a)
@@ -44,6 +45,7 @@ forkH = liftIO . IO.forkIO . trappedRunH
 killH = liftIO . IO.killThread
 yield = liftIO IO.yield
 threadDelay = liftIO . IO.threadDelay
+myThreadId = liftIO IO.myThreadId
 
 -- Channels --------------------------------------------------------------------
 newChan              = liftIO $ IO.newChan

@@ -21,8 +21,7 @@ module LwConc.STM
 , restoreHsIRQs
 ) where
 
-import Prelude hiding (catch)
-import Control.Exception
+import GHC.Exception(Exception(..), catchException, throw)
 import Data.IORef
 import Data.List(find)
 import GHC.Prim(reallyUnsafePtrEquality#, disableHsIRQs#, restoreHsIRQs#)
@@ -54,7 +53,7 @@ instance Monad STM where
 atomically :: STM a -> IO a
 atomically (STM m) =
   do r <- newIORef []
-     a <- m r `catch` \ex -> do
+     a <- m r `catchException` \ex -> do
             log <- readIORef r
             hsiStatus <- disableHsIRQs
             ok <- validate_log log

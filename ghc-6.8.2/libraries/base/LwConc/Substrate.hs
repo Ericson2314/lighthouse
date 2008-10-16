@@ -30,9 +30,11 @@ newTLSKey x = IO $ \s10# ->
     (#s20#, key #) -> (#s20#, TLSKey key #)
 
 {-# INLINE getTLS #-}
--- Erm. How exactly is this a STM function?
-getTLS :: TLSKey a -> STM a
-getTLS (TLSKey key) = return (getTLS# key)
+getTLS :: TLSKey a -> IO a
+getTLS (TLSKey key) = IO $ \s -> case getTLS# key s of
+                                   (# s', val #) -> (# s', val #)
+--getTLS :: TLSKey a -> STM a
+--getTLS (TLSKey key) = return (getTLS# key)
 
 setTLS :: TLSKey a -> a -> IO ()
 setTLS (TLSKey key) x = IO $ \s10# ->

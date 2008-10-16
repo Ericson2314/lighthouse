@@ -1361,7 +1361,7 @@ primop  NewTLSKeyOp "newTLSKey#" GenPrimOp
    out_of_line      = True
 
 primop  GetTLSOp "getTLS#" GenPrimOp
-   Int# -> a
+   Int# -> State# RealWorld -> (# State# RealWorld, a #)
    with out_of_line = True
 
 primop  SetTLSOp "setTLS#" GenPrimOp

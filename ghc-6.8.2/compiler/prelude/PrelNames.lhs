@@ -809,7 +809,6 @@ anyBoxConKey				= mkPreludeTyConUnique 68
 kindConKey				= mkPreludeTyConUnique 69
 boxityConKey				= mkPreludeTyConUnique 70
 typeConKey				= mkPreludeTyConUnique 71
-threadIdPrimTyConKey			= mkPreludeTyConUnique 72
 bcoPrimTyConKey				= mkPreludeTyConUnique 73
 ptrTyConKey				= mkPreludeTyConUnique 74
 funPtrTyConKey				= mkPreludeTyConUnique 75

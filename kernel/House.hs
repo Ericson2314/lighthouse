@@ -5,7 +5,6 @@ import Control.Monad
 import Data.List(isSuffixOf)
 
 import Kernel.Debug(v_defaultConsole)
-import qualified Kernel.Debug as KDebug(putStr, putStrLn)
 import Kernel.Console
 import Kernel.LineEditor
 import Kernel.Driver.IA32.Screen
@@ -64,21 +63,20 @@ import Monad.Util
 import Util.CmdLineParser hiding ((!))
 import qualified Util.CmdLineParser as P
        
-import LwConcTests
-import Scratch
 import LwConc.Conc(startSystem)
 import H.Monad(liftIO)
 import Foreign.C(CString,withCString)
 
+-- Jiffies test
+import Foreign.C(CUInt)
+foreign import ccall unsafe getourtimeofday :: IO CUInt
+
 default(Int)
 
 foreign import ccall unsafe "start.h c_print" c_print :: CString -> IO ()
-foreign import ccall unsafe "start.h no_print" no_print :: CString -> IO ()
 
 cPrint :: String -> H ()
 cPrint str = liftIO (withCString str c_print)
-noPrint :: String -> H ()
-noPrint str = liftIO (withCString str no_print)
 
 main :: IO ()
 main = --trappedRunH mainH
@@ -270,13 +268,16 @@ execute3 extra exestate@(netstate,pciState) user =
        cmd "ls" modules <@ flag "-l" -: "List Grub modules",
        cmd "run" run <@ path -: "Run a grub module",
        cmd "gif" gifinfo <@ path -: "Parse and show info about a GIF",
-       cmd "testTLS" (testTLS putStrLn) -: "Run some tests of the TLS system",
-       cmd "testCounter" (testCounter putStrLn) -: "Run a test of the timer counter",
 --       cmd "osker" ( \ ws->osker ws putStrLn putStr) <@ many args,
        cmd "reboot" reboot]
 
     debugcommands =
       oneof [cmd "lambda" (putStrLn "Too much to abstract!"),
+             -- tests
+             cmd "killtest" killtest,
+             cmd "killself" killself,
+             cmd "js" jiffies,
+             -- benchmarks
              cmd "createmv" createmv, -- comparable
              cmd "takemv" takemv,     -- LwConc is 2x faster
              cmd "putmv" putmv,       -- LwConc is significantly faster
@@ -286,13 +287,23 @@ execute3 extra exestate@(netstate,pciState) user =
              cmd "hammer1" hammer1,
              cmd "chanpc10k" (chanpc 10000),
              cmd "chanpc100k" (chanpc 100000),
-             --cmd "invalid" invalid,
+             -- preempt and friends
              cmd "preempt" preempt,
              cmd "preempt2" preempt2,
              cmd "preempt3" preempt3,
              cmd "preempt4" preempt4,
              cmd "wastemem" wasteMem <@ number]
       where
+        killtest = do id <- forkH $ p2helper "A"
+                      killH id
+                      putStrLn "The other thread was about to print 'A's, but likely didn't get a chance."
+        killself = do forkH $ do self <- myThreadId
+                                 putStrLn (show self ++ " is about to print some dots, but not forever!")
+                                 killH self
+                                 p2helper "."
+                      return ()
+        jiffies = do j <- liftIO getourtimeofday
+                     putStrLn ("jiffies = " ++ show j ++ "; msec = " ++ show (j*20))
         {- PERFORMANCE TESTS -}
         createmv = mapM_ newMVar [1..10000000] -- ten million
         takemv = do mvars <- mapM newMVar [1..100000] -- only 100 thousand
@@ -443,13 +454,3 @@ testMouse2 putStr =
 	 -- =<< launchMouseDecoder
 	 =<< launchMouseDriver
 
---foreign import ccall "Schedule.h printAllThreads"
---    printAllThreads :: IO ()
-
-idle = idle' 0
-    where idle' n =
-	      do yield
-             	 --threadDelay 100000 -- microseconds(?)
-		 if n >= 100000
-		    then {- printAllThreads >> -} idle' 0
-		    else idle' (n + 1)

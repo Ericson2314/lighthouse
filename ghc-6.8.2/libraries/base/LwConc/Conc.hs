@@ -16,51 +16,84 @@ module LwConc.Conc
 , threadDelay
 ) where
 
-import Control.Exception(Exception)
+import Prelude hiding (catch)
+import GHC.Exception(Exception)
+import Control.Monad(when)
 import System.IO.Unsafe (unsafePerformIO)
 import Data.IORef
 import LwConc.Scheduler
 import LwConc.Substrate
 import LwConc.STM
+import Foreign.C(CString, withCString)
+
+foreign import ccall unsafe "start.h c_print" c_print :: CString -> IO ()
+
+cPrint :: String -> IO ()
+cPrint str = withCString str c_print
 
 startSystem :: IO () -> IO ()
 startSystem main = forkIO main >> die
 
+-- | The timer interrupt handler.  Forces the thread to yield, unless it's
+-- still starting up (and hasn't initialized its ThreadId.)
 timerHandler :: IO ()
-timerHandler = yield
-
--- |Yield, marking the current thread ready & switching to the next one.
+timerHandler = do val <- getTLS tidTLSKey
+                  case val of
+                    Nothing  -> return () -- uninitialized. let it continue
+                    Just tid -> yield
+                    
+-- | Yield, marking the current thread ready & switching to the next one.
 yield :: IO ()
 yield = do switch $ \currThread -> do schedule currThread
                                       getNextThread
-           --checkSignals
+           checkSignals
 
--- |Switches to the next thread, but doesn't schedule the current thread again.
+-- | Switches to the next thread, but doesn't schedule the current thread again.
 -- Since it's not running nor scheduled, it will be garbage collected.
 die :: IO ()
 die = switch $ \dyingThread -> getNextThread
 
---newtype ThreadId = ThreadId (Int, IORef Bool)
-newtype ThreadId = ThreadId (IORef Bool)
+-----------------------------------------------------------------------------
+-- ThreadIds
 
-{-
--- Need to figure out race conditions associated with TLS initialization,
--- as well as how getTLS is actually a STM function...
--- alternatively we may be able to make
--- data Thread = Thread ThreadId SCont
--- and switchThread...and set a global before switching...
-myThreadIdTLSKey :: TLSKey ThreadId
-myThreadIdTLSKey = unsafePerformIO $
-  do tidBox <- newIORef False
-     newTLSKey (ThreadId tid)
+-- | Thread IDs are primarily a IORef containing signalling information.
+-- However, we also assign each a monotonically increasing integer - mostly
+-- for printing, but possibly for other uses in the future.  These start at 1.
 
+newtype ThreadId = ThreadId (Integer, IORef Bool)
+  deriving Eq
+
+instance Show ThreadId where
+  show (ThreadId (id, box)) = "<Thread " ++ show id ++ ">"
+
+instance Ord ThreadId where
+  compare (ThreadId (x,_)) (ThreadId (y,_)) = compare x y
+
+-- | Numerical IDs, starting at 1. Zero is reserved for special use.
+nextThreadNum :: TVar Integer
+nextThreadNum = unsafePerformIO $ newTVarIO 1
+
+getNextThreadNum :: IO Integer
+getNextThreadNum = atomically $ do x <- readTVar nextThreadNum
+                                   writeTVar nextThreadNum (x+1)
+                                   return x
+
+-- | We store each thread's ID in their TLS, allowing a simple implementation
+-- of myThreadId.  However, threads must initialize their own TLS, and we may
+-- get an interrupt before the thread's fully set up.  Hence, we use a Maybe
+-- type for the TLS key.
+
+tidTLSKey :: TLSKey (Maybe ThreadId)
+tidTLSKey = unsafePerformIO $ newTLSKey Nothing
+
+-- | Returns the current ThreadId.  Only safe to call when threads are fully
+-- initialized (i.e. have started running their real computation).
 myThreadId :: IO ThreadId
-myThreadId = atomically $ getTLS myThreadIdTLSKey
--}
+myThreadId = do val <- getTLS tidTLSKey
+                case val of
+                  Nothing  -> error "myThreadId called on an uninitialized thread"
+                  Just tid -> return tid
 
-myThreadId :: IO ThreadId
-myThreadId = do tidBox <- newIORef False -- this is totally wrong!
-                return (ThreadId tidBox)
 -- |Fork.
 -- We actually wrap the provided computation, and can do initialization code
 -- beforehand, or cleanup code afterward.
@@ -70,18 +103,25 @@ myThreadId = do tidBox <- newIORef False -- this is totally wrong!
 -- "ThreadFinished" status, resulting in the system terminating.
 forkIO :: IO () -> IO ThreadId
 forkIO computation =
-  do tidBox <- newIORef False
-     newThread <- newSCont $ do -- setTLS myThreadIdTLSKey tidBox
+  do tid <- newThreadId
+     newThread <- newSCont $ do setTLS tidTLSKey (Just tid)
+                                cPrint (show tid ++ " has set its TLS Key.\n")
+                                checkSignals -- check for kill before run the first time.
                                 computation
+                                cPrint (show tid ++ " completed without incident.\n")
                                 die
      atomically $ schedule newThread
-     return (ThreadId tidBox)
+     return tid
+  where newThreadId :: IO ThreadId
+        newThreadId = do tnum <- getNextThreadNum
+                         tbox <- newIORef False
+                         return (ThreadId (tnum, tbox))
      
-     -- What if we try to kill ourselves?  Want it to be immediate, no?
 killThread :: ThreadId -> IO ()
-killThread (ThreadId box) = writeIORef box True
-
---throw (AsyncException ThreadKilled)
+killThread tid@(ThreadId (tnum, tbox)) = do writeIORef tbox True
+                                            cPrint ("Asking " ++ show tid ++ " to kill itself...\n")
+                                            -- we don't do a suicide check here;
+                                            -- call die if you want to kill yourself immediately..
 
 throwTo :: ThreadId -> Exception -> IO ()
 throwTo tid exn = return ()
@@ -89,3 +129,10 @@ throwTo tid exn = return ()
 threadDelay :: Int -> IO ()
 threadDelay n = return ()
 
+-- | Check if anyone has sent us an asynchronous exception (only kill for now.)
+checkSignals :: IO ()
+checkSignals = do val <- getTLS tidTLSKey -- Could use myThreadId; we don't call this when uninitialized
+                  case val of
+                    Nothing -> return ()
+                    Just (tid@(ThreadId (tnum, tbox))) -> do flag <- readIORef tbox
+                                                             when flag $ cPrint (show tid ++ " is killing itself.\n") >> die

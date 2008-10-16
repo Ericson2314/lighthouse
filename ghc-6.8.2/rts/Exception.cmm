@@ -421,6 +421,7 @@ retry_pop_stack:
 	StgTSO_what_next(CurrentTSO) = ThreadKilled::I16;
 	SAVE_THREAD_STATE();	/* inline! */
 
+        foreign "C" debugBelch("Uncaught exception reached STOP frame.\n");
         jump stg_threadFinished;
     }
 
