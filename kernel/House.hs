@@ -273,10 +273,12 @@ execute3 extra exestate@(netstate,pciState) user =
 
     debugcommands =
       oneof [cmd "lambda" (putStrLn "Too much to abstract!"),
+             cmd "js" jiffies,
              -- tests
              cmd "killtest" killtest,
              cmd "killself" killself,
-             cmd "js" jiffies,
+             cmd "delaytest" delaytest,
+             cmd "delaykilltest" delaykilltest,
              -- benchmarks
              cmd "createmv" createmv, -- comparable
              cmd "takemv" takemv,     -- LwConc is 2x faster
@@ -302,6 +304,13 @@ execute3 extra exestate@(netstate,pciState) user =
                                  killH self
                                  p2helper "."
                       return ()
+        delaytest = do putStrLn "Waiting 5 seconds..."
+                       threadDelay 5000000
+                       putStrLn "Welcome back!"
+        delaykilltest = do tid <- forkH $ p2helper "o"
+                           threadDelay 1000000
+                           killH tid
+                           putStrLn "Welcome back!"
         jiffies = do j <- liftIO getourtimeofday
                      putStrLn ("jiffies = " ++ show j ++ "; msec = " ++ show (j*20))
         {- PERFORMANCE TESTS -}

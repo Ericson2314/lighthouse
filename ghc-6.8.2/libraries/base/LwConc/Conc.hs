@@ -126,8 +126,16 @@ killThread tid@(ThreadId (tnum, tbox)) = do writeIORef tbox True
 throwTo :: ThreadId -> Exception -> IO ()
 throwTo tid exn = return ()
 
+
+-- | Suspends the current thread for a given number of microseconds (GHC only).
+--
+-- There is no guarantee that the thread will be rescheduled promptly when the
+-- delay has expired, but the thread will never continue to run earlier than specified.
 threadDelay :: Int -> IO ()
-threadDelay n = return ()
+threadDelay usec = do switch $ \currThread -> do scheduleIn usec currThread
+                                                 getNextThread
+                      checkSignals
+
 
 -- | Check if anyone has sent us an asynchronous exception (only kill for now.)
 checkSignals :: IO ()

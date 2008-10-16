@@ -95,6 +95,7 @@ Library {
         Data.Foldable
         Data.Function,
         Data.HashTable,
+        Data.Heap,
         Data.IORef,
         Data.Int,
         Data.Ix,
