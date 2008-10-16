@@ -358,6 +358,13 @@ static volatile TickProc timer0_proc;
 unsigned long timer0_ticks;
 unsigned ms_per_tick;
 
+// debugging function for determining when lwconc is idling.
+void idlePrint() {
+  static int i = 0;
+  if (i == 4) i = 0; else i++;
+  1[(short*)0xB8000] = 0x4F00 | "|/-\\"[i];
+}
+
 void onIRQ0(IA32_FaultContext* p) {
   0[(short*)0xB8000] = 0x4F00 | ('0' + timer0_ticks % 10);
   ++timer0_ticks;

@@ -21,6 +21,7 @@ import LwConc.Substrate
 -- Stuff for sleeping threads (threadDelay backing)
 import Foreign.C(CUInt)
 foreign import ccall unsafe getourtimeofday :: IO CUInt
+foreign import ccall unsafe idlePrint :: IO ()
 
 getJiffies :: Integral i => STM i
 getJiffies = do cuint <- unsafeIOToSTM getourtimeofday
@@ -47,7 +48,7 @@ getNextThread =
        (t :< ts) -> do writeTVar readyQ ts
                        return t
        EmptyL    -> -- Nothing to do, so return a new continuation that simply keeps checking...
-                    unsafeIOToSTM $ newSCont (switch (\idleThread -> getNextThread))
+                    unsafeIOToSTM $ idlePrint >> newSCont (switch (\idleThread -> getNextThread))
 
 -- |Marks a thread "ready" and schedules it for some future time.
 schedule :: SCont -> STM ()
