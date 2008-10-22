@@ -4,6 +4,7 @@ module LwConc.Scheduler
 , getNextThread
 , schedule
 , scheduleIn
+, queueLengths
 ) where
 
 -- This is a basic round-robin scheduler which ignores priority.
@@ -30,6 +31,11 @@ getJiffies = do cuint <- unsafeIOToSTM getourtimeofday
 -- |The single ready queue used for round robin scheduling.
 readyQ :: TVar (Seq SCont)
 readyQ = unsafePerformIO $ newTVarIO Seq.empty
+
+queueLengths :: IO (Int, Int)
+queueLengths = atomically $ do rq <- readTVar readyQ
+                               sq <- readTVar sleepQ
+                               return (Seq.length rq, Heap.size sq)
 
 -- |Returns whether or not there's another ready thread in the system.
 -- Note that the current thread is not included.

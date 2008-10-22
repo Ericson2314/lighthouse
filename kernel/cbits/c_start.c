@@ -358,6 +358,25 @@ static volatile TickProc timer0_proc;
 unsigned long timer0_ticks;
 unsigned ms_per_tick;
 
+// debugging: called when switching threads
+void showCornerNumber(unsigned number) {
+    if (number == 0) {
+        75[(short*)0xB8000] = 0x4F00 | ('?');
+    } else {
+        75[(short*)0xB8000] = 0x4F00 | ('R');
+        77[(short*)0xB8000] = 0x4F00 | ('0' + (number/100) % 10);
+        78[(short*)0xB8000] = 0x4F00 | ('0' + (number/10) % 10);
+        79[(short*)0xB8000] = 0x4F00 | ('0' + number % 10);
+    }
+}
+
+// debugging: called when a non-timer IRQ handler is called in haskell.
+void hsirqPrint() {
+    static int i = 0;
+    if (i == 4) i = 0; else i++;
+    2[(short*)0xB8000] = 0x4F00 | ".oOo"[i];
+}
+
 // debugging function for determining when lwconc is idling.
 void idlePrint() {
   static int i = 0;

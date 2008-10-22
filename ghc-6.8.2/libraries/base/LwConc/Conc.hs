@@ -7,24 +7,26 @@ module LwConc.Conc
 , timerHandler
 , die
 -- Control.Concurrent stuff
-, ThreadId(..)
 , myThreadId
 , forkIO
 , killThread
 , throwTo
 , yield
 , threadDelay
+
+, dumpAllThreads
 ) where
 
 import Prelude hiding (catch)
 import GHC.Exception(Exception)
-import Control.Monad(when)
+import Control.Monad(when, liftM)
 import System.IO.Unsafe (unsafePerformIO)
 import Data.IORef
 import LwConc.Scheduler
 import LwConc.Substrate
 import LwConc.STM
 import Foreign.C(CString, withCString)
+import System.Mem.Weak(Weak(..), mkWeakPtr, deRefWeak)
 
 foreign import ccall unsafe "start.h c_print" c_print :: CString -> IO ()
 
@@ -40,13 +42,35 @@ timerHandler :: IO ()
 timerHandler = do val <- getTLS tidTLSKey
                   case val of
                     Nothing  -> return () -- uninitialized. let it continue
-                    Just tid -> yield
+                    Just tid -> yield -- cPrint (show tid ++ " forced to yield.\n") >> yield
                     
 -- | Yield, marking the current thread ready & switching to the next one.
 yield :: IO ()
 yield = do switch $ \currThread -> do schedule currThread
                                       getNextThread
            checkSignals
+
+allThreads :: TVar [Weak ThreadId]
+allThreads = unsafePerformIO $ newTVarIO []
+
+cleanWeakList :: [Weak a] -> STM [Weak a]
+cleanWeakList [] = return []
+cleanWeakList (w:ws) = do m <- unsafeIOToSTM $ deRefWeak w
+                          case m of
+                            Nothing -> cleanWeakList ws
+                            Just _  -> do ws' <- cleanWeakList ws
+                                          return (w:ws')
+
+cleanAllThreads :: STM ()
+cleanAllThreads = do ws <- readTVar allThreads
+                     ws' <- cleanWeakList ws
+                     writeTVar allThreads ws'
+
+dumpAllThreads :: (String -> IO ()) -> IO ()
+dumpAllThreads putStr
+  = do ws <- atomically $ cleanAllThreads >> readTVar allThreads
+       strs <- mapM (liftM show . deRefWeak) ws
+       putStr (show strs ++ "\n")
 
 -- | Switches to the next thread, but doesn't schedule the current thread again.
 -- Since it's not running nor scheduled, it will be garbage collected.
@@ -56,35 +80,14 @@ die = switch $ \dyingThread -> getNextThread
 -----------------------------------------------------------------------------
 -- ThreadIds
 
--- | Thread IDs are primarily a IORef containing signalling information.
--- However, we also assign each a monotonically increasing integer - mostly
--- for printing, but possibly for other uses in the future.  These start at 1.
-
-newtype ThreadId = ThreadId (Integer, IORef Bool)
-  deriving Eq
-
-instance Show ThreadId where
-  show (ThreadId (id, box)) = "<Thread " ++ show id ++ ">"
-
-instance Ord ThreadId where
-  compare (ThreadId (x,_)) (ThreadId (y,_)) = compare x y
-
--- | Numerical IDs, starting at 1. Zero is reserved for special use.
-nextThreadNum :: TVar Integer
+-- | Numerical IDs, starting at 1.
+nextThreadNum :: TVar Int
 nextThreadNum = unsafePerformIO $ newTVarIO 1
 
-getNextThreadNum :: IO Integer
+getNextThreadNum :: IO Int
 getNextThreadNum = atomically $ do x <- readTVar nextThreadNum
                                    writeTVar nextThreadNum (x+1)
                                    return x
-
--- | We store each thread's ID in their TLS, allowing a simple implementation
--- of myThreadId.  However, threads must initialize their own TLS, and we may
--- get an interrupt before the thread's fully set up.  Hence, we use a Maybe
--- type for the TLS key.
-
-tidTLSKey :: TLSKey (Maybe ThreadId)
-tidTLSKey = unsafePerformIO $ newTLSKey Nothing
 
 -- | Returns the current ThreadId.  Only safe to call when threads are fully
 -- initialized (i.e. have started running their real computation).
@@ -110,7 +113,10 @@ forkIO computation =
                                 computation
                                 cPrint (show tid ++ " completed without incident.\n")
                                 die
-     atomically $ schedule newThread
+     weak <- mkWeakPtr tid Nothing
+     atomically $ do schedule newThread
+                     ws <- readTVar allThreads
+                     writeTVar allThreads (weak:ws)
      return tid
   where newThreadId :: IO ThreadId
         newThreadId = do tnum <- getNextThreadNum
@@ -143,4 +149,5 @@ checkSignals = do val <- getTLS tidTLSKey -- Could use myThreadId; we don't call
                   case val of
                     Nothing -> return ()
                     Just (tid@(ThreadId (tnum, tbox))) -> do flag <- readIORef tbox
+                                                             --cPrint (show tid ++ " is running.\n")
                                                              when flag $ cPrint (show tid ++ " is killing itself.\n") >> die

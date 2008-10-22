@@ -22,6 +22,13 @@ import H.Monad(H)
 import H.Concurrency
 --import Kernel.Debug
 
+import H.Monad(liftIO)
+import Foreign.C(CString, withCString)
+foreign import ccall unsafe "start.h c_print" c_print :: CString -> IO ()
+
+cPrint :: String -> H ()
+cPrint str = liftIO (withCString str c_print)
+
 -- Most of theses datatypes where borrowed from Richard Braakman's SDL bindings
 
 data KeyPress = KeyPress (Set KMod) Key
@@ -105,7 +112,8 @@ launchKeyboardDecoder codeChan =
 			       else scanHandler sequence
 			  Just event -> do writeChan keyChan event
 					   scanHandler []
-       forkH $ scanHandler []
+       tid <- forkH $ scanHandler []
+       cPrint ("===Keyboard decoder is " ++ show tid ++ "\n")
        return keyChan
 
 launchKeyboardInterpreter :: Chan KeyEvent -> H (Chan KeyPress)
@@ -116,7 +124,8 @@ launchKeyboardInterpreter eventChan =
 		  let (mods', dead', ks) = interpret mods dead event
 		  mapM_ (writeChan pressChan) ks
 		  interpreter mods' dead'
-       forkH $ interpreter Set.empty Nothing
+       tid <- forkH $ interpreter Set.empty Nothing
+       cPrint ("\n===Keyboard interpreter is " ++ show tid ++ "\n")
        return pressChan
 
 type DeadKey = Char -- ?

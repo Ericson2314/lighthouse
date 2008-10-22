@@ -31,9 +31,12 @@ module LwConc.MVar
 	, tryPutMVar    -- :: MVar a -> a -> IO Bool
 	, isEmptyMVar	-- :: MVar a -> IO Bool
 	--, withMVar	-- :: MVar a -> (a -> IO b) -> IO b
-	--, modifyMVar_ 	-- :: MVar a -> (a -> IO a) -> IO ()
+	--, modifyMVar_	-- :: MVar a -> (a -> IO a) -> IO ()
 	--, modifyMVar 	-- :: MVar a -> (a -> IO (a,b)) -> IO b
 	, addMVarFinalizer -- :: MVar a -> IO () -> IO ()
+
+        , cleanBlocked
+        , dumpBlocked
 ) where
 
 import LwConc.Scheduler
@@ -41,11 +44,70 @@ import LwConc.STM
 import LwConc.Substrate
 import Data.IORef
 import Data.Sequence as Seq
+import System.IO.Unsafe (unsafePerformIO)
+import System.Mem.Weak (Weak(..), mkWeak, deRefWeak)
+import Foreign.C(CString, withCString)
+
+foreign import ccall unsafe "start.h c_print" c_print :: CString -> IO ()
+
+cPrint :: String -> IO ()
+cPrint str = withCString str c_print
 
 newtype MVar a = MVar (TVar (MVState a)) deriving Eq -- Typeable, Data?
 
-data MVState a = Full a (Seq (a, SCont))        -- queue of blocked writers
-               | Empty  (Seq (IORef a, SCont))  -- queue of blocked readers
+data MVState a = Full a (Seq (a, SCont))       -- queue of blocked writers
+               | Empty  (Seq (IORef a, SCont)) -- queue of blocked readers
+
+-- |Blocked queue stuff.
+blockedQ :: TVar [(ThreadId, Weak SCont)]
+blockedQ = unsafePerformIO $ newTVarIO []
+
+markBlocked :: MVar a -> SCont -> STM ()
+markBlocked mv scont = do weak <- unsafeIOToSTM $ mkWeak mv scont Nothing
+                          Just tid <- unsafeIOToSTM mySafeThreadId
+                          q <- readTVar blockedQ
+                          writeTVar blockedQ ((tid, weak):q)
+
+markUnblocked :: SCont -> STM ()
+markUnblocked scont = do q <- readTVar blockedQ
+                         q' <- unsafeIOToSTM $ deleteW scont q
+                         writeTVar blockedQ q'
+  where deleteW :: SCont -> [(ThreadId, Weak SCont)] -> IO [(ThreadId, Weak SCont)]
+        deleteW _ []     = return []
+        deleteW x ((t,w):ws) =
+          do m <- deRefWeak w
+             case m of
+               Nothing -> do ws' <- deleteW x ws
+                             return ((t,w):ws') -- should probably not cons it back on here - clean as we go
+               Just y -> if x == y
+                            --then cPrint ("Unblocking " ++ show t) >> return ws
+                            then return ws
+                            else do ws' <- deleteW x ws
+                                    return ((t,w):ws')
+
+cleanBlocked :: IO ()
+cleanBlocked = atomically $
+  do q <- readTVar blockedQ
+     q' <- unsafeIOToSTM $ filterCollected q
+     writeTVar blockedQ q'
+  where filterCollected :: [(ThreadId, Weak a)] -> IO [(ThreadId, Weak a)]
+        filterCollected [] = return []
+        filterCollected ((t,w):ws) = do m <- deRefWeak w
+                                        case m of
+                                          Nothing -> filterCollected ws
+                                          Just _  -> do ws' <- filterCollected ws
+                                                        return ((t,w):ws')
+
+dumpBlocked :: IO ()
+dumpBlocked = atomically $ do q <- readTVar blockedQ
+                              unsafeIOToSTM $ do cPrint "\nBlocked thread status"
+                                                 cPrint "\n=====================\n"
+                                                 mapM_ dumpQ q
+                                                 cPrint   "=====================\n"
+  where dumpQ (t,w) = do m <- deRefWeak w
+                         case m of
+                           Nothing -> cPrint (show t ++ " - blocked on dead MVar.\n")
+                           Just sc -> cPrint (show t ++ " - alive.\n")
 
 -- |Create an 'MVar' which is initially empty.
 newEmptyMVar :: IO (MVar a)
@@ -75,7 +137,7 @@ newMVar x =
 --     fairness properties of abstractions built using 'MVar's.
 --
 takeMVar :: MVar a -> IO a
-takeMVar (MVar p) =
+takeMVar mv@(MVar p) =
   do hole <- newIORef undefined
      switch $ \currThread ->
        do st <- readTVar p
@@ -86,9 +148,11 @@ takeMVar (MVar p) =
                                         return currThread
                            ((x',t) :< ts) -> do writeTVar p (Full x' ts)
                                                 unsafeIOToSTM $ writeIORef hole x -- put value in hole so we can return it at the end
+                                                markUnblocked t
                                                 schedule t -- wake them up
                                                 return currThread -- continue
             Empty bq -> do writeTVar p (Empty (bq |> (hole, currThread))) -- block (queueing hole for answer)
+                           markBlocked mv currThread
                            getNextThread                                  -- and run something else
      readIORef hole
 
@@ -108,7 +172,7 @@ takeMVar (MVar p) =
 --
 {-# INLINE putMVar #-}
 putMVar :: MVar a -> a -> IO ()
-putMVar (MVar p) x = switch $ \currThread ->
+putMVar mv@(MVar p) x = switch $ \currThread ->
   do st <- readTVar p
      case st of
        Empty bq -> case viewl bq of
@@ -116,9 +180,11 @@ putMVar (MVar p) x = switch $ \currThread ->
                                   return currThread
                      ((hole,t) :< ts) -> do unsafeIOToSTM $ writeIORef hole x -- pass value through hole to blocked reader
                                             writeTVar p (Empty ts)            -- take them off the blocked queue
+                                            markUnblocked t
                                             schedule t                        -- put them back on the ready queue
                                             return currThread
        Full y bq -> do writeTVar p (Full y (bq |> (x, currThread))) -- block (queueing value to write)
+                       markBlocked mv currThread
                        getNextThread                                -- and run something else
 
 -- |A non-blocking version of 'takeMVar'.  The 'tryTakeMVar' function
@@ -132,6 +198,7 @@ tryTakeMVar (MVar p) = atomically $
        Full x bq -> do case viewl bq of
                          EmptyL -> writeTVar p (Empty empty)
                          ((x',t) :< ts) -> do writeTVar p (Full x' ts)
+                                              markUnblocked t
                                               schedule t
                        return (Just x)
        Empty bq -> return Nothing
@@ -147,6 +214,7 @@ tryPutMVar (MVar p) x = atomically $
                         EmptyL -> writeTVar p (Full x empty) -- nobody waiting, just store value
                         ((hole,t) :< ts) -> do unsafeIOToSTM $ writeIORef hole x -- pass value through hole to blocked reader
                                                writeTVar p (Empty ts)            -- take them off the blocked queue
+                                               markUnblocked t
                                                schedule t                        -- place them on the ready queue
                       return True
        Full y bq -> return False

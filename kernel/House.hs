@@ -63,17 +63,25 @@ import Monad.Util
 import Util.CmdLineParser hiding ((!))
 import qualified Util.CmdLineParser as P
        
-import LwConc.Conc(startSystem)
+import LwConc.Conc(startSystem, die)
 import H.Monad(liftIO)
 import Foreign.C(CString,withCString)
+
+import LwConc.Conc(dumpAllThreads, mySafeThreadId)
+import LwConc.Scheduler(queueLengths)
+import LwConc.MVar(dumpBlocked)
 
 -- Jiffies test
 import Foreign.C(CUInt)
 foreign import ccall unsafe getourtimeofday :: IO CUInt
 
+
 default(Int)
 
 foreign import ccall unsafe "start.h c_print" c_print :: CString -> IO ()
+
+cPrintIO :: String -> IO ()
+cPrintIO str = withCString str c_print
 
 cPrint :: String -> H ()
 cPrint str = liftIO (withCString str c_print)
@@ -118,7 +126,9 @@ loadPCITables =
 welcome = "Welcome to the House shell! Enter help to see a list of commands."
 
 initTextShell exestate =
-    do console <- launchConsoleDriver
+    do tid <- myThreadId
+       cPrint ("===initTextShell is " ++ show tid ++ "\n")
+       console <- launchConsoleDriver
        putMVar v_defaultConsole console -- for possible debugging
        putString console (welcome++"\n\n")
        textShell console exestate =<< kbdChan
@@ -274,9 +284,13 @@ execute3 extra exestate@(netstate,pciState) user =
     debugcommands =
       oneof [cmd "lambda" (putStrLn "Too much to abstract!"),
              cmd "js" jiffies,
+             cmd "mousedebug" mousedebug,
+             cmd "allthreads" allthreads,
              -- tests
+             cmd "deadblock" deadblock,
              cmd "killtest" killtest,
              cmd "killself" killself,
+             cmd "dieself" dieself,
              cmd "delaytest" delaytest,
              cmd "delaykilltest" delaykilltest,
              -- benchmarks
@@ -296,19 +310,40 @@ execute3 extra exestate@(netstate,pciState) user =
              cmd "preempt4" preempt4,
              cmd "wastemem" wasteMem <@ number]
       where
+        deadblock = do tid <- forkH $ do mv <- newMVar 4
+                                         putMVar mv 5
+                       cPrint ("deadblock - forked off " ++ show tid ++ "\n")
+        mousedebug = do mapM_ (const f)  =<< getChanContents =<< launchMouseDriver
+          where f = allthreads
+
+        allthreads = do cPrint "\nAll threads"
+                        cPrint "\n===========\n"
+                        liftIO $ dumpAllThreads cPrintIO
+                        liftIO dumpBlocked
+        {-
+          where f = do (rqlen, sqlen) <- liftIO queueLengths
+                       me <- liftIO mySafeThreadId
+                       cPrint ("I am " ++ show me ++ "\n")
+                       cPrint ("|readyQ| = " ++ show rqlen ++ ", |sleepQ| = " ++ show sqlen ++ "\n")
+                       -}
         killtest = do id <- forkH $ p2helper "A"
                       killH id
                       putStrLn "The other thread was about to print 'A's, but likely didn't get a chance."
         killself = do forkH $ do self <- myThreadId
-                                 putStrLn (show self ++ " is about to print some dots, but not forever!")
+                                 cPrint (show self ++ " is about to print some dots, but not forever!")
                                  killH self
+                                 p2helper "."
+                      return ()
+        dieself  = do forkH $ do self <- myThreadId
+                                 putStrLn (show self ++ " isn't about to print any dots!")
+                                 liftIO die
                                  p2helper "."
                       return ()
         delaytest = do putStrLn "Waiting 5 seconds..."
                        threadDelay 5000000
                        putStrLn "Welcome back!"
         delaykilltest = do tid <- forkH $ p2helper "o"
-                           threadDelay 1000000
+                           threadDelay 100000
                            killH tid
                            putStrLn "Welcome back!"
         jiffies = do j <- liftIO getourtimeofday

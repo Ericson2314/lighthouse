@@ -463,6 +463,7 @@ unblockOne (Capability *cap, StgTSO *tso)
     return unblockOne_(cap,tso,rtsTrue); // allow migration
 }
 
+// KAYDEN: should delete this...maybe...
 StgTSO *
 unblockOne_ (Capability *cap, StgTSO *tso, 
 	     rtsBool allow_migrate USED_IF_THREADS)

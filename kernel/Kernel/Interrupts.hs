@@ -16,6 +16,7 @@ import Control.Monad(when)
 import Foreign.C(CString, withCString)
 -- import H.Monad(H, liftIO)
 foreign import ccall unsafe "start.h c_print" c_print :: CString -> IO ()
+foreign import ccall unsafe hsirqPrint :: IO ()
 
 cPrint :: String -> H ()
 cPrint str = liftIO $ withCString str c_print
@@ -35,7 +36,7 @@ registerIRQHandler irq handler =
 
 -- timerHandler isn't registered in the table.  I suppose it could be.
 callIRQHandler IRQ0 = liftIO timerHandler
-callIRQHandler irq = 
+callIRQHandler irq = liftIO hsirqPrint >>
   do mHandler <- readArray irqTable irq
      case mHandler of
        Just handler -> handler

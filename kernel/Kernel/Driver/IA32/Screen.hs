@@ -16,6 +16,14 @@ import H.IOPorts
 import H.AdHocMem(absolutePtr)
 import H.MemRegion
 
+import H.Monad(liftIO)
+import Foreign.C(CString, withCString)
+foreign import ccall unsafe "start.h c_print" c_print :: CString -> IO ()
+
+cPrint :: String -> H ()
+cPrint str = liftIO (withCString str c_print)
+
+
 screen :: MemRegion
 screen = createRegion (absolutePtr 0xB8000)
 	              (toEnum (2*screenHeight*screenWidth))
@@ -90,7 +98,8 @@ launchConsoleDriver =
 	       | row >= screenHeight || col >= screenWidth =
 		   doCommand NewLine row col >>= adjustPosition
 	       | otherwise = return (row, col)
-       forkH $ consolePrinter 20 0
+       tid <- forkH $ consolePrinter 20 0
+       cPrint ("===Console printer is " ++ show tid ++ "\n")
        vConsole <- newMVar $ ConsoleData { consoleChan = chan
 					 , consoleHeight = fromEnum screenHeight
 					 , consoleWidth = fromEnum screenWidth
