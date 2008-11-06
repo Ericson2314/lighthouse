@@ -135,13 +135,6 @@ typedef struct StgTSO_ {
     int                     saved_errno;
     struct Capability_*     cap;
 
-    /* 
-       A list of threads blocked on this TSO waiting to throw
-       exceptions.  In order to access this field, the TSO must be
-       locked using lockClosure/unlockClosure (see SMP.h).
-    */
-    struct StgTSO_ *        blocked_exceptions;
-
 #ifdef TICKY_TICKY
     /* TICKY-specific stuff would go here. */
 #endif
@@ -194,15 +187,8 @@ typedef struct StgTSO_ {
 	
         BlockedOnBlackHole     the BLACKHOLE_BQ     the BLACKHOLE_BQ's queue
 	
-        BlockedOnMVar          the MVAR             the MVAR's queue
-
-	BlockedOnSTM           END_TSO_QUEUE        STM wait queue(s)
-	
-        BlockedOnException     the TSO              TSO->blocked_exception
-
         BlockedOnRead          NULL                 blocked_queue
         BlockedOnWrite         NULL		    blocked_queue
-        BlockedOnDelay         NULL                 blocked_queue
 	BlockedOnGA            closure TSO blocks on   BQ of that closure
 	BlockedOnGA_NoSend     closure TSO blocks on   BQ of that closure
 

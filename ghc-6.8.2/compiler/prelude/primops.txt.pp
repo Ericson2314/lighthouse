@@ -1246,29 +1246,9 @@ primop  RaiseIOOp "raiseIO#" GenPrimOp
    with
    out_of_line = True
 
-primop  BlockAsyncExceptionsOp "blockAsyncExceptions#" GenPrimOp
-        (State# RealWorld -> (# State# RealWorld, a #))
-     -> (State# RealWorld -> (# State# RealWorld, a #))
-   with
-   out_of_line = True
-
-primop  UnblockAsyncExceptionsOp "unblockAsyncExceptions#" GenPrimOp
-        (State# RealWorld -> (# State# RealWorld, a #))
-     -> (State# RealWorld -> (# State# RealWorld, a #))
-   with
-   out_of_line = True
-
 ------------------------------------------------------------------------
 section "Delay/wait operations"
 ------------------------------------------------------------------------
-
-primop  DelayOp "delay#" GenPrimOp
-   Int# -> State# s -> State# s
-   {Sleep specified number of microseconds.}
-   with
-   needs_wrapper    = True
-   has_side_effects = True
-   out_of_line      = True
 
 primop  WaitReadOp "waitRead#" GenPrimOp
    Int# -> State# s -> State# s

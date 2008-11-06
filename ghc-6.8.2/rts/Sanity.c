@@ -607,18 +607,10 @@ checkTSO(StgTSO *tso)
       break;
     case BlockedOnRead:
     case BlockedOnWrite:
-    case BlockedOnDelay:
 #if defined(mingw32_HOST_OS)
     case BlockedOnDoProc:
 #endif
       /* isOnBQ(blocked_queue) */
-      break;
-    case BlockedOnException:
-      /* isOnSomeBQ(tso) */
-      ASSERT(get_itbl(tso->block_info.tso)->type==TSO);
-      break;
-    case BlockedOnMVar:
-      ASSERT(false);
       break;
     default:
       /* 

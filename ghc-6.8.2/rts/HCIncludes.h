@@ -16,7 +16,6 @@
 #include "OSThreads.h"
 #include "Apply.h"
 #include "SMP.h"
-#include "RaiseAsync.h"
 #include "Threads.h"
 #include "Prelude.h"
 #include "Stable.h"

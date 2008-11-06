@@ -37,7 +37,6 @@
 #endif
 #include "Trace.h"
 #include "RetainerProfile.h"
-#include "RaiseAsync.h"
 
 #include "GC.h"
 #include "Compact.h"

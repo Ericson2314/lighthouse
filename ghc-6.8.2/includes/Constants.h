@@ -188,13 +188,9 @@
  * Constants for the why_blocked field of a TSO
  */
 #define NotBlocked          0
-#define BlockedOnMVar       1
 #define BlockedOnBlackHole  2
-#define BlockedOnException  3
 #define BlockedOnRead       4
 #define BlockedOnWrite      5
-#define BlockedOnDelay      6
-#define BlockedOnSTM        7
 
 /* Win32 only: */
 #define BlockedOnDoProc     8
@@ -240,17 +236,7 @@
  */
 #define TSO_LOCKED  2
 
-/*
- * TSO_BLOCKEX: the TSO is blocking exceptions
- *
- * TSO_INTERRUPTIBLE: the TSO can be interrupted if it blocks
- * interruptibly (eg. with BlockedOnMVar).
- *
- * TSO_STOPPED_ON_BREAKPOINT: the thread is currently stopped in a breakpoint
- */
-#define TSO_BLOCKEX       4
-#define TSO_INTERRUPTIBLE 8
-#define TSO_STOPPED_ON_BREAKPOINT 16 
+#define TSO_STOPPED_ON_BREAKPOINT 4
 
 /* -----------------------------------------------------------------------------
    RET_DYN stack frames

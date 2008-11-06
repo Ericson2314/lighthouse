@@ -96,7 +96,6 @@ createThread(Capability *cap, nat size)
     tso->what_next = ThreadRunGHC;
 
     tso->why_blocked  = NotBlocked;
-    tso->blocked_exceptions = END_TSO_QUEUE;
     tso->flags = TSO_DIRTY;
     
     tso->saved_errno = 0;
@@ -673,16 +672,6 @@ printThreadBlockage(StgTSO *tso)
     debugBelch("is blocked on proc (request: %ld)", tso->block_info.async_result->reqID);
     break;
 #endif
-  case BlockedOnDelay:
-    debugBelch("is blocked until %ld", (long)(tso->block_info.target));
-    break;
-  case BlockedOnMVar:
-    debugBelch("is blocked on an MVar @ %p", tso->block_info.closure);
-    break;
-  case BlockedOnException:
-    debugBelch("is blocked on delivering an exception to thread %lu",
-	       (unsigned long)tso->block_info.tso->id);
-    break;
   case BlockedOnBlackHole:
     debugBelch("is blocked on a black hole");
     break;

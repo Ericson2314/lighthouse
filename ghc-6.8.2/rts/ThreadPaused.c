@@ -10,7 +10,6 @@
 #include "Storage.h"
 #include "LdvProfile.h"
 #include "Updates.h"
-#include "RaiseAsync.h"
 #include "Trace.h"
 #include "RtsFlags.h"
 
@@ -187,13 +186,7 @@ threadPaused(Capability *cap, StgTSO *tso)
     nat weight_pending   = 0;
     rtsBool prev_was_update_frame = rtsFalse;
     
-    // Check to see whether we have threads waiting to raise
-    // exceptions, and we're not blocking exceptions, or are blocked
-    // interruptibly.  This is important; if a thread is running with
-    // TSO_BLOCKEX and becomes blocked interruptibly, this is the only
-    // place we ensure that the blocked_exceptions get a chance.
-    maybePerformBlockedException (cap, tso);
-    if (tso->what_next == ThreadKilled) { return; }
+    //if (tso->what_next == ThreadKilled) { return; }
 
     stack_end = &tso->stack[tso->stack_size];
     
@@ -224,7 +217,8 @@ threadPaused(Capability *cap, StgTSO *tso)
 		debugTrace(DEBUG_squeeze,
 			   "suspending duplicate work: %ld words of stack",
 			   (long)((StgPtr)frame - tso->sp));
-
+                debugBelch("Hit unimplemented suspendComputation code.\n");
+                /*
 		// If this closure is already an indirection, then
 		// suspend the computation up to this point:
 		suspendComputation(cap,tso,(StgPtr)frame);
@@ -238,6 +232,7 @@ threadPaused(Capability *cap, StgTSO *tso)
 		// And continue with threadPaused; there might be
 		// yet more computation to suspend.
 		threadPaused(cap,tso);
+                */
 		return;
 	    }
 

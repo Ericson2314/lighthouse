@@ -130,14 +130,9 @@ scavenge_fun_srt(const StgInfoTable *info)
 static void
 scavengeTSO (StgTSO *tso)
 {
-    if (   tso->why_blocked == BlockedOnMVar
-	|| tso->why_blocked == BlockedOnBlackHole
-	|| tso->why_blocked == BlockedOnException
-	) {
+    if (tso->why_blocked == BlockedOnBlackHole) {
 	tso->block_info.closure = evacuate(tso->block_info.closure);
     }
-    tso->blocked_exceptions = 
-	(StgTSO *)evacuate((StgClosure *)tso->blocked_exceptions);
     
     // We don't always chase the link field: TSOs on the blackhole
     // queue are not automatically alive, so the link field is a

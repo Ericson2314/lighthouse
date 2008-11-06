@@ -278,7 +278,6 @@ main(int argc, char *argv[])
     closure_field(StgTSO, what_next);
     closure_field(StgTSO, why_blocked);
     closure_field(StgTSO, block_info);
-    closure_field(StgTSO, blocked_exceptions);
     closure_field(StgTSO, id);
     closure_field(StgTSO, cap);
     closure_field(StgTSO, saved_errno);
@@ -303,7 +302,6 @@ main(int argc, char *argv[])
     closure_field(StgUpdateFrame, updatee);
 
     closure_field(StgCatchFrame, handler);
-    closure_field(StgCatchFrame, exceptions_blocked);
 
     closure_size(StgPAP);
     closure_field(StgPAP, n_args);

@@ -148,7 +148,7 @@ getMBlocks(unsigned n) {
   unsigned i = 0;
   next_mblock += MBLOCK_SIZE * n;
   if (next_mblock > end_of_memory)
-    perror("Haskell heap exhausted\n");
+    errorBelch("Haskell heap exhausted\n");
   mblocks_allocated += n;
   for (i = 0; i < n; i++) {
       markHeapAlloced(p + i * MBLOCK_SIZE);

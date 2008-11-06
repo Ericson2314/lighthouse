@@ -465,13 +465,9 @@ thread_TSO (StgTSO *tso)
     thread_(&tso->link);
     thread_(&tso->global_link);
 
-    if (   tso->why_blocked == BlockedOnMVar
-	|| tso->why_blocked == BlockedOnBlackHole
-	|| tso->why_blocked == BlockedOnException
-	) {
+    if (tso->why_blocked == BlockedOnBlackHole) {
 	thread_(&tso->block_info.closure);
     }
-    thread_(&tso->blocked_exceptions);
     
     thread_stack(tso->sp, &(tso->stack[tso->stack_size]));
     return (StgPtr)tso + tso_sizeW(tso);

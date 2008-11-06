@@ -47,7 +47,8 @@ module Foreign.Marshal.Pool (
 #ifdef __GLASGOW_HASKELL__
 import GHC.Base              ( Int, Monad(..), (.), not )
 import GHC.Err               ( undefined )
-import GHC.Exception         ( block, unblock, throw, catchException )
+import GHC.Exception         ( throw, catchException )
+import LwConc.Conc           ( block, unblock )
 import GHC.IOBase            ( IO, IORef, newIORef, readIORef, writeIORef, )
 import GHC.List              ( elem, length )
 import GHC.Num               ( Num(..) )

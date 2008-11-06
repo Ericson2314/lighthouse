@@ -71,6 +71,7 @@ import LwConc.Conc(dumpAllThreads, mySafeThreadId)
 import LwConc.Scheduler(queueLengths)
 import LwConc.MVar(dumpBlocked)
 
+import Control.Exception(Exception(..), throw)
 -- Jiffies test
 import Foreign.C(CUInt)
 foreign import ccall unsafe getourtimeofday :: IO CUInt
@@ -288,8 +289,10 @@ execute3 extra exestate@(netstate,pciState) user =
              cmd "allthreads" allthreads,
              -- tests
              cmd "deadblock" deadblock,
+             cmd "exntest" exntest,
              cmd "killtest" killtest,
              cmd "killself" killself,
+             cmd "killself2" killself2,
              cmd "dieself" dieself,
              cmd "delaytest" delaytest,
              cmd "delaykilltest" delaykilltest,
@@ -326,6 +329,8 @@ execute3 extra exestate@(netstate,pciState) user =
                        cPrint ("I am " ++ show me ++ "\n")
                        cPrint ("|readyQ| = " ++ show rqlen ++ ", |sleepQ| = " ++ show sqlen ++ "\n")
                        -}
+        exntest = do forkH $ throw Deadlock
+                     return ()
         killtest = do id <- forkH $ p2helper "A"
                       killH id
                       putStrLn "The other thread was about to print 'A's, but likely didn't get a chance."
@@ -334,6 +339,18 @@ execute3 extra exestate@(netstate,pciState) user =
                                  killH self
                                  p2helper "."
                       return ()
+                      -- maybe the shell thread is getting hung up waiting for more ...'s to come in
+                      -- Yeah, because `block` isn't implemented so withMVar etc. get killed when they normally would've blocked those exns.
+        killself2 = do forkH $ do self <- myThreadId
+                                  cPrint (show self ++ " is about to CPRINT some dots, but not forever!")
+                                  killH self
+                                  p3helper ":"
+                       return ()
+          where p3helper s = do cPrint s
+                                t <- newMVar [1,2,3]
+                                u <- readMVar t
+                                p3helper s
+
         dieself  = do forkH $ do self <- myThreadId
                                  putStrLn (show self ++ " isn't about to print any dots!")
                                  liftIO die

@@ -37,7 +37,6 @@
 #include "win32/IOManager.h"
 #endif
 #include "Trace.h"
-#include "RaiseAsync.h"
 #include "Threads.h"
 #include "ThrIOManager.h"
 
@@ -486,7 +485,7 @@ threadStackOverflow(Capability *cap, StgTSO *tso)
   // while we are moving the TSO:
   lockClosure((StgClosure *)tso);
 
-  if (tso->stack_size >= tso->max_stack_size && !(tso->flags & TSO_BLOCKEX)) {
+  if (tso->stack_size >= tso->max_stack_size) {
       // NB. never raise a StackOverflow exception if the thread is
       // inside Control.Exceptino.block.  It is impractical to protect
       // against stack overflow exceptions, since virtually anything
@@ -504,7 +503,7 @@ threadStackOverflow(Capability *cap, StgTSO *tso)
       debugBelch("Out of stack space...trying to throw exception\n");
       // Send this thread the StackOverflow exception
       unlockTSO(tso);
-      throwToSingleThreaded(cap, tso, (StgClosure *)stackOverflow_closure);
+      barf("Stack overflowed completely; RTS cannot throw asynchronous exceptions.\n");
       return tso;
   }
 
@@ -633,19 +632,6 @@ raiseExceptionHelper (StgRegTable *reg, StgTSO *tso, StgClosure *exception)
     // This closure represents the expression 'raise# E' where E
     // is the exception raise.  It is used to overwrite all the
     // thunks which are currently under evaluataion.
-    //
-
-    // OLD COMMENT (we don't have MIN_UPD_SIZE now):
-    // LDV profiling: stg_raise_info has THUNK as its closure
-    // type. Since a THUNK takes at least MIN_UPD_SIZE words in its
-    // payload, MIN_UPD_SIZE is more approprate than 1.  It seems that
-    // 1 does not cause any problem unless profiling is performed.
-    // However, when LDV profiling goes on, we need to linearly scan
-    // small object pool, where raise_closure is stored, so we should
-    // use MIN_UPD_SIZE.
-    //
-    // raise_closure = (StgClosure *)RET_STGCALL1(P_,allocate,
-    // 				       sizeofW(StgClosure)+1);
     //
 
     //

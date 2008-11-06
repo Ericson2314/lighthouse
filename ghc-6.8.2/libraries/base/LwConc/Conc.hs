@@ -13,15 +13,18 @@ module LwConc.Conc
 , throwTo
 , yield
 , threadDelay
+-- Control.Exception stuff
+, block
+, unblock
 
 , dumpAllThreads
 ) where
 
-import Prelude hiding (catch)
-import GHC.Exception(Exception)
-import Control.Monad(when, liftM)
+import GHC.Exception(Exception(..), AsyncException(..), catchException, throw)
+import Control.Monad(when, unless, liftM)
 import System.IO.Unsafe (unsafePerformIO)
 import Data.IORef
+import Data.Sequence
 import LwConc.Scheduler
 import LwConc.Substrate
 import LwConc.STM
@@ -107,10 +110,15 @@ myThreadId = do val <- getTLS tidTLSKey
 forkIO :: IO () -> IO ThreadId
 forkIO computation =
   do tid <- newThreadId
+     sigsblocked <- getTLS blockSignalsKey
      newThread <- newSCont $ do setTLS tidTLSKey (Just tid)
                                 cPrint (show tid ++ " has set its TLS Key.\n")
+                                -- Inherit exception-blocked status from parent, per the spec.
+                                setTLS blockSignalsKey sigsblocked
                                 checkSignals -- check for kill before run the first time.
-                                computation
+                                computation `catchException` \ex -> do cPrint ("Uncaught exception in " ++ show tid ++ ": " ++ show ex ++ "\n")
+                                                                       die
+                                -- trappedRunH (from forkH) is what's magically catching my exns!
                                 cPrint (show tid ++ " completed without incident.\n")
                                 die
      weak <- mkWeakPtr tid Nothing
@@ -120,18 +128,21 @@ forkIO computation =
      return tid
   where newThreadId :: IO ThreadId
         newThreadId = do tnum <- getNextThreadNum
-                         tbox <- newIORef False
-                         return (ThreadId (tnum, tbox))
+                         tbox <- newTVarIO empty
+                         return (ThreadId tnum tbox)
      
 killThread :: ThreadId -> IO ()
-killThread tid@(ThreadId (tnum, tbox)) = do writeIORef tbox True
-                                            cPrint ("Asking " ++ show tid ++ " to kill itself...\n")
-                                            -- we don't do a suicide check here;
-                                            -- call die if you want to kill yourself immediately..
+killThread tid@(ThreadId tnum tbox) =
+  do atomically $ writeTVar tbox (singleton (AsyncException ThreadKilled)) -- Override any other signals.
+     cPrint ("Asking " ++ show tid ++ " to commit suicide...\n")
+     checkSignals -- check if we just signalled ourself
 
 throwTo :: ThreadId -> Exception -> IO ()
-throwTo tid exn = return ()
-
+throwTo tid@(ThreadId tnum tbox) exn =
+  do cPrint ("Sending " ++ show exn ++ " to " ++ show tid ++ "...\n")
+     atomically $ do exns <- readTVar tbox
+                     writeTVar tbox (exns |> exn)
+     checkSignals -- check if we just signalled ourself
 
 -- | Suspends the current thread for a given number of microseconds (GHC only).
 --
@@ -143,11 +154,62 @@ threadDelay usec = do switch $ \currThread -> do scheduleIn usec currThread
                       checkSignals
 
 
--- | Check if anyone has sent us an asynchronous exception (only kill for now.)
+-- | Check if anyone has sent us an asynchronous exception.
 checkSignals :: IO ()
-checkSignals = do val <- getTLS tidTLSKey -- Could use myThreadId; we don't call this when uninitialized
-                  case val of
+checkSignals = do mtid <- mySafeThreadId
+                  case mtid of
                     Nothing -> return ()
-                    Just (tid@(ThreadId (tnum, tbox))) -> do flag <- readIORef tbox
-                                                             --cPrint (show tid ++ " is running.\n")
-                                                             when flag $ cPrint (show tid ++ " is killing itself.\n") >> die
+                    Just tid@(ThreadId tnum tbox) ->
+                      do sigsblocked <- getTLS blockSignalsKey
+                         unless sigsblocked $ do mx <- atomically $ do exns <- readTVar tbox
+                                                                       case viewl exns of
+                                                                         (e :< es) -> writeTVar tbox es >> return (Just e)
+                                                                         EmptyL    -> return Nothing
+                                                 -- We need to throw -outside- of the atomically.
+                                                 case mx of
+                                                   Nothing -> return ()
+                                                   Just (AsyncException ThreadKilled) -> cPrint (show tid ++ " is killing itself.\n") >> die
+                                                   Just exn -> throw exn
+
+-- this key, and 'block' and 'unblock' may actually belong in the substrate...
+blockSignalsKey :: TLSKey Bool
+blockSignalsKey = unsafePerformIO $ newTLSKey False
+
+-- | Applying 'block' to a computation will
+-- execute that computation with asynchronous exceptions
+-- /blocked/.  That is, any thread which
+-- attempts to raise an exception in the current thread with 'Control.Exception.throwTo' will be
+-- blocked until asynchronous exceptions are enabled again.  There\'s
+-- no need to worry about re-enabling asynchronous exceptions; that is
+-- done automatically on exiting the scope of
+-- 'block'.
+--
+-- Threads created by 'Control.Concurrent.forkIO' inherit the blocked
+-- state from the parent; that is, to start a thread in blocked mode,
+-- use @block $ forkIO ...@.  This is particularly useful if you need to
+-- establish an exception handler in the forked thread before any
+-- asynchronous exceptions are received.
+block :: IO a -> IO a
+block computation = do saved <- getTLS blockSignalsKey
+                       setTLS blockSignalsKey True
+                       -- Catch synchronous (not asynchronous) exns so we unwind properly
+                       x <- catchException (setTLS blockSignalsKey True >> computation)
+                                           (\e -> setTLS blockSignalsKey saved >> throw e)
+                       setTLS blockSignalsKey saved
+                       checkSignals
+                       return x
+
+-- | To re-enable asynchronous exceptions inside the scope of
+-- 'block', 'unblock' can be
+-- used.  It scopes in exactly the same way, so on exit from
+-- 'unblock' asynchronous exception delivery will
+-- be disabled again.
+unblock :: IO a -> IO a
+unblock computation = do saved <- getTLS blockSignalsKey
+                         checkSignals
+                         -- Catch synchronous OR asynchronous exns so we unwind properly
+                         x <- catchException (setTLS blockSignalsKey True >> computation)
+                                             (\e -> setTLS blockSignalsKey saved >> throw e)
+                         setTLS blockSignalsKey saved
+                         return x
+

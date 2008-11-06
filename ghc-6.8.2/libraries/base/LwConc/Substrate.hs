@@ -22,6 +22,7 @@ import Data.Typeable
 import LwConc.STM
 
 import Data.IORef
+import Data.Sequence as Seq
 import Foreign.C.Types(CUInt)
 
 foreign import ccall unsafe showCornerNumber :: CUInt -> IO ()
@@ -29,7 +30,7 @@ foreign import ccall unsafe showCornerNumber :: CUInt -> IO ()
 debugShowTID = do mtid <- mySafeThreadId
                   showCornerNumber $ case mtid of
                                        Nothing -> 0
-                                       Just (ThreadId (tnum, tbox)) -> fromIntegral tnum
+                                       Just (ThreadId tnum tbox) -> fromIntegral tnum
 
 -----------------------------------------------------------------------------
 -- Thread Local State (TLS)
@@ -92,16 +93,13 @@ switch scheduler = do debugShowTID
 -- However, we also assign each a monotonically increasing integer - mostly
 -- for printing, but possibly for other uses in the future.  These start at 1.
 
-newtype ThreadId = ThreadId (Int, IORef Bool)
+data ThreadId = ThreadId Int (TVar (Seq Exception))
 
 instance Eq ThreadId where
-  (ThreadId (xnum, xbox)) == (ThreadId (ynum, ybox)) = xbox == ybox
+  (ThreadId xnum xbox) == (ThreadId ynum ybox) = xbox == ybox
 
 instance Show ThreadId where
-  show (ThreadId (id, box)) = "<Thread " ++ show id ++ ">"
-
-instance Ord ThreadId where
-  compare (ThreadId (x,_)) (ThreadId (y,_)) = compare x y
+  show (ThreadId id box) = "<Thread " ++ show id ++ ">"
 
 -- | We store each thread's ID in their TLS, allowing a simple implementation
 -- of myThreadId.  However, threads must initialize their own TLS, and we may

@@ -110,7 +110,7 @@ import GHC.ForeignPtr   ( ForeignPtr )
 import GHC.Stable	( StablePtr, newStablePtr, freeStablePtr,
 			  deRefStablePtr, castStablePtrToPtr,
 			  castPtrToStablePtr )
-import GHC.Exception	( block )
+--import LwConc.Conc	( block ) -- introduces a major dependency mess.
 import GHC.Arr		( Array, STArray )
 
 #endif
@@ -619,7 +619,7 @@ cache = unsafePerformIO $ do
 		let ret = Cache {	next_key = key_loc,
 					tc_tbl = empty_tc_tbl, 
 					ap_tbl = empty_ap_tbl }
-#ifdef __GLASGOW_HASKELL__
+{-ifdef __GLASGOW_HASKELL__
 		block $ do
 			stable_ref <- newStablePtr ret
 			let ref = castStablePtrToPtr stable_ref
@@ -630,9 +630,9 @@ cache = unsafePerformIO $ do
 					freeStablePtr stable_ref
 					deRefStablePtr
 						(castPtrToStablePtr ref2)
-#else
+--else-}
 		return ret
-#endif
+--endif
 
 newKey :: IORef Key -> IO Key
 #ifdef __GLASGOW_HASKELL__

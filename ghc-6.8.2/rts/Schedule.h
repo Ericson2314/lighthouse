@@ -13,6 +13,8 @@
 #include "OSThreads.h"
 #include "Capability.h"
 
+void runTheWorld (HaskellObj closure);
+
 /* initScheduler(), exitScheduler()
  * Called from STG :  no
  * Locks assumed   :  none

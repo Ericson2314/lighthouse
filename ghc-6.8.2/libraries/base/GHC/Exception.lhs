@@ -94,17 +94,17 @@ catch m k	=  catchException m handler
 -- use @block $ forkIO ...@.  This is particularly useful if you need to
 -- establish an exception handler in the forked thread before any
 -- asynchronous exceptions are received.
-block :: IO a -> IO a
+-- block :: IO a -> IO a
 
 -- | To re-enable asynchronous exceptions inside the scope of
 -- 'block', 'unblock' can be
 -- used.  It scopes in exactly the same way, so on exit from
 -- 'unblock' asynchronous exception delivery will
 -- be disabled again.
-unblock :: IO a -> IO a
+-- unblock :: IO a -> IO a
 
-block (IO io) = IO $ blockAsyncExceptions# io
-unblock (IO io) = IO $ unblockAsyncExceptions# io
+-- block (IO io) = IO $ blockAsyncExceptions# io
+-- unblock (IO io) = IO $ unblockAsyncExceptions# io
 \end{code}
 
 \begin{code}

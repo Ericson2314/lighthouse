@@ -163,8 +163,6 @@ RTS_ENTRY(stg_dummy_ret_entry);
 RTS_ENTRY(stg_raise_entry);
 RTS_ENTRY(stg_raise_ret_ret);
 
-RTS_ENTRY(stg_unblockAsyncExceptionszh_ret_ret);
-RTS_ENTRY(stg_blockAsyncExceptionszh_ret_ret);
 RTS_ENTRY(stg_catch_frame_ret);
 RTS_ENTRY(stg_catch_frame_ret);
 RTS_ENTRY(stg_catch_entry);
@@ -428,19 +426,6 @@ RTS_FUN(stg_block_noregs);
 RTS_FUN(stg_block_1);
 RTS_FUN(stg_block_blackhole);
 RTS_FUN(stg_block_blackhole_finally);
-RTS_FUN(stg_block_takemvar);
-RTS_ENTRY(stg_block_takemvar_ret);
-RTS_FUN(stg_block_putmvar);
-RTS_ENTRY(stg_block_putmvar_ret);
-#ifdef mingw32_HOST_OS
-RTS_FUN(stg_block_async);
-RTS_ENTRY(stg_block_async_ret);
-RTS_FUN(stg_block_async_void);
-RTS_ENTRY(stg_block_async_void_ret);
-#endif
-RTS_FUN(stg_block_throwto);
-RTS_ENTRY(stg_block_throwto_ret);
-RTS_RET_INFO(stg_block_throwto_info);
 
 /* Entry/exit points from StgStartup.cmm */
 
