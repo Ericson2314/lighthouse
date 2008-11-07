@@ -68,10 +68,13 @@ import H.Monad(liftIO)
 import Foreign.C(CString,withCString)
 
 import LwConc.Conc(dumpAllThreads, mySafeThreadId)
-import LwConc.Scheduler(queueLengths)
 import LwConc.MVar(dumpBlocked)
+import LwConc.Priority
+import LwConc.Scheduler(dumpQueueLengths)
 
-import Control.Exception(Exception(..), throw)
+import Prelude hiding (catch)
+import Control.Exception(Exception(..), throw, throwTo, catch)
+import Data.IORef
 -- Jiffies test
 import Foreign.C(CUInt)
 foreign import ccall unsafe getourtimeofday :: IO CUInt
@@ -288,6 +291,7 @@ execute3 extra exestate@(netstate,pciState) user =
              cmd "mousedebug" mousedebug,
              cmd "allthreads" allthreads,
              -- tests
+             cmd "priotest" priotest,
              cmd "deadblock" deadblock,
              cmd "exntest" exntest,
              cmd "killtest" killtest,
@@ -309,26 +313,73 @@ execute3 extra exestate@(netstate,pciState) user =
              -- preempt and friends
              cmd "preempt" preempt,
              cmd "preempt2" preempt2,
-             cmd "preempt3" preempt3,
-             cmd "preempt4" preempt4,
+             cmd "priempt" priempt, -- priority preempt
              cmd "wastemem" wasteMem <@ number]
       where
+        priotest = do --h <- priohelp "H" High
+                      --m <- priohelp "M" Medium
+                      --l <- priohelp "L" Low
+                      --pollResults [h,m,l]
+                      ps <- sequence [priohelp (show p) p | p <- [minBound .. maxBound]]
+                      pollResults ps
+          where priohelp :: String -> Priority -> H (String, IORef Int)
+                priohelp id p = do box <- liftIO $ newIORef 0
+                                   --forkH $ liftIO (setMyPriority p) >> prioloop id box
+                                   forkH $ do liftIO (setMyPriority p)
+                                              p' <- liftIO myPriority
+                                              cPrint ("My priority is " ++ show p')
+                                              prioloop id box
+                                   return (id, box)
+                prioloop :: String -> IORef Int -> H ()
+                prioloop id box = do v <- liftIO $ readIORef box
+                                     liftIO $ writeIORef box (v+1)
+                                     t <- newMVar [1,2,3] -- stupid allocation
+                                     u <- readMVar t      -- ..to keep it fair
+                                     prioloop id box
+                pollResults ts = do threadDelay 1000000
+                                    cPrint "\nResults:\n"
+                                    mapM_ (\(id,box) -> do v <- liftIO $ readIORef box
+                                                           cPrint (take 3 id ++ ": " ++ show v ++ "\n")) ts
+                                    pollResults ts
+      {-
+        priotest = do h <- priohelp "H" High
+                      m <- priohelp "M" Medium
+                      l <- priohelp "L" Low
+                      pollResults [h,m,l]
+          where priohelp :: String -> Priority -> H ThreadId
+                priohelp id p = forkH $ liftIO $ do setMyPriority p
+                                                    box <- newIORef 0
+                                                    prioloop id box
+                prioloop :: String -> IORef Int -> IO ()
+                prioloop id box = catch (do v <- readIORef box
+                                            writeIORef box (v+1)
+                                            t <- CCIO.newMVar [1,2,3] -- stupid allocation
+                                            u <- CCIO.readMVar t      -- ..to keep it fair
+                                            prioloop id box)
+                                        (\exn -> if exn /= Deadlock
+                                                    then throw exn
+                                                    else do v <- readIORef box
+                                                            cPrintIO (id ++ ": " ++ show v ++ "\n")
+                                                            prioloop id box)
+                pollResults ts = do threadDelay 1000000
+                                    cPrint "Results time!\n"
+                                    mapM_ (throwH Deadlock) ts
+                                    pollResults ts
+                throwH exn tid = liftIO (throwTo tid exn)
+               -}
+
         deadblock = do tid <- forkH $ do mv <- newMVar 4
                                          putMVar mv 5
                        cPrint ("deadblock - forked off " ++ show tid ++ "\n")
         mousedebug = do mapM_ (const f)  =<< getChanContents =<< launchMouseDriver
-          where f = allthreads
+          where f = do allthreads
+                       cPrint "\n===========\n"
+                       liftIO $ dumpQueueLengths cPrintIO
 
         allthreads = do cPrint "\nAll threads"
                         cPrint "\n===========\n"
                         liftIO $ dumpAllThreads cPrintIO
                         liftIO dumpBlocked
-        {-
-          where f = do (rqlen, sqlen) <- liftIO queueLengths
-                       me <- liftIO mySafeThreadId
-                       cPrint ("I am " ++ show me ++ "\n")
-                       cPrint ("|readyQ| = " ++ show rqlen ++ ", |sleepQ| = " ++ show sqlen ++ "\n")
-                       -}
         exntest = do forkH $ throw Deadlock
                      return ()
         killtest = do id <- forkH $ p2helper "A"
@@ -346,10 +397,6 @@ execute3 extra exestate@(netstate,pciState) user =
                                   killH self
                                   p3helper ":"
                        return ()
-          where p3helper s = do cPrint s
-                                t <- newMVar [1,2,3]
-                                u <- readMVar t
-                                p3helper s
 
         dieself  = do forkH $ do self <- myThreadId
                                  putStrLn (show self ++ " isn't about to print any dots!")
@@ -403,15 +450,19 @@ execute3 extra exestate@(netstate,pciState) user =
                         t <- newMVar [1,2,3]
                         u <- readMVar t
                         p2helper s
+
+        p3helper s = do cPrint s
+                        t <- newMVar [1,2,3]
+                        u <- readMVar t
+                        p3helper s
+
 	preempt2 = do putStrLn "This is a fair preempt: both allocate."
                       forkH (p2helper "A")
 		      p2helper "B"
-	preempt3 = do putStrLn "Unfair preempt: forked thread doesn't alloc"
-                      forkH (putStr (repeat 'a'))
-		      p2helper "B"
-	preempt4 = do putStrLn "Unfair preempt: main thread doesn't alloc"
-	              forkH (p2helper "A")
-		      putStr (repeat 'b')
+        priempt = do forkH $ liftIO (setMyPriority Utmost) >> p3helper "U"
+                     --forkH $                                p3helper "m"
+                     forkH $ liftIO (setMyPriority Worthless) >> p3helper "w"
+                     return ()
 
 	wasteMem n = print $ sum (reverse [1..n::Integer])
 

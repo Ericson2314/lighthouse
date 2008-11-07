@@ -1,20 +1,18 @@
 {-# OPTIONS_GHC -fglasgow-exts #-}
 module LwConc.Scheduler
-( anythingReady
-, getNextThread
+( getNextThread
 , schedule
 , scheduleIn
-, queueLengths
+, dumpQueueLengths
 ) where
 
--- This is a basic round-robin scheduler which ignores priority.
---
+import qualified LwConc.Scheduler.Multilevel as SchedPolicy
+
 -- Lighthouse's schedulers are /passive/ - they manage run queues, consider
 -- priority, and determine the next thread to run...but don't actively
 -- interrupt threads, nor directly switch threads.
 
 import System.IO.Unsafe (unsafePerformIO)
-import Data.Sequence as Seq
 import Data.Heap as Heap
 import LwConc.STM
 import LwConc.Substrate
@@ -27,40 +25,6 @@ foreign import ccall unsafe idlePrint :: IO ()
 getJiffies :: Integral i => STM i
 getJiffies = do cuint <- unsafeIOToSTM getourtimeofday
                 return (fromIntegral cuint)
-
--- |The single ready queue used for round robin scheduling.
-readyQ :: TVar (Seq SCont)
-readyQ = unsafePerformIO $ newTVarIO Seq.empty
-
-queueLengths :: IO (Int, Int)
-queueLengths = atomically $ do rq <- readTVar readyQ
-                               sq <- readTVar sleepQ
-                               return (Seq.length rq, Heap.size sq)
-
--- |Returns whether or not there's another ready thread in the system.
--- Note that the current thread is not included.
-anythingReady :: STM Bool
-anythingReady =
-  do q <- readTVar readyQ
-     return (Seq.null q)
-
--- |Returns the next ready thread, as determined by scheduling policy.
--- If no such thread exists, this will wait until one does.
-getNextThread :: STM SCont
-getNextThread =
-  do wakeThreads
-     q <- readTVar readyQ
-     case viewl q of
-       (t :< ts) -> do writeTVar readyQ ts
-                       return t
-       EmptyL    -> -- Nothing to do, so return a new continuation that simply keeps checking...
-                    unsafeIOToSTM $ idlePrint >> newSCont (switch (\idleThread -> getNextThread))
-
--- |Marks a thread "ready" and schedules it for some future time.
-schedule :: SCont -> STM ()
-schedule thread =
-  do q <- readTVar readyQ
-     writeTVar readyQ (q |> thread)
 
 type SleepQueue = MinPrioHeap Int SCont
 
@@ -88,3 +52,28 @@ wakeThreads =
      let (elts, q') = Heap.span (\(when, _) -> when <= now) q
      writeTVar sleepQ q'
      mapM_ (schedule . snd) elts
+
+-- |Returns the next ready thread, as determined by scheduling policy.
+--  If no such thread exists, this will wait until one does.
+--
+--  This wraps the specific scheduler's implementation, first waking up any
+--  sleeping threads whose delay is up, and also taking care of the details
+--  of idling (easing the burden on scheduler authors).
+getNextThread :: STM SCont
+getNextThread =
+  do wakeThreads -- wake any blocked threads first.
+     whatNext <- SchedPolicy.getNextThread
+     case whatNext of
+       Just scont -> return scont
+       Nothing    -> -- Nothing to do, so return a new continuation that simply keeps checking...
+                     unsafeIOToSTM $ idlePrint >> newSCont (switch (\idleThread -> getNextThread))
+
+-- |Marks a thread "ready" and schedules it for some future time.
+schedule :: SCont -> STM ()
+schedule = SchedPolicy.schedule
+
+dumpQueueLengths :: (String -> IO ()) -> IO ()
+dumpQueueLengths cPrint = do len <- atomically $ do q <- readTVar sleepQ
+                                                    return (Heap.size q)
+                             cPrint ("|sleepQ| = " ++ show len ++ "\n")
+                             SchedPolicy.dumpQueueLengths cPrint
