@@ -1,6 +1,8 @@
 /* Code for general_printf() */
 /* Change extension to .c before compiling */
 
+#include <stdarg.h>
+
 #define BITS_PER_BYTE           8
 
 struct parameters
@@ -53,7 +55,7 @@ static void output_field(struct parameters *p, char *s)
 
 
 int general_printf(int (*output_function)(void *, int), void *output_pointer,
-  const char *control_string, const int *argument_pointer)
+  const char *control_string, va_list ap)
 {
   struct parameters p;
   char control_char;
@@ -84,7 +86,7 @@ int general_printf(int (*output_function)(void *, int), void *output_pointer,
       }
       if (control_char == '*')
       {
-        p.minimum_field_width = *argument_pointer++;
+        p.minimum_field_width = va_arg(ap, int);
         control_char = *control_string++;
       }
       else
@@ -101,7 +103,7 @@ int general_printf(int (*output_function)(void *, int), void *output_pointer,
         control_char = *control_string++;
         if (control_char == '*')
         {
-          precision = *argument_pointer++;
+          precision = va_arg(ap, int);
           control_char = *control_string++;
         }
         else
@@ -156,16 +158,14 @@ int general_printf(int (*output_function)(void *, int), void *output_pointer,
       {
         if (base == -1)  /* conversion type c */
         {
-          char c = *argument_pointer++;
+          char c = va_arg(ap, int);
           p.edited_string_length = 1;
           output_field(&p, &c);
         }
         else if (base == -2)  /* conversion type s */
         {
-          char *string;
+          char *string = va_arg(ap, char *);
           p.edited_string_length = 0;
-          string = * (char **) argument_pointer;
-          argument_pointer += sizeof(char *) / sizeof(int);
           while (string[p.edited_string_length] != 0)
             p.edited_string_length++;
           if (precision >= 0 && p.edited_string_length > precision)
@@ -179,13 +179,12 @@ int general_printf(int (*output_function)(void *, int), void *output_pointer,
           p.edited_string_length = 0;
           if (long_argument) 
           {
-            x = * (unsigned long *) argument_pointer;
-            argument_pointer += sizeof(unsigned long) / sizeof(int);
+            x = va_arg(ap, unsigned long);
           }
           else if (control_char == 'd')
-            x = (long) *argument_pointer++;
+            x = va_arg(ap, long);
           else
-            x = (unsigned) *argument_pointer++;
+            x = va_arg(ap, unsigned);
           if (control_char == 'd' && (long) x < 0)
           {
             p.options |= MINUS_SIGN;

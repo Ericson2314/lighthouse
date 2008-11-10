@@ -9,7 +9,7 @@
 
 /* From gprintf.c */
 int general_printf(int (*output_function)(void *, int), void *output_pointer,
-  const char *control_string, const int *argument_pointer);
+  const char *control_string, va_list ap);
 
 /* From video.c */
 #ifdef BOCHS_VIDEO
@@ -31,7 +31,10 @@ static int kprintf_helper(void *ptr, int c)
 
 void kprintf(char const * fmt, ...)
 {
-  (void) general_printf(kprintf_helper, NULL, fmt, (int *)(&fmt + 1));
+  va_list ap;
+  va_start(ap, fmt);
+  vfprintf(NULL, fmt, ap);
+  va_end(ap);
 }
 
 void * stderr = NULL;
@@ -40,10 +43,13 @@ void * stdout = NULL;
 /* RTS-DEBUG */
 void fprintf(void * dummy, char const * fmt, ...)
 {
-  (void) general_printf(kprintf_helper, NULL, fmt, (int *)(&fmt + 1));
+  va_list ap;
+  va_start(ap, fmt);
+  vfprintf(dummy, fmt, ap);
+  va_end(ap);
 }
 
-void vfprintf(void * dummy, char const * fmt, void * ap)
+void vfprintf(void * dummy, char const * fmt, va_list ap)
 {
   (void) general_printf(kprintf_helper, NULL, fmt, ap);
 }
@@ -56,7 +62,10 @@ static int fill_string(void *p, int c)
  
 int sprintf(char *s, char const *control, ...)
 {
-  int n = general_printf(fill_string, &s, control, (int *)(&control+1));
+  va_list ap;
+  va_start(ap, control);
+  int n = general_printf(fill_string, &s, control, ap);
+  va_end(ap);
   *s = 0;
   return n;
 }
