@@ -2,7 +2,7 @@
 module H.Concurrency(module H.Concurrency,{- H,-} Chan,MVar,QSem,ThreadId) where
 import qualified Control.Concurrent as IO
 import Control.Concurrent(Chan,MVar,QSem,ThreadId)
-import H.Monad(H,liftIO,trappedRunH,runH)
+import H.Monad(H,liftIO,runH)
 
 ------------------------ INTERFACE ---------------------------------------------
 
@@ -41,7 +41,7 @@ withQSem :: QSem -> (H a) -> H a
 ------------------------ IMPLEMENTATION ----------------------------------------
 
 -- Thread control---------------------------------------------------------------
-forkH = liftIO . IO.forkIO . trappedRunH
+forkH h = liftIO (IO.forkIO (runH h >> return ()))
 killH = liftIO . IO.killThread
 yield = liftIO IO.yield
 threadDelay = liftIO . IO.threadDelay
