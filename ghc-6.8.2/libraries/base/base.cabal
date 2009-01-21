@@ -74,6 +74,7 @@ Library {
             LwConc.Scheduler.MultilevelLongslice
             LwConc.Scheduler.Longslice
             LwConc.Scheduler.Nonlinear
+            LwConc.Scheduler.Extreme
     }
     exposed-modules:
         Control.Applicative,
