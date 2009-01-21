@@ -75,9 +75,13 @@ import LwConc.Scheduler(dumpQueueLengths)
 import Prelude hiding (catch)
 import Control.Exception(Exception(..), throw, throwTo, catch)
 import Data.IORef
+
+import qualified MiniChess.Main as MiniChess
+
 -- Jiffies test
 import Foreign.C(CUInt)
 foreign import ccall unsafe getourtimeofday :: IO CUInt
+
 
 
 default(Int)
@@ -310,12 +314,15 @@ execute3 extra exestate@(netstate,pciState) user =
              cmd "hammer1" hammer1,
              cmd "chanpc10k" (chanpc 10000),
              cmd "chanpc100k" (chanpc 100000),
+             -- demos!
+             cmd "minichess" minichess,
              -- preempt and friends
              cmd "preempt" preempt,
              cmd "preempt2" preempt2,
              cmd "priempt" priempt, -- priority preempt
              cmd "wastemem" wasteMem <@ number]
       where
+        minichess = liftIO $ MiniChess.main (\s -> runH (putStr s))
         priotest = do --h <- priohelp "H" High
                       --m <- priohelp "M" Medium
                       --l <- priohelp "L" Low
