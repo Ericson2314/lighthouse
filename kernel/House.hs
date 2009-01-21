@@ -275,6 +275,7 @@ execute3 extra exestate@(netstate,pciState) user =
       commands P.!
       netcommands (execute2 extra exestate) runBytes findPCINet netstate user P.!
       extra P.!
+      democommands P.!
       debugcommands
 
     commands =
@@ -285,9 +286,21 @@ execute3 extra exestate@(netstate,pciState) user =
        cmd "lspci" lspci <@ flag "-t" -: "List PCI devices/load textual PCI info",
        cmd "ls" modules <@ flag "-l" -: "List Grub modules",
        cmd "run" run <@ path -: "Run a grub module",
+       cmd "prun" prun <@ path -: "Run a grub module in the background at low priority",
+       cmd "hrun" hrun <@ path -: "Run a grub module in the background at high priority",
        cmd "gif" gifinfo <@ path -: "Parse and show info about a GIF",
 --       cmd "osker" ( \ ws->osker ws putStrLn putStr) <@ many args,
        cmd "reboot" reboot]
+    democommands =
+      oneof [cmd "hoop" hoop,
+             cmd "whoop" whoop]
+        where hooploop = do mv <- newMVar [1,2,3]
+                            x <- takeMVar mv
+                            hooploop
+              hoop = do forkH hooploop
+                        return ()
+              whoop = do forkH $ liftIO (setMyPriority minBound) >> hooploop
+                         return ()
 
     debugcommands =
       oneof [cmd "lambda" (putStrLn "Too much to abstract!"),
@@ -467,9 +480,9 @@ execute3 extra exestate@(netstate,pciState) user =
 	preempt2 = do putStrLn "This is a fair preempt: both allocate."
                       forkH (p2helper "A")
 		      p2helper "B"
-        priempt = do forkH $ liftIO (setMyPriority Utmost) >> p3helper "U"
+        priempt = do forkH $ liftIO (setMyPriority maxBound) >> p3helper "U"
                      --forkH $                                p3helper "m"
-                     forkH $ liftIO (setMyPriority Worthless) >> p3helper "w"
+                     forkH $ liftIO (setMyPriority minBound) >> p3helper "w"
                      return ()
 
 	wasteMem n = print $ sum (reverse [1..n::Integer])
@@ -537,6 +550,10 @@ execute3 extra exestate@(netstate,pciState) user =
 	 putStrLn $ show i++": "++n++" "++show r
 
     run = withModuleRegion (runUProc @@ moduleUProc)
+    runAt p s = do tid <- forkH $ liftIO (setMyPriority p) >> run s
+                   return ()
+    prun = runAt (minBound :: Priority)
+    hrun = runAt (maxBound :: Priority)
 
     withModuleRegion action = withModule (action @@ moduleRegion)
 
