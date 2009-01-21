@@ -322,7 +322,8 @@ execute3 extra exestate@(netstate,pciState) user =
              cmd "priempt" priempt, -- priority preempt
              cmd "wastemem" wasteMem <@ number]
       where
-        minichess = liftIO $ MiniChess.main (\s -> runH (putStr s))
+        minichess = do forkH $ liftIO $ setMyPriority minBound >> MiniChess.main (\s -> runH (putStr s))
+                       putStrLn $ "Forked minichess at " ++ show (minBound :: Priority) ++ " priority."
         priotest = do --h <- priohelp "H" High
                       --m <- priohelp "M" Medium
                       --l <- priohelp "L" Low
