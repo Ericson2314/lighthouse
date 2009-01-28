@@ -95,7 +95,8 @@ switch scheduler = do debugShowTID
 -- However, we also assign each a monotonically increasing integer - mostly
 -- for printing, but possibly for other uses in the future.  These start at 1.
 
-data Priority = Worthless | Low | Medium | High | Utmost
+--data Priority = Worthless | Low | Medium | High | Utmost
+data Priority = E | D | C | B | A
   deriving (Show, Eq, Ord, Bounded, Enum, Ix)
 
 data ThreadId = TCB Int (TVar (Seq Exception)) (TVar Priority)

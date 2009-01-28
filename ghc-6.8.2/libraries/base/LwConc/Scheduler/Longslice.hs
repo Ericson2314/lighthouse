@@ -20,7 +20,7 @@ import LwConc.Substrate
 import Data.IORef
 
 ticksKey :: TLSKey Priority
-ticksKey = unsafePerformIO $ newTLSKey Medium
+ticksKey = unsafePerformIO $ newTLSKey C
 
 timeUp :: IO Bool
 timeUp =

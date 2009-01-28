@@ -130,7 +130,7 @@ forkIO computation =
   where newThreadId :: IO ThreadId
         newThreadId = do tnum <- getNextThreadNum
                          tbox <- newTVarIO empty
-                         prio <- newTVarIO Medium
+                         prio <- newTVarIO C
                          return (TCB tnum tbox prio)
      
 killThread :: ThreadId -> IO ()

@@ -56,10 +56,11 @@ getNextPriority =
 
 priorityBox :: TVar [Priority]
 priorityBox = unsafePerformIO $ newTVarIO $ (concat . repeat) extreme
-  where ps lim = [maxBound, pred maxBound .. lim]
-        multilevel lim = concatMap ps (ps lim)
-        nonlinear lim = concatMap multilevel (ps lim)
-        extreme = concatMap nonlinear (nonlinear minBound)
+  where --ps lim = [maxBound, pred maxBound .. lim]
+        --multilevel lim = concatMap ps (ps lim)
+        --nonlinear lim = concatMap multilevel (ps lim)
+        --extreme = concatMap nonlinear (nonlinear minBound)
+        extreme = [A,A,A,A,A,A,B,A,A,A,A,A,B,A,A,A,A,B,A,A,A,B,A,A,B,A,B,C,A,A,A,A,A,B,A,A,A,A,B,A,A,A,B,A,A,B,A,B,C,A,A,A,A,B,A,A,A,B,A,A,B,A,B,C,A,A,A,B,A,A,B,A,B,C,A,A,B,A,B,C,A,B,C,D,A,A,A,A,A,B,A,A,A,A,B,A,A,A,B,A,A,B,A,B,C,A,A,A,A,B,A,A,A,B,A,A,B,A,B,C,A,A,A,B,A,A,B,A,B,C,A,A,B,A,B,C,A,B,C,D,A,A,A,A,B,A,A,A,B,A,A,B,A,B,C,A,A,A,B,A,A,B,A,B,C,A,A,B,A,B,C,A,B,C,D,A,A,A,B,A,A,B,A,B,C,A,A,B,A,B,C,A,B,C,D,A,A,B,A,B,C,A,B,C,D,A,B,C,D,E]
 
 -- |Returns which priority to pull the next thread from, and updates the countdown for next time.
 getNextPriority :: STM Priority

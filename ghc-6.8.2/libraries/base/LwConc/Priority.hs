@@ -29,7 +29,7 @@ setPriority tid p = do m <- unsafeIOToSTM mySafeThreadId
 myPriority :: IO Priority
 myPriority = do m <- mySafeThreadId
                 case m of
-                  Nothing  -> return Utmost -- uninitialized thread
+                  Nothing  -> return maxBound -- uninitialized thread
                   Just tid -> atomically $ getPriority tid
 
 -- |Sets the current thread's priority.

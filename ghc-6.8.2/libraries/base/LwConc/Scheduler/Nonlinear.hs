@@ -29,9 +29,6 @@ import LwConc.Priority
 import LwConc.STM
 import LwConc.Substrate
 
-ticksKey :: TLSKey Priority
-ticksKey = unsafePerformIO $ newTLSKey Medium
-
 timeUp :: IO Bool
 timeUp = return True
 
@@ -59,9 +56,10 @@ getNextPriority =
 
 priorityBox :: TVar [Priority]
 priorityBox = unsafePerformIO $ newTVarIO $ (concat . repeat) nonlinear
-  where ps lim = [maxBound, pred maxBound .. lim]
-        multilevel lim = concatMap ps (ps lim)
-        nonlinear = concatMap multilevel (ps minBound)
+  where --ps lim = [maxBound, pred maxBound .. lim]
+        --multilevel lim = concatMap ps (ps lim)
+        --nonlinear = concatMap multilevel (ps minBound)
+        nonlinear = [A,A,A,B,A,A,B,A,B,C,A,A,B,A,B,C,A,B,C,D,A,A,B,A,B,C,A,B,C,D,A,B,C,D,E]
 
 -- |Returns which priority to pull the next thread from, and updates the countdown for next time.
 getNextPriority :: STM Priority

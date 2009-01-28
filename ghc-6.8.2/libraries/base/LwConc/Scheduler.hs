@@ -7,7 +7,7 @@ module LwConc.Scheduler
 , dumpQueueLengths
 ) where
 
-import qualified LwConc.Scheduler.Extreme as SchedPolicy
+import qualified LwConc.Scheduler.Dynamic as SchedPolicy
 
 -- Lighthouse's schedulers are /passive/ - they manage run queues, consider
 -- priority, and determine the next thread to run...but don't actively
