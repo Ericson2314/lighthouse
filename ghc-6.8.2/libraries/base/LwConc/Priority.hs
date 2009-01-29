@@ -7,7 +7,7 @@ module LwConc.Priority
 ) where
 
 import GHC.Arr(Ix)
-import LwConc.STM
+import LwConc.PTM
 import LwConc.Substrate
 
 --data Priority = Low | Medium | High
@@ -15,15 +15,15 @@ import LwConc.Substrate
   --deriving (Show, Eq, Ord, Bounded, Enum, Ix)
 
 -- |Get the given thread's priority.
-getPriority :: ThreadId -> STM Priority
-getPriority (TCB _ _ pv) = readTVar pv
+getPriority :: ThreadId -> PTM Priority
+getPriority (TCB _ _ pv) = readPVar pv
 
 -- |Set the given thread's priority.
-setPriority :: ThreadId -> Priority -> STM ()
-setPriority tid p = do m <- unsafeIOToSTM mySafeThreadId
+setPriority :: ThreadId -> Priority -> PTM ()
+setPriority tid p = do m <- unsafeIOToPTM mySafeThreadId
                        case m of
                          Nothing  -> return ()
-                         Just (TCB _ _ pv) -> writeTVar pv p
+                         Just (TCB _ _ pv) -> writePVar pv p
 
 -- |Returns the current thread's priority.
 myPriority :: IO Priority

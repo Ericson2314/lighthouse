@@ -12,28 +12,28 @@ module LwConc.Scheduler.RoundRobin
 
 import System.IO.Unsafe (unsafePerformIO)
 import Data.Sequence as Seq
-import LwConc.STM
+import LwConc.PTM
 import LwConc.Substrate
 
 timeUp :: IO Bool
 timeUp = return True
 
 -- |The single ready queue used for round robin scheduling.
-readyQ :: TVar (Seq SCont)
-readyQ = unsafePerformIO $ newTVarIO Seq.empty
+readyQ :: PVar (Seq SCont)
+readyQ = unsafePerformIO $ newPVarIO Seq.empty
 
 -- |Returns the next ready thread, or Nothing.
-getNextThread :: STM (Maybe SCont)
+getNextThread :: PTM (Maybe SCont)
 getNextThread =
-  do q <- readTVar readyQ
+  do q <- readPVar readyQ
      case viewl q of
-       (t :< ts) -> do writeTVar readyQ ts
+       (t :< ts) -> do writePVar readyQ ts
                        return (Just t)
        EmptyL    -> return Nothing
 
 -- |Marks a thread "ready" and schedules it for some future time.
-schedule :: SCont -> STM ()
+schedule :: SCont -> PTM ()
 schedule thread =
-  do q <- readTVar readyQ
-     writeTVar readyQ (q |> thread)
+  do q <- readPVar readyQ
+     writePVar readyQ (q |> thread)
 

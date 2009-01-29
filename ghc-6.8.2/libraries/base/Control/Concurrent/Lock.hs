@@ -14,7 +14,7 @@ import LwConc.Priority
 
 import Control.Monad (when)
 
-data Lock = Lock (TVar (Maybe ThreadId)) (MVar ())
+data Lock = Lock (PVar (Maybe ThreadId)) (MVar ())
 newtype LockKey = LockKey (IO ())
 
 -- Reasoning through:
@@ -51,15 +51,15 @@ newtype LockKey = LockKey (IO ())
 --    L = (Just D) ()~C,B  ...B runs and blocks again. (interesting ordering property)
 
 newLock :: IO Lock
-newLock = do tv <- newTVarIO Nothing
+newLock = do tv <- newPVarIO Nothing
              mv <- newEmptyMVar
              return (Lock tv mv)
 
 lock :: Lock -> IO LockKey
 lock l@(Lock tv mv) = do me <- myThreadId
-                         atomically $ do owner <- readTVar tv
+                         atomically $ do owner <- readPVar tv
                                          case owner of
-                                           Nothing  -> writeTVar tv (Just me)
+                                           Nothing  -> writePVar tv (Just me)
                                            Just owner -> do myPrio <- getPriority me
                                                             ownerPrio <- getPriority owner
                                                             when (myPrio > ownerPrio) $ setPriority owner myPrio
@@ -69,22 +69,22 @@ lock l@(Lock tv mv) = do me <- myThreadId
                         
 tryLock :: Lock -> IO (Maybe LockKey)
 tryLock l@(Lock tv mv) = do me <- myThreadId
-                            atomically $ do owner <- readTVar tv
+                            atomically $ do owner <- readPVar tv
                                             case owner of
-                                              Nothing -> writeTVar tv (Just me) >> return (Just (LockKey (unsafeUnlock l)))
+                                              Nothing -> writePVar tv (Just me) >> return (Just (LockKey (unsafeUnlock l)))
                                               Just _  -> return Nothing
 
 unlock :: LockKey -> IO ()
 unlock (LockKey f) = f
 
 unsafeUnlock :: Lock -> IO ()
-unsafeUnlock (Lock tv mv) = do atomically $ writeTVar tv Nothing
+unsafeUnlock (Lock tv mv) = do atomically $ writePVar tv Nothing
                                tryTakeMVar mv
                                return ()
 
 withLock :: Lock -> IO a -> IO a
 withLock l c = do k <- lock l
-                  prio <- myPriority
+                  prio <- myPriority -- RACE CONDITION...should move this before locking...
                   v <- c
                   unlock k
                   setMyPriority prio -- in case someone boosted our priority while we held the lock...
@@ -102,7 +102,7 @@ tryLock :: Lock -> IO Bool
 tryLock (Lock mv) = do tid <- myThreadId
                        tryPutMVar mv tid
 
--- hmm.  (random thought)  asynchronous exns...don't interact so well with STM.
+-- hmm.  (random thought)  asynchronous exns...don't interact so well with PTM.
 -- notably...if doing a transaction...get an async exception...well log looks fine...
 -- so retry...ignoring that.  oops.  really should only retry on -synchronous- exns.
 -- should try and avoid infinite loops too...?

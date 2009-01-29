@@ -1,6 +1,6 @@
 {-# OPTIONS_GHC -fglasgow-exts #-}
 module LwConc.Conc
-( module LwConc.STM
+( module LwConc.PTM
 , module LwConc.Substrate
 -- Internals
 , startSystem
@@ -27,7 +27,7 @@ import Data.IORef
 import Data.Sequence
 import LwConc.Scheduler
 import LwConc.Substrate
-import LwConc.STM
+import LwConc.PTM
 import Foreign.C(CString, withCString)
 import System.Mem.Weak(Weak(..), mkWeakPtr, deRefWeak)
 
@@ -54,25 +54,25 @@ yield = do switch $ \currThread -> do schedule currThread
                                       getNextThread
            checkSignals
 
-allThreads :: TVar [Weak ThreadId]
-allThreads = unsafePerformIO $ newTVarIO []
+allThreads :: PVar [Weak ThreadId]
+allThreads = unsafePerformIO $ newPVarIO []
 
-cleanWeakList :: [Weak a] -> STM [Weak a]
+cleanWeakList :: [Weak a] -> PTM [Weak a]
 cleanWeakList [] = return []
-cleanWeakList (w:ws) = do m <- unsafeIOToSTM $ deRefWeak w
+cleanWeakList (w:ws) = do m <- unsafeIOToPTM $ deRefWeak w
                           case m of
                             Nothing -> cleanWeakList ws
                             Just _  -> do ws' <- cleanWeakList ws
                                           return (w:ws')
 
-cleanAllThreads :: STM ()
-cleanAllThreads = do ws <- readTVar allThreads
+cleanAllThreads :: PTM ()
+cleanAllThreads = do ws <- readPVar allThreads
                      ws' <- cleanWeakList ws
-                     writeTVar allThreads ws'
+                     writePVar allThreads ws'
 
 dumpAllThreads :: (String -> IO ()) -> IO ()
 dumpAllThreads putStr
-  = do ws <- atomically $ cleanAllThreads >> readTVar allThreads
+  = do ws <- atomically $ cleanAllThreads >> readPVar allThreads
        strs <- mapM (liftM show . deRefWeak) ws
        putStr (show strs ++ "\n")
 
@@ -85,12 +85,12 @@ die = switch $ \dyingThread -> getNextThread
 -- ThreadIds
 
 -- | Numerical IDs, starting at 1.
-nextThreadNum :: TVar Int
-nextThreadNum = unsafePerformIO $ newTVarIO 1
+nextThreadNum :: PVar Int
+nextThreadNum = unsafePerformIO $ newPVarIO 1
 
 getNextThreadNum :: IO Int
-getNextThreadNum = atomically $ do x <- readTVar nextThreadNum
-                                   writeTVar nextThreadNum (x+1)
+getNextThreadNum = atomically $ do x <- readPVar nextThreadNum
+                                   writePVar nextThreadNum (x+1)
                                    return x
 
 -- | Returns the current ThreadId.  Only safe to call when threads are fully
@@ -124,26 +124,26 @@ forkIO computation =
                                 die
      weak <- mkWeakPtr tid Nothing
      atomically $ do schedule newThread
-                     ws <- readTVar allThreads
-                     writeTVar allThreads (weak:ws)
+                     ws <- readPVar allThreads
+                     writePVar allThreads (weak:ws)
      return tid
   where newThreadId :: IO ThreadId
         newThreadId = do tnum <- getNextThreadNum
-                         tbox <- newTVarIO empty
-                         prio <- newTVarIO C
+                         tbox <- newPVarIO empty
+                         prio <- newPVarIO C
                          return (TCB tnum tbox prio)
      
 killThread :: ThreadId -> IO ()
 killThread tid@(TCB _ tbox _) =
-  do atomically $ writeTVar tbox (singleton (AsyncException ThreadKilled)) -- Override any other signals.
+  do atomically $ writePVar tbox (singleton (AsyncException ThreadKilled)) -- Override any other signals.
      cPrint ("Asking " ++ show tid ++ " to commit suicide...\n")
      checkSignals -- check if we just signalled ourself
 
 throwTo :: ThreadId -> Exception -> IO ()
 throwTo tid@(TCB _ tbox _) exn =
   do cPrint ("Sending " ++ show exn ++ " to " ++ show tid ++ "...\n")
-     atomically $ do exns <- readTVar tbox
-                     writeTVar tbox (exns |> exn)
+     atomically $ do exns <- readPVar tbox
+                     writePVar tbox (exns |> exn)
      checkSignals -- check if we just signalled ourself
 
 -- | Suspends the current thread for a given number of microseconds (GHC only).
@@ -163,9 +163,9 @@ checkSignals = do mtid <- mySafeThreadId
                     Nothing -> return ()
                     Just tid@(TCB _ tbox _) ->
                       do sigsblocked <- getTLS blockSignalsKey
-                         unless sigsblocked $ do mx <- atomically $ do exns <- readTVar tbox
+                         unless sigsblocked $ do mx <- atomically $ do exns <- readPVar tbox
                                                                        case viewl exns of
-                                                                         (e :< es) -> writeTVar tbox es >> return (Just e)
+                                                                         (e :< es) -> writePVar tbox es >> return (Just e)
                                                                          EmptyL    -> return Nothing
                                                  -- We need to throw -outside- of the atomically.
                                                  case mx of

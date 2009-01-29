@@ -21,7 +21,7 @@ import GHC.Arr(Ix)
 import GHC.Exts
 import GHC.Prim
 import GHC.IOBase
-import LwConc.STM
+import LwConc.PTM
 
 import Data.IORef
 import Data.Sequence as Seq
@@ -71,7 +71,7 @@ newSCont x = do ref <- newIORef Usable
                              (# s', tso #) -> (# s', SCont tso ref #)
 
 {-# INLINE switch #-}
-switch :: (SCont -> STM SCont) -> IO ()
+switch :: (SCont -> PTM SCont) -> IO ()
 switch scheduler = do debugShowTID
                       s1 <- getSCont
                       s2 <- atomically (scheduler s1)
@@ -99,7 +99,7 @@ switch scheduler = do debugShowTID
 data Priority = E | D | C | B | A
   deriving (Show, Eq, Ord, Bounded, Enum, Ix)
 
-data ThreadId = TCB Int (TVar (Seq Exception)) (TVar Priority)
+data ThreadId = TCB Int (PVar (Seq Exception)) (PVar Priority)
 
 instance Eq ThreadId where
   (TCB _ xbox _) == (TCB _ ybox _) = xbox == ybox

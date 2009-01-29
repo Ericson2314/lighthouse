@@ -26,63 +26,63 @@ import System.IO.Unsafe (unsafePerformIO)
 import Data.Sequence as Seq
 import GHC.Arr as Array
 import LwConc.Priority
-import LwConc.STM
+import LwConc.PTM
 import LwConc.Substrate
 
 timeUp :: IO Bool
 timeUp = return True
 
-type ReadyQ = TVar (Seq SCont)
+type ReadyQ = PVar (Seq SCont)
 
 -- |An array of ready queues, indexed by priority.
 readyQs :: Array Priority ReadyQ
-readyQs = listArray (minBound, maxBound) (unsafePerformIO $ sequence [newTVarIO Seq.empty | p <- [minBound .. maxBound :: Priority]])
+readyQs = listArray (minBound, maxBound) (unsafePerformIO $ sequence [newPVarIO Seq.empty | p <- [minBound .. maxBound :: Priority]])
 
-queueLengths :: TVar (Array Priority Int)
-queueLengths = unsafePerformIO $ newTVarIO undefined
+queueLengths :: PVar (Array Priority Int)
+queueLengths = unsafePerformIO $ newPVarIO undefined
 
-priorityBox :: TVar [(Int, Priority)]
-priorityBox = unsafePerformIO $ newTVarIO $ []
+priorityBox :: PVar [(Int, Priority)]
+priorityBox = unsafePerformIO $ newPVarIO $ []
 
 -- |Returns which priority to pull the next thread from, and updates the countdown for next time.
-getNextPriority :: STM Priority
+getNextPriority :: PTM Priority
 getNextPriority =
-  do l <- readTVar priorityBox
+  do l <- readPVar priorityBox
      case l of
-       [] -> do est <- mapM (\prio -> do q <- readTVar (readyQs ! prio)
+       [] -> do est <- mapM (\prio -> do q <- readPVar (readyQs ! prio)
                                          return (Seq.length q, prio)) order
-                writeTVar priorityBox (filter (\(x,_) -> x /= 0) est) -- skip empty priorities
+                writePVar priorityBox (filter (\(x,_) -> x /= 0) est) -- skip empty priorities
                 return A
-       ((1,p):ps) -> do writeTVar priorityBox ps
+       ((1,p):ps) -> do writePVar priorityBox ps
                         return p
-       ((n,p):ps) -> do writeTVar priorityBox ((n-1,p):ps)
+       ((n,p):ps) -> do writePVar priorityBox ((n-1,p):ps)
                         return p
   where order = [A,B,A,B,C,A,B,C,D,A,B,C,D,E]
 
 -- |Returns the next ready thread, or Nothing.
-getNextThread :: STM (Maybe SCont)
+getNextThread :: PTM (Maybe SCont)
 getNextThread = do priority <- getNextPriority
                    tryAt priority
   where tryAt priority = do let readyQ = readyQs ! priority
-                            q <- readTVar readyQ
+                            q <- readPVar readyQ
                             case viewl q of
-                              (t :< ts) -> do writeTVar readyQ ts
+                              (t :< ts) -> do writePVar readyQ ts
                                               return (Just t)
                               EmptyL -> if priority == minBound
                                            then return Nothing
                                            else tryAt (pred priority) -- nothing to run at this priority, try something lower.
 
 -- |Marks a thread "ready" and schedules it for some future time.
-schedule :: SCont -> STM ()
+schedule :: SCont -> PTM ()
 schedule thread =
-  do priority <- unsafeIOToSTM myPriority
+  do priority <- unsafeIOToPTM myPriority
      let readyQ = readyQs ! priority
-     q <- readTVar readyQ
-     writeTVar readyQ (q |> thread)
+     q <- readPVar readyQ
+     writePVar readyQ (q |> thread)
 
 dumpQueueLengths :: (String -> IO ()) -> IO ()
 dumpQueueLengths cPrint = mapM_ dumpQL [minBound .. maxBound]
   where dumpQL :: Priority -> IO ()
-        dumpQL p = do len <- atomically $ do q <- readTVar (readyQs ! p)
+        dumpQL p = do len <- atomically $ do q <- readPVar (readyQs ! p)
                                              return (Seq.length q)
                       cPrint ("|readyQ[" ++ show p ++ "]| = " ++ show len ++ "\n")

@@ -14,26 +14,26 @@ import System.IO.Unsafe (unsafePerformIO)
 import Data.Sequence as Seq
 import GHC.Arr as Array
 import LwConc.Priority
-import LwConc.STM
+import LwConc.PTM
 import LwConc.Substrate
 
 timeUp :: IO Bool
 timeUp = return True
 
-type ReadyQ = TVar (Seq SCont)
+type ReadyQ = PVar (Seq SCont)
 
 -- |An array of ready queues, indexed by priority.
 readyQs :: Array Priority ReadyQ
-readyQs = listArray (minBound, maxBound) (unsafePerformIO $ sequence [newTVarIO Seq.empty | p <- [minBound .. maxBound :: Priority]])
+readyQs = listArray (minBound, maxBound) (unsafePerformIO $ sequence [newPVarIO Seq.empty | p <- [minBound .. maxBound :: Priority]])
 
-priorityBox :: TVar (Priority, Priority) -- (Priority to run next, lower bound on allowed priority this run)
-priorityBox = unsafePerformIO $ newTVarIO (maxBound, maxBound)
+priorityBox :: PVar (Priority, Priority) -- (Priority to run next, lower bound on allowed priority this run)
+priorityBox = unsafePerformIO $ newPVarIO (maxBound, maxBound)
 
 -- |Returns which priority to pull the next thread from, and updates the countdown for next time.
-getNextPriority :: STM Priority
+getNextPriority :: PTM Priority
 getNextPriority =
-  do (p, limit) <- readTVar priorityBox
-     writeTVar priorityBox (if p > limit then (pred p, limit) else (maxBound, cyclicPred limit))
+  do (p, limit) <- readPVar priorityBox
+     writePVar priorityBox (if p > limit then (pred p, limit) else (maxBound, cyclicPred limit))
      return p
   where -- |Like `pred`, but cycles back to maxBound instead of throwing an error.
         cyclicPred :: (Bounded a, Enum a, Eq a) => a -> a
@@ -41,29 +41,29 @@ getNextPriority =
                      | otherwise     = pred p
 
 -- |Returns the next ready thread, or Nothing.
-getNextThread :: STM (Maybe SCont)
+getNextThread :: PTM (Maybe SCont)
 getNextThread = do priority <- getNextPriority
                    tryAt priority
   where tryAt priority = do let readyQ = readyQs ! priority
-                            q <- readTVar readyQ
+                            q <- readPVar readyQ
                             case viewl q of
-                              (t :< ts) -> do writeTVar readyQ ts
+                              (t :< ts) -> do writePVar readyQ ts
                                               return (Just t)
                               EmptyL -> if priority == minBound
                                            then return Nothing
                                            else tryAt (pred priority) -- nothing to run at this priority, try something lower.
 
 -- |Marks a thread "ready" and schedules it for some future time.
-schedule :: SCont -> STM ()
+schedule :: SCont -> PTM ()
 schedule thread =
-  do priority <- unsafeIOToSTM myPriority
+  do priority <- unsafeIOToPTM myPriority
      let readyQ = readyQs ! priority
-     q <- readTVar readyQ
-     writeTVar readyQ (q |> thread)
+     q <- readPVar readyQ
+     writePVar readyQ (q |> thread)
 
 dumpQueueLengths :: (String -> IO ()) -> IO ()
 dumpQueueLengths cPrint = mapM_ dumpQL [minBound .. maxBound]
   where dumpQL :: Priority -> IO ()
-        dumpQL p = do len <- atomically $ do q <- readTVar (readyQs ! p)
+        dumpQL p = do len <- atomically $ do q <- readPVar (readyQs ! p)
                                              return (Seq.length q)
                       cPrint ("|readyQ[" ++ show p ++ "]| = " ++ show len ++ "\n")
