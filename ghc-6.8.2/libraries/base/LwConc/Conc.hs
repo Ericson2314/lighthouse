@@ -112,16 +112,19 @@ forkIO :: IO () -> IO ThreadId
 forkIO computation =
   do tid <- newThreadId
      sigsblocked <- getTLS blockSignalsKey
-     newThread <- newSCont $ do setTLS tidTLSKey (Just tid)
-                                cPrint (show tid ++ " has set its TLS Key.\n")
-                                -- Inherit exception-blocked status from parent, per the spec.
-                                setTLS blockSignalsKey sigsblocked
-                                checkSignals -- check for kill before run the first time.
-                                computation `catchException` \ex -> do cPrint ("Uncaught exception in " ++ show tid ++ ": " ++ show ex ++ "\n")
-                                                                       die
-                                -- trappedRunH (from forkH) is what's magically catching my exns!
-                                cPrint (show tid ++ " completed without incident.\n")
-                                die
+     newThread <- newSCont $ catchException (do -- Inherit exception-blocked status from parent, per the spec.
+                                                setTLS blockSignalsKey sigsblocked
+                                                setTLS tidTLSKey (Just tid)
+                                                cPrint (show tid ++ " is now initialized.\n")
+                                                checkSignals -- check for kill before run the first time.
+                                                computation
+                                                cPrint (show tid ++ " completed without incident.\n")
+                                                die)
+                                            (\e -> do case e of
+                                                        AsyncException ThreadKilled -> cPrint (show tid ++ " killed.\n")
+                                                        _ -> cPrint ("Uncaught exception in " ++ show tid ++ ": " ++ show e ++ "\n")
+                                                      die)
+
      weak <- mkWeakPtr tid Nothing
      atomically $ do schedule newThread
                      ws <- readPVar allThreads
@@ -168,9 +171,11 @@ checkSignals = do mtid <- mySafeThreadId
                                                                          (e :< es) -> writePVar tbox es >> return (Just e)
                                                                          EmptyL    -> return Nothing
                                                  -- We need to throw -outside- of the atomically.
+                                                 -- Don't think you can handle AsyncException ThreadKilled specially!
+                                                 -- It needs to be thrown as an exception so things like withMVar
+                                                 -- can properly clean up before dying - for the sake of others!
                                                  case mx of
-                                                   Nothing -> return ()
-                                                   Just (AsyncException ThreadKilled) -> cPrint (show tid ++ " is killing itself.\n") >> die
+                                                   Nothing  -> return ()
                                                    Just exn -> throw exn
 
 -- this key, and 'block' and 'unblock' may actually belong in the substrate...
