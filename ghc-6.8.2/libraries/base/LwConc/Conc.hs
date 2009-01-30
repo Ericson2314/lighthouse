@@ -117,6 +117,7 @@ forkIO computation =
                                                 setTLS tidTLSKey (Just tid)
                                                 cPrint (show tid ++ " is now initialized.\n")
                                                 checkSignals -- check for kill before run the first time.
+                                                debugShowTID
                                                 computation
                                                 cPrint (show tid ++ " completed without incident.\n")
                                                 die)

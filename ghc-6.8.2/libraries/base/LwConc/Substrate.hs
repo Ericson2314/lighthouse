@@ -15,6 +15,8 @@ module LwConc.Substrate
 , mySafeThreadId
 
 , Priority(..)
+
+, debugShowTID
 ) where
 
 import GHC.Arr(Ix)
