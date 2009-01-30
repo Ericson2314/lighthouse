@@ -318,6 +318,7 @@ execute3 extra exestate@(netstate,pciState) user =
              cmd "delaytest" delaytest,
              cmd "delaykilltest" delaykilltest,
              cmd "withmvtest" withmvtest,
+             cmd "propagate" propagate,
              -- benchmarks
              cmd "createmv" createmv, -- comparable
              cmd "takemv" takemv,     -- LwConc is 2x faster
@@ -443,6 +444,11 @@ execute3 extra exestate@(netstate,pciState) user =
                            else putStrLn "It seems to have worked..."
           where wmvl mv = do withMVar mv cPrint
                              wmvl mv
+        propagate = liftIO $  catch (do cPrintIO "Hello"
+                                        catch (do cPrintIO "World"
+                                                  throw Deadlock)
+                                              (\e -> cPrintIO ("Inner: " ++ show e ++ "\n") >> throw e))
+                                    (\e -> cPrintIO ("Outer: " ++ show e ++ "\n"))
 
         jiffies = do j <- liftIO getourtimeofday
                      putStrLn ("jiffies = " ++ show j ++ "; msec = " ++ show (j*20))
