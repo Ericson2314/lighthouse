@@ -200,7 +200,7 @@ block :: IO a -> IO a
 block computation = do saved <- getTLS blockSignalsKey
                        setTLS blockSignalsKey True
                        -- Catch synchronous (not asynchronous) exns so we unwind properly
-                       x <- catchException (setTLS blockSignalsKey True >> computation)
+                       x <- catchException computation
                                            (\e -> setTLS blockSignalsKey saved >> throw e)
                        setTLS blockSignalsKey saved
                        checkSignals
@@ -213,9 +213,8 @@ block computation = do saved <- getTLS blockSignalsKey
 -- be disabled again.
 unblock :: IO a -> IO a
 unblock computation = do saved <- getTLS blockSignalsKey
-                         checkSignals
                          -- Catch synchronous OR asynchronous exns so we unwind properly
-                         x <- catchException (setTLS blockSignalsKey True >> computation)
+                         x <- catchException (setTLS blockSignalsKey False >> checkSignals >> computation)
                                              (\e -> setTLS blockSignalsKey saved >> throw e)
                          setTLS blockSignalsKey saved
                          return x
