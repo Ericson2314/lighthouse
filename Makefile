@@ -138,11 +138,11 @@ $P:
 stage2:
 	wget http://www.cse.ogi.edu/~hallgren/House/stage2
 
-House.iso: hOp.flp
+House.iso: House.flp
 	rm -rf iso
 	mkdir iso
-	ln hOp.flp iso/
-	mkisofs -r -b hOp.flp -c boot.catalog -o $@ iso
+	ln House.flp iso/
+	mkisofs -r -b House.flp -c boot.catalog -o $@ iso
 
 clean:
 	rm -rf $(MPOINT) iso
