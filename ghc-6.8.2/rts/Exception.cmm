@@ -192,6 +192,7 @@ retry_pop_stack:
      * and including this frame, update Su, push R1, and enter the handler.
      */
     handler = StgCatchFrame_handler(Sp);
+    Sp = Sp + SIZEOF_StgCatchFrame;
 
     /* Call the handler, passing the exception value and a realworld
      * token as arguments.
