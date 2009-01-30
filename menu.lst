@@ -8,8 +8,8 @@ title House (text mode)
   module /foo
   module /hello
   module /loop
-  #module /sample
-  #module /alt
+  module /sample
+  module /alt
   module /fonts.hf
   module /pci.ids.gz
 
@@ -20,8 +20,8 @@ title House (graphics mode)
   module /foo
   module /hello
   module /loop
-  #module /sample
-  #module /alt
+  module /sample
+  module /alt
   module /fonts.hf
   module /pci.ids.gz
   vbeset 0x117
