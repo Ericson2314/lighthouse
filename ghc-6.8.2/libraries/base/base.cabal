@@ -76,6 +76,8 @@ Library {
             LwConc.Scheduler.Nonlinear
             LwConc.Scheduler.Extreme
             LwConc.Scheduler.Dynamic
+            LwConc.Scheduler.Chance
+            LwConc.Scheduler.FixedHigh
     }
     exposed-modules:
         Control.Applicative,
