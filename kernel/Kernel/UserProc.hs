@@ -58,7 +58,7 @@ buildUProc putStr aoutImage =
 	        stackRegion = (startStack,endStack),
 	        pmap        = pmap,
 	        ownedPages  = [],
-		context     = zeroContext{eip = entry aout,esp = endStack}}
+		context     = zeroContext{eip = entry aout,esp = endStack-4}}
 
 zeroContext :: Context
 zeroContext  = Context {edi=0,esi=0,ebp=0,esp=0,ebx=0,
