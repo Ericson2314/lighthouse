@@ -317,6 +317,7 @@ execute3 extra exestate@(netstate,pciState) user =
              cmd "dieself" dieself,
              cmd "delaytest" delaytest,
              cmd "delaykilltest" delaykilltest,
+             cmd "withmvtest" withmvtest,
              -- benchmarks
              cmd "createmv" createmv, -- comparable
              cmd "takemv" takemv,     -- LwConc is 2x faster
@@ -431,6 +432,18 @@ execute3 extra exestate@(netstate,pciState) user =
                            threadDelay 100000
                            killH tid
                            putStrLn "Welcome back!"
+        withmvtest = do mv <- newMVar "o"
+                        tid <- forkH $ wmvl mv
+                        threadDelay 50000
+                        killH tid
+                        threadDelay 50000
+                        busted <- isEmptyMVar mv
+                        if busted
+                           then putStrLn "It's busted."
+                           else putStrLn "It seems to have worked..."
+          where wmvl mv = do withMVar mv cPrint
+                             wmvl mv
+
         jiffies = do j <- liftIO getourtimeofday
                      putStrLn ("jiffies = " ++ show j ++ "; msec = " ++ show (j*20))
         {- PERFORMANCE TESTS -}
