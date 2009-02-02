@@ -20,10 +20,7 @@ getPriority (TCB _ _ pv) = readPVar pv
 
 -- |Set the given thread's priority.
 setPriority :: ThreadId -> Priority -> PTM ()
-setPriority tid p = do m <- unsafeIOToPTM mySafeThreadId
-                       case m of
-                         Nothing  -> return ()
-                         Just (TCB _ _ pv) -> writePVar pv p
+setPriority (TCB _ _ pv) p = writePVar pv p
 
 -- |Returns the current thread's priority.
 myPriority :: IO Priority
