@@ -20,43 +20,36 @@ defaultAttrs :: VideoAttributes
 defaultAttrs = 0x17
 
 putString :: Console -> String -> H ()
-putString (Console vConsole) str =
-    withMVar vConsole $ \ console ->
-	writeList2Chan (consoleChan console) $ map putc str
+putString (Console lock con) str =
+    withLock lock $ writeList2Chan (consoleChan con) $ map putc str
 
 putc '\n' = NewLine
 putc c = PutChar defaultAttrs c
 
 putStringLn :: Console -> String -> H ()
-putStringLn (Console vConsole) str =
-    withMVar vConsole $ \ con ->
-	do writeList2Chan (consoleChan con) $ map putc str
-	   writeChan (consoleChan con) NewLine
+putStringLn (Console lock con) str =
+    withLock lock $ do writeList2Chan (consoleChan con) $ map putc str
+	               writeChan (consoleChan con) NewLine
 
 putChar :: Console -> Char -> H ()
-putChar (Console vConsole) char =
-    withMVar vConsole $ \ console ->
-	do writeChan (consoleChan console) $ putc char
+putChar (Console lock con) char =
+    withLock lock $ writeChan (consoleChan con) $ putc char
 
 putChar' :: Console -> VideoAttributes -> Char -> H ()
-putChar' (Console vConsole) attrs char =
-    withMVar vConsole $ \ console ->
-	do writeChan (consoleChan console) $ PutChar attrs char
+putChar' (Console lock con) attrs char =
+    withLock lock $ writeChan (consoleChan con) $ PutChar attrs char
 
 clearScreen :: Console -> H ()
-clearScreen (Console vConsole) =
-    withMVar vConsole $ \ console ->
-	do writeChan (consoleChan console) $ ClearScreen
+clearScreen (Console lock con) =
+    withLock lock $ writeChan (consoleChan con) $ ClearScreen
 
 moveCursorBackward :: Console -> Int -> H ()
-moveCursorBackward (Console vConsole) count =
-    withMVar vConsole $ \ console ->
-	writeChan (consoleChan console) $ MoveCursorBackward count
+moveCursorBackward (Console lock con) count =
+    withLock lock $ writeChan (consoleChan con) $ MoveCursorBackward count
 
 clearEOL :: Console -> H ()
-clearEOL (Console vConsole) =
-    withMVar vConsole $ \ console ->
-	writeChan (consoleChan console) ClearEOL
+clearEOL (Console lock con) =
+    withLock lock $ writeChan (consoleChan con) ClearEOL
 
 isValidPosition :: ConsoleData -> Row -> Col -> H Bool
 isValidPosition con row col =

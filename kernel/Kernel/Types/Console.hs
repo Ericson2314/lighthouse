@@ -1,7 +1,8 @@
 module Kernel.Types.Console where
 
-import H.Concurrency(Chan,MVar)
+import H.Concurrency(Chan)
 import Data.Word ( Word8 )
+import Control.Concurrent.Lock
 
 type VideoAttributes = Word8
 
@@ -22,4 +23,4 @@ data ConsoleData = ConsoleData
     , consoleWidth :: Int
     }
 
-data Console = Console (MVar ConsoleData)
+data Console = Console Lock ConsoleData

@@ -11,7 +11,7 @@ import Data.Word
 import Data.Bits
 import Kernel.Types.Console
 import H.Monad(H)
-import H.Concurrency(forkH,newChan,readChan,newMVar)
+import H.Concurrency(forkH,newChan,readChan,newMVar,newLock)
 import H.IOPorts
 import H.AdHocMem(absolutePtr)
 import H.MemRegion
@@ -100,11 +100,8 @@ launchConsoleDriver =
 	       | otherwise = return (row, col)
        tid <- forkH $ consolePrinter 20 0
        cPrint ("===Console printer is " ++ show tid ++ "\n")
-       vConsole <- newMVar $ ConsoleData { consoleChan = chan
-					 , consoleHeight = fromEnum screenHeight
-					 , consoleWidth = fromEnum screenWidth
-					 }
-       return (Console vConsole)
+       consoleLock <- newLock
+       return (Console consoleLock (ConsoleData { consoleChan = chan, consoleHeight = fromEnum screenHeight, consoleWidth = fromEnum screenWidth }))
 
 doCommand :: ConsoleCommand -> Row -> Col -> H (Row, Col)
 doCommand NewLine row _
