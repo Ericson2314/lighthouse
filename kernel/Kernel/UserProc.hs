@@ -65,13 +65,13 @@ zeroContext  = Context {edi=0,esi=0,ebp=0,esp=0,ebx=0,
                         edx=0,ecx=0,eax=0,eip=0,eflags=0}
 
 
-execUProc :: UProc -> H (Either UProc String)
+execUProc :: UProc -> H String
 execUProc uproc 
   = do (interrupt,context') <- execContext (pmap uproc) (context uproc)
        let uproc' = uproc{context=context'}
            exitWith msg = 
               do freeUProc uproc'
-                 return $ Right msg
+                 return msg
        -- putStrLn("Back to kernel: " ++ (show interrupt))
        -- putStrLn(show uproc')
        case interrupt of
@@ -87,16 +87,10 @@ execUProc uproc
                 Left uproc'' -> execUProc uproc''
                 Right msg -> exitWith msg
 
-         ExternalInterrupt IRQ0 -> -- timeslice exhausted
-           do -- eoiIRQ IRQ0 
-              -- this has already been done in C code, 
-	      -- because it doesn't seem to be executed
-	      -- in a timely fashion if it is put here.
-	      return $ Left uproc'
-
-         ExternalInterrupt irq -> -- other IO interrupts
+         -- Argh, another route for interrupts to appear aside from interruptHandler...
+         ExternalInterrupt irq ->
            do callIRQHandler irq
-	      return $ Left uproc'
+              execUProc uproc'
 
          _ -> -- any other code means we're done, like it or not
 	   exitWith ("Unexpected Interrupt: " ++ (show interrupt))

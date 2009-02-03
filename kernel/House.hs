@@ -586,13 +586,8 @@ execute3 extra exestate@(netstate,pciState) user =
 		  parseGIFs
 
     runUProc uproc =
-      do r <- execUProc uproc 
-         case r of  
-           Left uproc' -> 
-              do yield
-                 runUProc uproc'
-           Right msg ->
-              putStrLn ("Exit Status: " ++ show msg)
+      do msg <- execUProc uproc
+         putStrLn ("Exit Status: " ++ show msg)
 
     moduleUProc = buildUProc putStr . peekByteOff
 

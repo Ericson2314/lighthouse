@@ -51,6 +51,7 @@ getPendingIRQ = do irqNum <- liftIO get_pending_irq_number
                                else Just (toEnum (fromIntegral irqNum))
 
 -- Note that this can reenter.
+-- Also see Kernel.UserProc / execUProc - interrupts can arise there too.
 interruptHandler :: H ()
 interruptHandler =
   do maybeIRQ <- getPendingIRQ
