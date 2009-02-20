@@ -21,10 +21,9 @@ module Control.Concurrent.QSem
 	) where
 
 import Control.Monad(unless)
-import Data.IORef
 import LwConc.PTM
 import LwConc.Scheduler(getNextThread, schedule)
-import LwConc.Substrate(switch, SCont)
+import LwConc.Threads
 
 -- QSems implemented atop PTM.
 -- These now wake up all waiting threads and let them compete for the resource.
@@ -33,7 +32,7 @@ import LwConc.Substrate(switch, SCont)
 
 -- |A 'QSem' is a simple quantity semaphore, in which the available
 -- \"quantity\" is always dealt with in units of one.
-newtype QSem = QSem (PVar (Int, [SCont]))
+newtype QSem = QSem (PVar (Int, [Thread]))
 
 -- |Build a new 'QSem'
 newQSem :: Int -> IO QSem
@@ -44,15 +43,15 @@ newQSem init = do
 -- |Wait for a unit to become available
 waitQSem :: QSem -> IO ()
 waitQSem q@(QSem pv) =
-  do bucket <- newIORef False
-     switch $ \currThread -> do (avail,ts) <- readPVar pv
-                                if avail > 0
-                                   then do writePVar pv (avail-1,[])
-                                           unsafeIOToPTM $ writeIORef bucket True
-                                           return currThread
-                                   else do writePVar pv (avail, currThread:ts)
-                                           getNextThread
-     gotIt <- readIORef bucket
+  do bucket <- newPVarIO False
+     switchT $ \currThread -> do (avail,ts) <- readPVar pv
+                                 if avail > 0
+                                    then do writePVar pv (avail-1,[])
+                                            writePVar bucket True
+                                            return currThread
+                                    else do writePVar pv (avail, currThread:ts)
+                                            getNextThread
+     gotIt <- atomically $ readPVar bucket
      unless gotIt $ waitQSem q
 
 -- |Signal that a unit of the 'QSem' is available

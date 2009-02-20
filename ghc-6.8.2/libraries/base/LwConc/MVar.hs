@@ -42,6 +42,7 @@ module LwConc.MVar
 import LwConc.Scheduler
 import LwConc.PTM
 import LwConc.Substrate
+import LwConc.Threads
 import Data.IORef
 import Data.Sequence as Seq
 import System.IO.Unsafe (unsafePerformIO)
@@ -55,35 +56,34 @@ cPrint str = withCString str c_print
 
 newtype MVar a = MVar (PVar (MVState a)) deriving Eq -- Typeable, Data?
 
-data MVState a = Full a (Seq (a, SCont))       -- queue of blocked writers
-               | Empty  (Seq (IORef a, SCont)) -- queue of blocked readers
+data MVState a = Full a (Seq (a, Thread))       -- queue of blocked writers
+               | Empty  (Seq (IORef a, Thread)) -- queue of blocked readers
 
 -- |Blocked queue stuff.
 blockedQ :: PVar [(ThreadId, Weak SCont)]
 blockedQ = unsafePerformIO $ newPVarIO []
 
-markBlocked :: MVar a -> SCont -> PTM ()
-markBlocked mv scont = do weak <- unsafeIOToPTM $ mkWeak mv scont Nothing
-                          Just tid <- unsafeIOToPTM mySafeThreadId
-                          q <- readPVar blockedQ
-                          writePVar blockedQ ((tid, weak):q)
+markBlocked :: MVar a -> Thread -> PTM ()
+markBlocked mv (Thread tid scont) =
+  do weak <- unsafeIOToPTM $ mkWeak mv scont Nothing
+     q <- readPVar blockedQ
+     writePVar blockedQ ((tid, weak):q)
 
-markUnblocked :: SCont -> PTM ()
-markUnblocked scont = do q <- readPVar blockedQ
-                         q' <- unsafeIOToPTM $ deleteW scont q
-                         writePVar blockedQ q'
-  where deleteW :: SCont -> [(ThreadId, Weak SCont)] -> IO [(ThreadId, Weak SCont)]
-        deleteW _ []     = return []
-        deleteW x ((t,w):ws) =
+markUnblocked :: Thread -> PTM ()
+markUnblocked (Thread tid scont) = do q <- readPVar blockedQ
+                                      q' <- unsafeIOToPTM $ deleteW tid q
+                                      writePVar blockedQ q'
+  where deleteW :: ThreadId -> [(ThreadId, Weak SCont)] -> IO [(ThreadId, Weak SCont)]
+        deleteW _   []         = return []
+        deleteW tid ((t,w):ws) =
           do m <- deRefWeak w
              case m of
-               Nothing -> do ws' <- deleteW x ws
-                             return ((t,w):ws') -- should probably not cons it back on here - clean as we go
-               Just y -> if x == y
-                            --then cPrint ("Unblocking " ++ show t) >> return ws
-                            then return ws
-                            else do ws' <- deleteW x ws
-                                    return ((t,w):ws')
+               Nothing -> deleteW tid ws -- don't cons this back on - it's dead
+               Just _  -> if tid == t
+                             --then cPrint ("Unblocking " ++ show t) >> return ws
+                             then return ws
+                             else do ws' <- deleteW tid ws
+                                     return ((t,w):ws')
 
 cleanBlocked :: IO ()
 cleanBlocked = atomically $
@@ -139,7 +139,7 @@ newMVar x =
 takeMVar :: MVar a -> IO a
 takeMVar mv@(MVar p) =
   do hole <- newIORef undefined
-     switch $ \currThread ->
+     switchT $ \currThread ->
        do st <- readPVar p
           case st of
             Full x bq -> case viewl bq of
@@ -172,7 +172,7 @@ takeMVar mv@(MVar p) =
 --
 {-# INLINE putMVar #-}
 putMVar :: MVar a -> a -> IO ()
-putMVar mv@(MVar p) x = switch $ \currThread ->
+putMVar mv@(MVar p) x = switchT $ \currThread ->
   do st <- readPVar p
      case st of
        Empty bq -> case viewl bq of

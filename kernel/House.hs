@@ -67,9 +67,9 @@ import LwConc.Conc(startSystem, die)
 import H.Monad(liftIO)
 import Foreign.C(CString,withCString)
 
-import LwConc.Conc(dumpAllThreads, mySafeThreadId)
+import LwConc.Conc(dumpAllThreads)
 import LwConc.MVar(dumpBlocked)
-import LwConc.Priority
+import LwConc.Threads
 import LwConc.Scheduler(dumpQueueLengths)
 
 import Prelude hiding (catch)
@@ -299,7 +299,7 @@ execute3 extra exestate@(netstate,pciState) user =
                             hooploop
               hoop = do forkH hooploop
                         return ()
-              whoop = do forkH $ liftIO (setMyPriority minBound) >> hooploop
+              whoop = do forkH $ atomically (setMyPriority minBound) >> hooploop
                          return ()
 
     debugcommands =
@@ -337,7 +337,8 @@ execute3 extra exestate@(netstate,pciState) user =
              cmd "priempt" priempt, -- priority preempt
              cmd "wastemem" wasteMem <@ number]
       where
-        minichess = do forkH $ liftIO $ setMyPriority minBound >> MiniChess.main (\s -> runH (putStr s))
+        minichess = do forkH $ do atomically (setMyPriority minBound)
+                                  liftIO $ MiniChess.main (\s -> runH (putStr s))
                        putStrLn $ "Forked minichess at " ++ show (minBound :: Priority) ++ " priority."
         priotest = do --h <- priohelp "H" High
                       --m <- priohelp "M" Medium
@@ -348,8 +349,8 @@ execute3 extra exestate@(netstate,pciState) user =
           where priohelp :: String -> Priority -> H (String, IORef Int)
                 priohelp id p = do box <- liftIO $ newIORef 0
                                    --forkH $ liftIO (setMyPriority p) >> prioloop id box
-                                   forkH $ do liftIO (setMyPriority p)
-                                              p' <- liftIO myPriority
+                                   forkH $ do atomically (setMyPriority p)
+                                              p' <- atomically myPriority
                                               cPrint ("My priority is " ++ show p')
                                               prioloop id box
                                    return (id, box)
@@ -499,9 +500,9 @@ execute3 extra exestate@(netstate,pciState) user =
 	preempt2 = do putStrLn "This is a fair preempt: both allocate."
                       forkH (p2helper "A")
 		      p2helper "B"
-        priempt = do forkH $ liftIO (setMyPriority maxBound) >> p3helper "U"
+        priempt = do forkH $ atomically (setMyPriority maxBound) >> p3helper "U"
                      --forkH $                                p3helper "m"
-                     forkH $ liftIO (setMyPriority minBound) >> p3helper "w"
+                     forkH $ atomically (setMyPriority minBound) >> p3helper "w"
                      return ()
 
 	wasteMem n = print $ sum (reverse [1..n::Integer])
@@ -569,7 +570,7 @@ execute3 extra exestate@(netstate,pciState) user =
 	 putStrLn $ show i++": "++n++" "++show r
 
     run = withModuleRegion (runUProc @@ moduleUProc)
-    runAt p s = do tid <- forkH $ liftIO (setMyPriority p) >> run s
+    runAt p s = do tid <- forkH $ atomically (setMyPriority p) >> run s
                    return ()
     prun = runAt (minBound :: Priority)
     hrun = runAt (maxBound :: Priority)

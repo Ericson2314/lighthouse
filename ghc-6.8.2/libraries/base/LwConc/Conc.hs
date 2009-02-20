@@ -21,13 +21,14 @@ module LwConc.Conc
 ) where
 
 import GHC.Exception(Exception(..), AsyncException(..), catchException, throw)
-import Control.Monad(when, unless, liftM)
+import Control.Monad(when, liftM)
 import System.IO.Unsafe (unsafePerformIO)
 import Data.IORef
 import Data.Sequence
+import LwConc.PTM
 import LwConc.Scheduler
 import LwConc.Substrate
-import LwConc.PTM
+import LwConc.Threads
 import Foreign.C(CString, withCString)
 import System.Mem.Weak(Weak(..), mkWeakPtr, deRefWeak)
 
@@ -36,13 +37,16 @@ foreign import ccall unsafe "start.h c_print" c_print :: CString -> IO ()
 cPrint :: String -> IO ()
 cPrint str = withCString str c_print
 
+-- | Fork the main computation off into its own real, initialized, thread,
+-- then switch to it.  We just let the current "thread" die and get collected;
+-- it doesn't have any of our necessary wrapper code.
 startSystem :: IO () -> IO ()
 startSystem main = forkIO main >> die
 
 -- | The timer interrupt handler.  Forces the thread to yield, unless it's
 -- still starting up (and hasn't initialized its ThreadId.)
 timerHandler :: IO ()
-timerHandler = do val <- getTLS tidTLSKey
+timerHandler = do val <- atomically mySafeThreadId
                   case val of
                     Nothing  -> return () -- uninitialized. let it continue
                     Just tid -> do done <- timeUp
@@ -50,8 +54,8 @@ timerHandler = do val <- getTLS tidTLSKey
                     
 -- | Yield, marking the current thread ready & switching to the next one.
 yield :: IO ()
-yield = do switch $ \currThread -> do schedule currThread
-                                      getNextThread
+yield = do switchT $ \currThread -> do schedule currThread
+                                       getNextThread
            checkSignals
 
 allThreads :: PVar [Weak ThreadId]
@@ -78,25 +82,17 @@ dumpAllThreads putStr
 
 -- | Switches to the next thread, but doesn't schedule the current thread again.
 -- Since it's not running nor scheduled, it will be garbage collected.
+--
+-- We don't use switchT here because it doesn't switch if the thread is
+-- uninitialized, and we may want to die even if uninitialized.
 die :: IO ()
-die = switch $ \dyingThread -> getNextThread
-
------------------------------------------------------------------------------
--- ThreadIds
-
--- | Numerical IDs, starting at 1.
-nextThreadNum :: PVar Int
-nextThreadNum = unsafePerformIO $ newPVarIO 1
-
-getNextThreadNum :: IO Int
-getNextThreadNum = atomically $ do x <- readPVar nextThreadNum
-                                   writePVar nextThreadNum (x+1)
-                                   return x
+die = switch $ \_ -> do (Thread _ sc) <- getNextThread
+                        return sc
 
 -- | Returns the current ThreadId.  Only safe to call when threads are fully
 -- initialized (i.e. have started running their real computation).
 myThreadId :: IO ThreadId
-myThreadId = do val <- getTLS tidTLSKey
+myThreadId = do val <- atomically $ mySafeThreadId
                 case val of
                   Nothing  -> error "myThreadId called on an uninitialized thread"
                   Just tid -> return tid
@@ -111,7 +107,7 @@ myThreadId = do val <- getTLS tidTLSKey
 forkIO :: IO () -> IO ThreadId
 forkIO computation =
   do tid <- newThreadId
-     sigsblocked <- getTLS blockSignalsKey
+     sigsblocked <- atomically $ getTLS blockSignalsKey
      newThread <- newSCont $ catchException (do -- Inherit exception-blocked status from parent, per the spec.
                                                 setTLS blockSignalsKey sigsblocked
                                                 setTLS tidTLSKey (Just tid)
@@ -127,15 +123,10 @@ forkIO computation =
                                                       die)
 
      weak <- mkWeakPtr tid Nothing
-     atomically $ do schedule newThread
+     atomically $ do schedule (Thread tid newThread)
                      ws <- readPVar allThreads
                      writePVar allThreads (weak:ws)
      return tid
-  where newThreadId :: IO ThreadId
-        newThreadId = do tnum <- getNextThreadNum
-                         tbox <- newPVarIO empty
-                         prio <- newPVarIO C
-                         return (TCB tnum tbox prio)
      
 killThread :: ThreadId -> IO ()
 killThread tid@(TCB _ tbox _) =
@@ -155,29 +146,30 @@ throwTo tid@(TCB _ tbox _) exn =
 -- There is no guarantee that the thread will be rescheduled promptly when the
 -- delay has expired, but the thread will never continue to run earlier than specified.
 threadDelay :: Int -> IO ()
-threadDelay usec = do switch $ \currThread -> do scheduleIn usec currThread
-                                                 getNextThread
+threadDelay usec = do switchT $ \currThread -> do scheduleIn usec currThread
+                                                  getNextThread
                       checkSignals
 
 
 -- | Check if anyone has sent us an asynchronous exception.
 checkSignals :: IO ()
-checkSignals = do mtid <- mySafeThreadId
-                  case mtid of
-                    Nothing -> return ()
-                    Just tid@(TCB _ tbox _) ->
-                      do sigsblocked <- getTLS blockSignalsKey
-                         unless sigsblocked $ do mx <- atomically $ do exns <- readPVar tbox
-                                                                       case viewl exns of
-                                                                         (e :< es) -> writePVar tbox es >> return (Just e)
-                                                                         EmptyL    -> return Nothing
-                                                 -- We need to throw -outside- of the atomically.
-                                                 -- Don't think you can handle AsyncException ThreadKilled specially!
-                                                 -- It needs to be thrown as an exception so things like withMVar
-                                                 -- can properly clean up before dying - for the sake of others!
-                                                 case mx of
-                                                   Nothing  -> return ()
-                                                   Just exn -> throw exn
+checkSignals = do mx <- atomically $ do mtid <- mySafeThreadId
+                                        sigsBlocked <- getTLS blockSignalsKey
+                                        case (mtid, sigsBlocked) of
+                                          (Nothing, _) -> return Nothing
+                                          (_, True)    -> return Nothing
+                                          (Just tid@(TCB _ tbox _), _) ->
+                                             do exns <- readPVar tbox
+                                                case viewl exns of
+                                                  (e :< es) -> writePVar tbox es >> return (Just e)
+                                                  EmptyL    -> return Nothing
+                  -- We need to throw -outside- of the atomically so it doesn't retry.
+                  -- Also, don't think you can handle AsyncException ThreadKilled specially!
+                  -- It needs to be thrown as an exception so things like withMVar
+                  -- can properly clean up before dying - for the sake of others!
+                  case mx of
+                    Nothing  -> return ()
+                    Just exn -> throw exn
 
 -- this key, and 'block' and 'unblock' may actually belong in the substrate...
 blockSignalsKey :: TLSKey Bool
@@ -198,7 +190,7 @@ blockSignalsKey = unsafePerformIO $ newTLSKey False
 -- establish an exception handler in the forked thread before any
 -- asynchronous exceptions are received.
 block :: IO a -> IO a
-block computation = do saved <- getTLS blockSignalsKey
+block computation = do saved <- atomically $ getTLS blockSignalsKey
                        setTLS blockSignalsKey True
                        -- Catch synchronous (not asynchronous) exns so we unwind properly
                        x <- catchException computation
@@ -213,7 +205,7 @@ block computation = do saved <- getTLS blockSignalsKey
 -- 'unblock' asynchronous exception delivery will
 -- be disabled again.
 unblock :: IO a -> IO a
-unblock computation = do saved <- getTLS blockSignalsKey
+unblock computation = do saved <- atomically $ getTLS blockSignalsKey
                          -- Catch synchronous OR asynchronous exns so we unwind properly
                          x <- catchException (setTLS blockSignalsKey False >> checkSignals >> computation)
                                              (\e -> setTLS blockSignalsKey saved >> throw e)

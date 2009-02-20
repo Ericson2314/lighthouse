@@ -3,6 +3,7 @@ module H.Concurrency(module H.Concurrency,{- H,-} Chan,MVar,QSem,ThreadId,L.Lock
 import qualified Control.Concurrent as IO
 import Control.Concurrent(Chan,MVar,QSem,ThreadId)
 import qualified Control.Concurrent.Lock as L
+import LwConc.PTM as PTM
 import H.Monad(H,liftIO,runH)
 
 ------------------------ INTERFACE ---------------------------------------------
@@ -13,6 +14,10 @@ killH :: ThreadId -> H ()
 yield :: H ()
 threadDelay :: Int -> H ()
 myThreadId :: H ThreadId
+
+-- * PTM
+atomically :: PTM a -> H a
+newPVarH   :: a -> H (PVar a)
 
 -- * Channels
 newChan         :: H (Chan a)
@@ -54,6 +59,10 @@ killH = liftIO . IO.killThread
 yield = liftIO IO.yield
 threadDelay = liftIO . IO.threadDelay
 myThreadId = liftIO IO.myThreadId
+
+-- PTM -------------------------------------------------------------------------
+atomically p = liftIO $ PTM.atomically p
+newPVarH v   = liftIO $ newPVarIO v
 
 -- Channels --------------------------------------------------------------------
 newChan              = liftIO $ IO.newChan

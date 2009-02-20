@@ -129,7 +129,8 @@ module Control.Exception (
 #ifdef __GLASGOW_HASKELL__
 import GHC.Base		( assert )
 import GHC.Exception 	as ExceptionBase hiding (catch)
-import LwConc.Conc      ( throwTo, ThreadId, block, unblock )
+import LwConc.Threads   ( ThreadId )
+import LwConc.Conc      ( throwTo, block, unblock )
 import Data.IORef	( IORef, newIORef, readIORef, writeIORef )
 import Foreign.C.String ( CString, withCString )
 #ifndef house_HOST_OS

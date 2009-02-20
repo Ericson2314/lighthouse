@@ -83,7 +83,8 @@ import Prelude
 import Control.Exception as Exception
 
 #ifdef __GLASGOW_HASKELL__
-import LwConc.Conc (ThreadId, yield, forkIO, killThread, threadDelay, throwTo, myThreadId)
+import LwConc.Conc (yield, forkIO, killThread, threadDelay, throwTo, myThreadId)
+import LwConc.Threads (ThreadId)
 import GHC.Conc		( childHandler )
 import GHC.TopHandler   ( reportStackOverflow, reportError )
 import GHC.IOBase	( IO(..) )

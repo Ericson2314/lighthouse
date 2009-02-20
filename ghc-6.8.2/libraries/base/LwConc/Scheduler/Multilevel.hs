@@ -13,14 +13,13 @@ module LwConc.Scheduler.Multilevel
 import System.IO.Unsafe (unsafePerformIO)
 import Data.Sequence as Seq
 import GHC.Arr as Array
-import LwConc.Priority
 import LwConc.PTM
-import LwConc.Substrate
+import LwConc.Threads
 
 timeUp :: IO Bool
 timeUp = return True
 
-type ReadyQ = PVar (Seq SCont)
+type ReadyQ = PVar (Seq Thread)
 
 -- |An array of ready queues, indexed by priority.
 readyQs :: Array Priority ReadyQ
@@ -41,7 +40,7 @@ getNextPriority =
                      | otherwise     = pred p
 
 -- |Returns the next ready thread, or Nothing.
-getNextThread :: PTM (Maybe SCont)
+getNextThread :: PTM (Maybe Thread)
 getNextThread = do priority <- getNextPriority
                    tryAt priority
   where tryAt priority = do let readyQ = readyQs ! priority
@@ -54,9 +53,9 @@ getNextThread = do priority <- getNextPriority
                                            else tryAt (pred priority) -- nothing to run at this priority, try something lower.
 
 -- |Marks a thread "ready" and schedules it for some future time.
-schedule :: SCont -> PTM ()
+schedule :: Thread -> PTM ()
 schedule thread =
-  do priority <- unsafeIOToPTM myPriority
+  do priority <- myPriority
      let readyQ = readyQs ! priority
      q <- readPVar readyQ
      writePVar readyQ (q |> thread)

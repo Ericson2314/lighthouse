@@ -15,15 +15,13 @@ module Control.Concurrent.Lock
 , withLock
 ) where
 
-import Control.Concurrent(ThreadId, myThreadId)
-import LwConc.Substrate(switch, SCont)
-import LwConc.Scheduler(getNextThread, schedule)
-import LwConc.Priority
+import Control.Concurrent(myThreadId)
+import Control.Monad(when)
 import LwConc.PTM
+import LwConc.Scheduler(getNextThread, schedule)
+import LwConc.Threads
 
-import Control.Monad (when)
-
-data LockState = Unlocked | Locked ThreadId [SCont]
+data LockState = Unlocked | Locked ThreadId [Thread]
 newtype Lock = Lock (PVar LockState)
 newtype LockKey = LockKey (IO ())
 
@@ -33,15 +31,15 @@ newLock = do tv <- newPVarIO Unlocked
 
 lock :: Lock -> IO LockKey
 lock l@(Lock pv) = do me <- myThreadId
-                      switch $ \currThread -> do state <- readPVar pv
-                                                 case state of
-                                                   Unlocked -> do writePVar pv (Locked me [])
-                                                                  return currThread -- got it; continue
-                                                   Locked owner ts -> do myPrio <- getPriority me
-                                                                         ownerPrio <- getPriority owner
-                                                                         when (myPrio > ownerPrio) $ setPriority owner myPrio
-                                                                         writePVar pv (Locked owner (currThread:ts))
-                                                                         getNextThread -- run something else
+                      switchT $ \currThread -> do state <- readPVar pv
+                                                  case state of
+                                                    Unlocked -> do writePVar pv (Locked me [])
+                                                                   return currThread -- got it; continue
+                                                    Locked owner ts -> do myPrio <- myPriority
+                                                                          ownerPrio <- getPriority owner
+                                                                          when (myPrio > ownerPrio) $ setPriority owner myPrio
+                                                                          writePVar pv (Locked owner (currThread:ts))
+                                                                          getNextThread -- run something else
                       return $ LockKey (unsafeUnlock l)
                         
 tryLock :: Lock -> IO (Maybe LockKey)
@@ -62,16 +60,11 @@ unsafeUnlock (Lock pv) = atomically $ do state <- readPVar pv
                                                              mapM_ schedule ts -- wake them all up; compete
 
 withLock :: Lock -> IO a -> IO a
-withLock l c = do prio <- myPriority
+withLock l c = do prio <- atomically myPriority
                   k <- lock l
                   v <- c
                   unlock k
-                  setMyPriority prio -- in case someone boosted our priority while we held the lock...
-                                     -- but this is craptastic if c alters the priority...
+                  atomically $ setMyPriority prio -- in case someone boosted our priority while we held the lock...
+                                                  -- but this is craptastic if c alters the priority...
                   return v
-
--- hmm.  (random thought)  asynchronous exns...don't interact so well with PTM.
--- notably...if doing a transaction...get an async exception...well log looks fine...
--- so retry...ignoring that.  oops.  really should only retry on -synchronous- exns.
--- should try and avoid infinite loops too...?
 

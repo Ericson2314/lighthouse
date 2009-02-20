@@ -14,9 +14,9 @@ module LwConc.Scheduler.Longslice
 
 import System.IO.Unsafe (unsafePerformIO)
 import Data.Sequence as Seq
-import LwConc.Priority
 import LwConc.PTM
 import LwConc.Substrate
+import LwConc.Threads
 import Data.IORef
 
 ticksKey :: TLSKey Priority
@@ -24,19 +24,19 @@ ticksKey = unsafePerformIO $ newTLSKey C
 
 timeUp :: IO Bool
 timeUp =
-  do p <- getTLS ticksKey
+  do p <- atomically $ getTLS ticksKey
      if p == minBound
-        then do prio <- myPriority -- out of time; reset count for next time
+        then do prio <- atomically myPriority -- out of time; reset count for next time
                 setTLS ticksKey prio
                 return True
         else setTLS ticksKey (pred p) >> return False -- keep going
 
 -- |The single ready queue used for round robin scheduling.
-readyQ :: PVar (Seq SCont)
+readyQ :: PVar (Seq Thread)
 readyQ = unsafePerformIO $ newPVarIO Seq.empty
 
 -- |Returns the next ready thread, or Nothing.
-getNextThread :: PTM (Maybe SCont)
+getNextThread :: PTM (Maybe Thread)
 getNextThread =
   do q <- readPVar readyQ
      case viewl q of
@@ -45,7 +45,7 @@ getNextThread =
        EmptyL    -> return Nothing
 
 -- |Marks a thread "ready" and schedules it for some future time.
-schedule :: SCont -> PTM ()
+schedule :: Thread -> PTM ()
 schedule thread =
   do q <- readPVar readyQ
      writePVar readyQ (q |> thread)
