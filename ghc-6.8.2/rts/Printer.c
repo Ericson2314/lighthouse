@@ -371,9 +371,7 @@ printClosure( StgClosure *obj )
             break;
 
     case TSO:
-      debugBelch("TSO("); 
-      debugBelch("%lu (%p)",(unsigned long)(((StgTSO*)obj)->id), (StgTSO*)obj);
-      debugBelch(")\n"); 
+      debugBelch("TSO(%p)\n", (StgTSO*) obj); 
       break;
 
 #if defined(PAR)

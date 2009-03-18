@@ -274,13 +274,9 @@ main(int argc, char *argv[])
     closure_payload(StgArrWords, payload);
 
     closure_field(StgTSO, link);
-    closure_field(StgTSO, global_link);
     closure_field(StgTSO, what_next);
     closure_field(StgTSO, why_blocked);
     closure_field(StgTSO, block_info);
-    closure_field(StgTSO, id);
-    closure_field(StgTSO, cap);
-    closure_field(StgTSO, saved_errno);
     closure_field(StgTSO, flags);
     closure_field_("StgTSO_CCCS", StgTSO, prof.CCCS);
     tso_field(StgTSO, sp);

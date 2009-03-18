@@ -189,8 +189,8 @@ scheduleHandleHeapOverflow(Capability *cap)
 	blocks = (lnat)BLOCK_ROUND_UP(cap->r.rHpAlloc) / BLOCK_SIZE;
 	
 	debugTrace(DEBUG_sched,
-		   "--<< thread %ld (%s) stopped: requesting a large block (size %ld)\n", 
-		   (long)t->id, whatNext_strs[t->what_next], blocks);
+		   "--<< thread %p (%s) stopped: requesting a large block (size %ld)\n", 
+		   t, whatNext_strs[t->what_next], blocks);
     
 	// don't do this if the nursery is (nearly) full, we'll GC first.
 	if (cap->r.rCurrentNursery->link != NULL ||
@@ -244,8 +244,8 @@ scheduleHandleHeapOverflow(Capability *cap)
     }
     
     debugTrace(DEBUG_sched,
-	       "--<< thread %ld (%s) stopped: HeapOverflow\n", 
-	       (long)t->id, whatNext_strs[t->what_next]);
+	       "--<< thread %p (%s) stopped: HeapOverflow\n", 
+	       t, whatNext_strs[t->what_next]);
 
     scheduleDoGC(cap, rtsFalse);
     return cap;
@@ -260,8 +260,8 @@ scheduleHandleStackOverflow (Capability *cap)
 {
     StgTSO *t = cap->r.rCurrentTSO;
     debugTrace (DEBUG_sched,
-		"--<< thread %ld (%s) stopped, StackOverflow", 
-		(long)t->id, whatNext_strs[t->what_next]);
+		"--<< thread %p (%s) stopped, StackOverflow", 
+		t, whatNext_strs[t->what_next]);
 
     /* enlarge the stack */
     cap->r.rCurrentTSO = threadStackOverflow(cap, t);
@@ -293,8 +293,6 @@ runTheWorld (HaskellObj closure)
     Capability *cap = &MainCapability;
 
     cap->r.rCurrentTSO = createIOThread(cap, RtsFlags.GcFlags.initialStkSize, closure);
-
-    cap->r.rCurrentTSO->cap = cap;
 
     while (rtsTrue) {
         StgThreadReturnCode ret;
@@ -493,8 +491,8 @@ threadStackOverflow(Capability *cap, StgTSO *tso)
       // thing to do here.  See bug #767.
 
       debugTrace(DEBUG_gc,
-		 "threadStackOverflow of TSO %ld (%p): stack too large (now %ld; max is %ld)",
-		 (long)tso->id, tso, (long)tso->stack_size, (long)tso->max_stack_size);
+		 "threadStackOverflow of TSO %p: stack too large (now %ld; max is %ld)",
+		 tso, (long)tso->stack_size, (long)tso->max_stack_size);
       IF_DEBUG(gc,
 	       /* If we're debugging, just print out the top of the stack */
 	       printStackChunk(tso->sp, stg_min(tso->stack+tso->stack_size, 
@@ -547,8 +545,8 @@ threadStackOverflow(Capability *cap, StgTSO *tso)
   tso->why_blocked = NotBlocked;
 
   IF_PAR_DEBUG(verbose,
-	       debugBelch("@@ threadStackOverflow of TSO %d (now at %p): stack size increased to %ld\n",
-		     tso->id, tso, tso->stack_size);
+	       debugBelch("@@ threadStackOverflow of TSO (now at %p): stack size increased to %ld\n",
+		     tso, tso->stack_size);
 	       /* If we're debugging, just print out the top of the stack */
 	       printStackChunk(tso->sp, stg_min(tso->stack+tso->stack_size, 
 						tso->sp+64)));

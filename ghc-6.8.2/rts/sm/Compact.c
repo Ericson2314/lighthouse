@@ -463,7 +463,6 @@ static StgPtr
 thread_TSO (StgTSO *tso)
 {
     thread_(&tso->link);
-    thread_(&tso->global_link);
 
     if (tso->why_blocked == BlockedOnBlackHole) {
 	thread_(&tso->block_info.closure);

@@ -15,11 +15,6 @@
 #include "Schedule.h"
 #include "Trace.h"
 
-/* Next thread ID to allocate.
- * LOCK: sched_mutex
- */
-static StgThreadID next_thread_id = 1;
-
 /* The smallest stack size that makes any sense is:
  *    RESERVED_STACK_WORDS    (so we can get back from the stack overflow)
  *  + sizeofW(StgStopFrame)   (the stg_stop_thread_info frame)
@@ -98,8 +93,6 @@ createThread(Capability *cap, nat size)
     tso->why_blocked  = NotBlocked;
     tso->flags = TSO_DIRTY;
     
-    tso->saved_errno = 0;
-    tso->cap = cap;
     tso->tls_max = 0;
     
     tso->stack_size     = stack_size;
@@ -135,12 +128,6 @@ createThread(Capability *cap, nat size)
     /* HACk to avoid SCHEDULE 
        LastTSO = tso; */
 #endif
-    
-    /* Link the new thread on the global thread list.
-     */
-    ACQUIRE_LOCK(&sched_mutex);
-    tso->id = next_thread_id++;  // while we have the mutex
-    RELEASE_LOCK(&sched_mutex);
     
 #if defined(DIST)
     tso->dist.priority = MandatoryPriority; //by default that is...
@@ -213,8 +200,8 @@ createThread(Capability *cap, nat size)
 	       (long)tso->id, tso, advisory_thread_count);
 #else
     debugTrace(DEBUG_sched,
-	       "created thread %ld, stack size = %lx words", 
-	       (long)tso->id, (long)tso->stack_size);
+	       "created thread %p, stack size = %lx words", 
+	       tso, (long)tso->stack_size);
 #endif    
     return tso;
 }
@@ -249,35 +236,6 @@ createThreadFromSpark(rtsSpark spark)
   return tso;
 }
 #endif
-
-/* ---------------------------------------------------------------------------
- * Comparing Thread ids.
- *
- * This is used from STG land in the implementation of the
- * instances of Eq/Ord for ThreadIds.
- * ------------------------------------------------------------------------ */
-
-int
-cmp_thread(StgPtr tso1, StgPtr tso2) 
-{ 
-  StgThreadID id1 = ((StgTSO *)tso1)->id; 
-  StgThreadID id2 = ((StgTSO *)tso2)->id;
- 
-  if (id1 < id2) return (-1);
-  if (id1 > id2) return 1;
-  return 0;
-}
-
-/* ---------------------------------------------------------------------------
- * Fetching the ThreadID from an StgTSO.
- *
- * This is used in the implementation of Show for ThreadIds.
- * ------------------------------------------------------------------------ */
-int
-rts_getThreadId(StgPtr tso) 
-{
-  return ((StgTSO *)tso)->id;
-}
 
 /* -----------------------------------------------------------------------------
    Remove a thread from a queue.
@@ -500,9 +458,7 @@ unblockOne_ (Capability *cap, StgTSO *tso,
   //context_switch = 1;
 #endif
 
-  debugTrace(DEBUG_sched,
-	     "waking up thread %ld on cap %d",
-	     (long)tso->id, tso->cap->no);
+  debugTrace(DEBUG_sched, "waking up thread %p", tso);
 
   return next;
 }
@@ -695,15 +651,15 @@ printThreadBlockage(StgTSO *tso)
     debugBelch("is blocked on an external call (exceptions were already blocked)");
     break;
   default:
-    barf("printThreadBlockage: strange tso->why_blocked: %d for TSO %d (%d)",
-	 tso->why_blocked, tso->id, tso);
+    barf("printThreadBlockage: strange tso->why_blocked: %d for TSO (%p)",
+	 tso->why_blocked, tso);
   }
 }
 
 void
 printThreadStatus(StgTSO *t)
 {
-  debugBelch("\tthread %4lu @ %p ", (unsigned long)t->id, (void *)t);
+  debugBelch("\tthread %p ", t);
     if (t->what_next == ThreadRelocated) {
 	debugBelch("has been relocated...\n");
     } else {

@@ -72,11 +72,6 @@ typedef StgTSOStatBuf StgTSOGranInfo;
  * There is no TICKY info in a TSO at this time.
  */
 
-/*
- * Thread IDs are 32 bits.
- */
-typedef StgWord32 StgThreadID;
-
 #define tsoDirty(tso)  ((tso)->flags & TSO_DIRTY)
 #define tsoLocked(tso) ((tso)->flags & TSO_LOCKED)
 
@@ -125,15 +120,11 @@ typedef struct StgTSO_ {
     StgHeader               header;
 
     struct StgTSO_*         link;       /* Links threads onto blocking queues */
-    struct StgTSO_*         global_link;    /* Links all threads together */
     
     StgWord16               what_next;      /* Values defined in Constants.h */
     StgWord16               why_blocked;    /* Values defined in Constants.h */
     StgWord32               flags;
     StgTSOBlockInfo         block_info;
-    StgThreadID             id;
-    int                     saved_errno;
-    struct Capability_*     cap;
 
 #ifdef TICKY_TICKY
     /* TICKY-specific stuff would go here. */
