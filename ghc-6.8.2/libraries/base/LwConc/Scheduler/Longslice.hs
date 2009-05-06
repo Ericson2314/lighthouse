@@ -19,17 +19,23 @@ import LwConc.Substrate
 import LwConc.Threads
 import Data.IORef
 
-ticksKey :: TLSKey Priority
-ticksKey = unsafePerformIO $ newTLSKey C
+ticksKey :: TLSKey Int
+ticksKey = unsafePerformIO $ newTLSKey 0
+
+-- Specifies the number of extra timeslices allotted to a given priority;
+-- all threads get at least one (since timeUp is only called from timerHandler)
+extraTicks :: Priority -> Int
+extraTicks p = 10 * fromEnum p
 
 timeUp :: IO Bool
 timeUp =
-  do p <- atomically $ getTLS ticksKey
-     if p == minBound
-        then do prio <- atomically myPriority -- out of time; reset count for next time
-                setTLS ticksKey prio
+  do slicesLeft <- atomically $ getTLS ticksKey
+     if slicesLeft < 1
+        then do p <- atomically myPriority -- out of time; reset count for next time
+                setTLS ticksKey (extraTicks p)
                 return True
-        else setTLS ticksKey (pred p) >> return False -- keep going
+        else do setTLS ticksKey (slicesLeft-1) -- keep going and decrement count
+                return False
 
 -- |The single ready queue used for round robin scheduling.
 readyQ :: PVar (Seq Thread)
