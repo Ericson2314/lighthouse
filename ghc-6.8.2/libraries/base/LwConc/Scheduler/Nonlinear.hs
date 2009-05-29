@@ -83,7 +83,7 @@ getNextThread = do priority <- getNextPriority
 -- |Marks a thread "ready" and schedules it for some future time.
 schedule :: Thread -> PTM ()
 schedule thread@(Thread tcb _) =
-  do priority <- getPriority tcb -- THERE WAS A HORRENDOUS BUG HERE SO IF YOU REVERT IT FIX IT
+  do priority <- getPriority tcb
      let readyQ = readyQs ! priority
      q <- readPVar readyQ
      writePVar readyQ (q |> thread)

@@ -39,8 +39,8 @@ getNextThread = tryAt maxBound
 
 -- |Marks a thread "ready" and schedules it for some future time.
 schedule :: Thread -> PTM ()
-schedule thread =
-  do priority <- myPriority
+schedule thread@(Thread tcb _) =
+  do priority <- getPriority tcb
      let readyQ = readyQs ! priority
      q <- readPVar readyQ
      writePVar readyQ (q |> thread)
