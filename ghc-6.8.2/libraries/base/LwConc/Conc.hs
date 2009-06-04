@@ -13,14 +13,11 @@ module LwConc.Conc
 , throwTo
 , yield
 , threadDelay
--- Control.Exception stuff
-, block
-, unblock
 
 , dumpAllThreads
 ) where
 
-import GHC.Exception(Exception(..), AsyncException(..), catchException, throw)
+import GHC.Exception(Exception(..), AsyncException(..), catchException)
 import Control.Monad(when, liftM)
 import System.IO.Unsafe (unsafePerformIO)
 import Data.IORef
@@ -54,9 +51,8 @@ timerHandler = do val <- atomically mySafeThreadId
                     
 -- | Yield, marking the current thread ready & switching to the next one.
 yield :: IO ()
-yield = do switchT $ \currThread -> do schedule currThread
-                                       getNextThread
-           checkSignals
+yield = switchT $ \currThread -> do schedule currThread
+                                    getNextThread
 
 allThreads :: PVar [Weak ThreadId]
 allThreads = unsafePerformIO $ newPVarIO []
@@ -146,69 +142,6 @@ throwTo tid@(TCB _ tbox _) exn =
 -- There is no guarantee that the thread will be rescheduled promptly when the
 -- delay has expired, but the thread will never continue to run earlier than specified.
 threadDelay :: Int -> IO ()
-threadDelay usec = do switchT $ \currThread -> do scheduleIn usec currThread
-                                                  getNextThread
-                      checkSignals
-
-
--- | Check if anyone has sent us an asynchronous exception.
-checkSignals :: IO ()
-checkSignals = do mx <- atomically $ do mtid <- mySafeThreadId
-                                        sigsBlocked <- getTLS blockSignalsKey
-                                        case (mtid, sigsBlocked) of
-                                          (Nothing, _) -> return Nothing
-                                          (_, True)    -> return Nothing
-                                          (Just tid@(TCB _ tbox _), _) ->
-                                             do exns <- readPVar tbox
-                                                case viewl exns of
-                                                  (e :< es) -> writePVar tbox es >> return (Just e)
-                                                  EmptyL    -> return Nothing
-                  -- We need to throw -outside- of the atomically so it doesn't retry.
-                  -- Also, don't think you can handle AsyncException ThreadKilled specially!
-                  -- It needs to be thrown as an exception so things like withMVar
-                  -- can properly clean up before dying - for the sake of others!
-                  case mx of
-                    Nothing  -> return ()
-                    Just exn -> throw exn
-
--- this key, and 'block' and 'unblock' may actually belong in the substrate...
-blockSignalsKey :: TLSKey Bool
-blockSignalsKey = unsafePerformIO $ newTLSKey False
-
--- | Applying 'block' to a computation will
--- execute that computation with asynchronous exceptions
--- /blocked/.  That is, any thread which
--- attempts to raise an exception in the current thread with 'Control.Exception.throwTo' will be
--- blocked until asynchronous exceptions are enabled again.  There\'s
--- no need to worry about re-enabling asynchronous exceptions; that is
--- done automatically on exiting the scope of
--- 'block'.
---
--- Threads created by 'Control.Concurrent.forkIO' inherit the blocked
--- state from the parent; that is, to start a thread in blocked mode,
--- use @block $ forkIO ...@.  This is particularly useful if you need to
--- establish an exception handler in the forked thread before any
--- asynchronous exceptions are received.
-block :: IO a -> IO a
-block computation = do saved <- atomically $ getTLS blockSignalsKey
-                       setTLS blockSignalsKey True
-                       -- Catch synchronous (not asynchronous) exns so we unwind properly
-                       x <- catchException computation
-                                           (\e -> setTLS blockSignalsKey saved >> throw e)
-                       setTLS blockSignalsKey saved
-                       checkSignals
-                       return x
-
--- | To re-enable asynchronous exceptions inside the scope of
--- 'block', 'unblock' can be
--- used.  It scopes in exactly the same way, so on exit from
--- 'unblock' asynchronous exception delivery will
--- be disabled again.
-unblock :: IO a -> IO a
-unblock computation = do saved <- atomically $ getTLS blockSignalsKey
-                         -- Catch synchronous OR asynchronous exns so we unwind properly
-                         x <- catchException (setTLS blockSignalsKey False >> checkSignals >> computation)
-                                             (\e -> setTLS blockSignalsKey saved >> throw e)
-                         setTLS blockSignalsKey saved
-                         return x
+threadDelay usec = switchT $ \currThread -> do scheduleIn usec currThread
+                                               getNextThread
 
