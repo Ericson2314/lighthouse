@@ -4,7 +4,6 @@ module LwConc.Scheduler
 , schedule
 , scheduleIn
 , timeUp
-, idleThreadId
 , dumpQueueLengths
 ) where
 
@@ -26,6 +25,7 @@ import LwConc.Threads
 import Foreign.C(CUInt)
 foreign import ccall unsafe getourtimeofday :: IO CUInt
 foreign import ccall unsafe idlePrint :: IO ()
+foreign import ccall unsafe hlt :: IO ()
 
 getJiffies :: Integral i => PTM i
 getJiffies = do cuint <- unsafeIOToPTM getourtimeofday
@@ -65,8 +65,8 @@ idleThreadId = unsafePerformIO $ do tbox <- newPVarIO Seq.empty
                                     return (TCB 0 tbox prio)
 idleThread :: PVar Thread
 idleThread = unsafePerformIO $ do sc <- newSCont $ do setTLS tidTLSKey (Just idleThreadId)
-                                                      forever (idlePrint >> switchT (\renewed -> do writePVar idleThread renewed
-                                                                                                    getNextThread))
+                                                      forever (hlt >> switchT (\renewed -> do writePVar idleThread renewed
+                                                                                              getNextThread))
                                   newPVarIO (Thread idleThreadId sc)
 
 {-

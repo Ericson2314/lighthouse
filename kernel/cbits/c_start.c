@@ -307,6 +307,11 @@ int getPendingIRQ()
     return -1;
 }
 
+void hlt()
+{
+    __asm__("hlt");
+}
+
 void initPIC(StgWord8 pic1, StgWord8 pic2)
 {
   // configure PICs and mask all IRQs
