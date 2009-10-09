@@ -1,7 +1,8 @@
 -- | Concurrency support (inherited from Concurrent Haskell)
-module H.Concurrency(module H.Concurrency,{- H,-} Chan,MVar,QSem,ThreadId) where
+module H.Concurrency(module H.Concurrency,{- H,-} Chan,MVar,QSem,ThreadId,L.Lock,L.LockKey) where
 import qualified Control.Concurrent as IO
 import Control.Concurrent(Chan,MVar,QSem,ThreadId)
+import qualified Control.Concurrent.Lock as L
 import H.Monad(H,liftIO,runH)
 
 ------------------------ INTERFACE ---------------------------------------------
@@ -37,6 +38,13 @@ newQSem :: Int -> H QSem
 signalQSem :: QSem -> H ()
 waitQSem :: QSem -> H ()
 withQSem :: QSem -> (H a) -> H a
+
+-- * Locks (Mutexes)
+newLock :: H L.Lock
+lockH :: L.Lock -> H L.LockKey
+tryLockH :: L.Lock -> H (Maybe L.LockKey)
+unlockH :: L.LockKey -> H ()
+withLock :: L.Lock -> H () -> H ()
 
 ------------------------ IMPLEMENTATION ----------------------------------------
 
@@ -77,3 +85,12 @@ withQSem sem action =
        x <- action
        signalQSem sem
        return x
+
+-- Locks (Mutexes) -------------------------------------------------------------
+
+newLock      = liftIO $ L.newLock
+lockH l      = liftIO $ L.lock     l
+tryLockH l   = liftIO $ L.tryLock  l
+unlockH k    = liftIO $ L.unlock   k
+withLock l m = liftIO $ L.withLock l (runH m)
+

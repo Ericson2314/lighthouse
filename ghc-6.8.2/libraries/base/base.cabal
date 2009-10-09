@@ -77,6 +77,7 @@ Library {
         Control.Arrow,
         Control.Concurrent,
         Control.Concurrent.Chan,
+        Control.Concurrent.Lock,
         Control.Concurrent.MVar,
         Control.Concurrent.QSem,
         Control.Concurrent.QSemN,

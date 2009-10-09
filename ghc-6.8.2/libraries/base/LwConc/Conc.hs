@@ -129,16 +129,17 @@ forkIO computation =
   where newThreadId :: IO ThreadId
         newThreadId = do tnum <- getNextThreadNum
                          tbox <- newTVarIO empty
-                         return (ThreadId tnum tbox)
+                         prio <- newTVarIO Medium
+                         return (TCB tnum tbox prio)
      
 killThread :: ThreadId -> IO ()
-killThread tid@(ThreadId tnum tbox) =
+killThread tid@(TCB _ tbox _) =
   do atomically $ writeTVar tbox (singleton (AsyncException ThreadKilled)) -- Override any other signals.
      cPrint ("Asking " ++ show tid ++ " to commit suicide...\n")
      checkSignals -- check if we just signalled ourself
 
 throwTo :: ThreadId -> Exception -> IO ()
-throwTo tid@(ThreadId tnum tbox) exn =
+throwTo tid@(TCB _ tbox _) exn =
   do cPrint ("Sending " ++ show exn ++ " to " ++ show tid ++ "...\n")
      atomically $ do exns <- readTVar tbox
                      writeTVar tbox (exns |> exn)
@@ -159,7 +160,7 @@ checkSignals :: IO ()
 checkSignals = do mtid <- mySafeThreadId
                   case mtid of
                     Nothing -> return ()
-                    Just tid@(ThreadId tnum tbox) ->
+                    Just tid@(TCB _ tbox _) ->
                       do sigsblocked <- getTLS blockSignalsKey
                          unless sigsblocked $ do mx <- atomically $ do exns <- readTVar tbox
                                                                        case viewl exns of

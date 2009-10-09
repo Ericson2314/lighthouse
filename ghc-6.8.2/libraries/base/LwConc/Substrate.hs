@@ -13,12 +13,14 @@ module LwConc.Substrate
 , ThreadId(..)
 , tidTLSKey
 , mySafeThreadId
+
+, Priority(..)
 ) where
 
+import GHC.Arr(Ix)
+import GHC.Exts
 import GHC.Prim
 import GHC.IOBase
-import GHC.Exts
-import Data.Typeable
 import LwConc.STM
 
 import Data.IORef
@@ -30,7 +32,7 @@ foreign import ccall unsafe showCornerNumber :: CUInt -> IO ()
 debugShowTID = do mtid <- mySafeThreadId
                   showCornerNumber $ case mtid of
                                        Nothing -> 0
-                                       Just (ThreadId tnum tbox) -> fromIntegral tnum
+                                       Just (TCB tnum _ _) -> fromIntegral tnum
 
 -----------------------------------------------------------------------------
 -- Thread Local State (TLS)
@@ -93,13 +95,16 @@ switch scheduler = do debugShowTID
 -- However, we also assign each a monotonically increasing integer - mostly
 -- for printing, but possibly for other uses in the future.  These start at 1.
 
-data ThreadId = ThreadId Int (TVar (Seq Exception))
+data Priority = Worthless | Low | Medium | High | Utmost
+  deriving (Show, Eq, Ord, Bounded, Enum, Ix)
+
+data ThreadId = TCB Int (TVar (Seq Exception)) (TVar Priority)
 
 instance Eq ThreadId where
-  (ThreadId xnum xbox) == (ThreadId ynum ybox) = xbox == ybox
+  (TCB _ xbox _) == (TCB _ ybox _) = xbox == ybox
 
 instance Show ThreadId where
-  show (ThreadId id box) = "<Thread " ++ show id ++ ">"
+  show (TCB id _ _) = "<Thread " ++ show id ++ ">"
 
 -- | We store each thread's ID in their TLS, allowing a simple implementation
 -- of myThreadId.  However, threads must initialize their own TLS, and we may
