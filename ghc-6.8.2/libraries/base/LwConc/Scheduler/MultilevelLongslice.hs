@@ -1,4 +1,4 @@
-module LwConc.Scheduler.Multilevel
+module LwConc.Scheduler.MultilevelLongslice
 ( getNextThread
 , schedule
 , timeUp
@@ -17,8 +17,17 @@ import LwConc.Priority
 import LwConc.STM
 import LwConc.Substrate
 
+ticksKey :: TLSKey Priority
+ticksKey = unsafePerformIO $ newTLSKey Medium
+
 timeUp :: IO Bool
-timeUp = return True
+timeUp =
+  do p <- getTLS ticksKey
+     if p == minBound
+        then do prio <- myPriority -- out of time; reset count for next time
+                setTLS ticksKey prio
+                return True
+        else setTLS ticksKey (pred p) >> return False -- keep going
 
 type ReadyQ = TVar (Seq SCont)
 

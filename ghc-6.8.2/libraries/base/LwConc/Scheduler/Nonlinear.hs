@@ -1,4 +1,4 @@
-module LwConc.Scheduler.Multilevel
+module LwConc.Scheduler.Nonlinear
 ( getNextThread
 , schedule
 , timeUp
@@ -7,8 +7,20 @@ module LwConc.Scheduler.Multilevel
 
 -- This is a multi-level queue scheduler, taking priority into account.
 --
+-- The multilevel one is:
+-- let gen n = concatMap (flip take ps) [1..n]
+--  so gen 5 ~> [A,A,B,A,B,C,A,B,C,D,A,B,C,D,E]
+--
 -- Priority scheduling works like this (assuming A > B > C > ...):
---   A AB ABC ABCD ABCDE ...
+--        A, A AB, A AB ABC, A AB ABC ABCD, A AB ABC ABCDE
+--
+--        A runs 14x
+--        B runs 9x
+--        C runs 5x
+--        D runs 2x
+--        E runs 1x
+--
+-- This is concatMap gen [1..5]
 
 import System.IO.Unsafe (unsafePerformIO)
 import Data.Sequence as Seq
@@ -16,6 +28,9 @@ import GHC.Arr as Array
 import LwConc.Priority
 import LwConc.STM
 import LwConc.Substrate
+
+ticksKey :: TLSKey Priority
+ticksKey = unsafePerformIO $ newTLSKey Medium
 
 timeUp :: IO Bool
 timeUp = return True
@@ -26,19 +41,34 @@ type ReadyQ = TVar (Seq SCont)
 readyQs :: Array Priority ReadyQ
 readyQs = listArray (minBound, maxBound) (unsafePerformIO $ sequence [newTVarIO Seq.empty | p <- [minBound .. maxBound :: Priority]])
 
-priorityBox :: TVar (Priority, Priority) -- (Priority to run next, lower bound on allowed priority this run)
-priorityBox = unsafePerformIO $ newTVarIO (maxBound, maxBound)
+{-
+priorityBox :: TVar [Priority]
+priorityBox = unsafePerformIO $ newTVarIO []
 
 -- |Returns which priority to pull the next thread from, and updates the countdown for next time.
 getNextPriority :: STM Priority
 getNextPriority =
-  do (p, limit) <- readTVar priorityBox
-     writeTVar priorityBox (if p > limit then (pred p, limit) else (maxBound, cyclicPred limit))
+  do ps <- readTVar priorityBox
+     case ps of
+       []     -> writeTVar priorityBox nonlinear >> getNextPriority
+       (p:ps) -> writeTVar priorityBox ps        >> return p
+  where ps lim = [maxBound, pred maxBound .. lim]
+        multilevel lim = concatMap ps (ps lim)
+        nonlinear = concatMap multilevel (ps minBound)
+-}
+
+priorityBox :: TVar [Priority]
+priorityBox = unsafePerformIO $ newTVarIO $ (concat . repeat) nonlinear
+  where ps lim = [maxBound, pred maxBound .. lim]
+        multilevel lim = concatMap ps (ps lim)
+        nonlinear = concatMap multilevel (ps minBound)
+
+-- |Returns which priority to pull the next thread from, and updates the countdown for next time.
+getNextPriority :: STM Priority
+getNextPriority =
+  do (p:ps) <- readTVar priorityBox
+     writeTVar priorityBox ps
      return p
-  where -- |Like `pred`, but cycles back to maxBound instead of throwing an error.
-        cyclicPred :: (Bounded a, Enum a, Eq a) => a -> a
-        cyclicPred p | p == minBound = maxBound
-                     | otherwise     = pred p
 
 -- |Returns the next ready thread, or Nothing.
 getNextThread :: STM (Maybe SCont)

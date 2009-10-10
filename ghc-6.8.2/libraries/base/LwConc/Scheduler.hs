@@ -3,10 +3,11 @@ module LwConc.Scheduler
 ( getNextThread
 , schedule
 , scheduleIn
+, timeUp
 , dumpQueueLengths
 ) where
 
-import qualified LwConc.Scheduler.Multilevel as SchedPolicy
+import qualified LwConc.Scheduler.Nonlinear as SchedPolicy
 
 -- Lighthouse's schedulers are /passive/ - they manage run queues, consider
 -- priority, and determine the next thread to run...but don't actively
@@ -71,6 +72,10 @@ getNextThread =
 -- |Marks a thread "ready" and schedules it for some future time.
 schedule :: SCont -> STM ()
 schedule = SchedPolicy.schedule
+
+-- |Returns true if the current thread's time is up (and something else should run).
+timeUp :: IO Bool
+timeUp = SchedPolicy.timeUp
 
 dumpQueueLengths :: (String -> IO ()) -> IO ()
 dumpQueueLengths cPrint = do len <- atomically $ do q <- readTVar sleepQ

@@ -1,10 +1,12 @@
-module LwConc.Scheduler.RoundRobin
+module LwConc.Scheduler.Longslice
 ( getNextThread
 , schedule
 , timeUp
+, dumpQueueLengths
 ) where
 
--- This is a basic round-robin scheduler which ignores priority.
+-- This is a round-robin scheduler that gives longer timeslices to higher
+-- priority threads in an attempt to reduce scheduling overhead.
 --
 -- Lighthouse's schedulers are /passive/ - they manage run queues, consider
 -- priority, and determine the next thread to run...but don't actively
@@ -12,11 +14,22 @@ module LwConc.Scheduler.RoundRobin
 
 import System.IO.Unsafe (unsafePerformIO)
 import Data.Sequence as Seq
+import LwConc.Priority
 import LwConc.STM
 import LwConc.Substrate
+import Data.IORef
+
+ticksKey :: TLSKey Priority
+ticksKey = unsafePerformIO $ newTLSKey Medium
 
 timeUp :: IO Bool
-timeUp = return True
+timeUp =
+  do p <- getTLS ticksKey
+     if p == minBound
+        then do prio <- myPriority -- out of time; reset count for next time
+                setTLS ticksKey prio
+                return True
+        else setTLS ticksKey (pred p) >> return False -- keep going
 
 -- |The single ready queue used for round robin scheduling.
 readyQ :: TVar (Seq SCont)
@@ -36,4 +49,9 @@ schedule :: SCont -> STM ()
 schedule thread =
   do q <- readTVar readyQ
      writeTVar readyQ (q |> thread)
+
+dumpQueueLengths :: (String -> IO ()) -> IO ()
+dumpQueueLengths cPrint = do len <- atomically $ do q <- readTVar (readyQ)
+                                                    return (Seq.length q)
+                             cPrint ("|readyQ| = " ++ show len ++ "\n")
 

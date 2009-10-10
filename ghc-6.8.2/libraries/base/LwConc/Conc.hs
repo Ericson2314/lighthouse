@@ -45,7 +45,8 @@ timerHandler :: IO ()
 timerHandler = do val <- getTLS tidTLSKey
                   case val of
                     Nothing  -> return () -- uninitialized. let it continue
-                    Just tid -> yield -- cPrint (show tid ++ " forced to yield.\n") >> yield
+                    Just tid -> do done <- timeUp
+                                   when done yield
                     
 -- | Yield, marking the current thread ready & switching to the next one.
 yield :: IO ()

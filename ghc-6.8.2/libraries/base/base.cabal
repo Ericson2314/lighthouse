@@ -71,6 +71,9 @@ Library {
         other-modules:
             LwConc.Scheduler.RoundRobin
             LwConc.Scheduler.Multilevel
+            LwConc.Scheduler.MultilevelLongslice
+            LwConc.Scheduler.Longslice
+            LwConc.Scheduler.Nonlinear
     }
     exposed-modules:
         Control.Applicative,
