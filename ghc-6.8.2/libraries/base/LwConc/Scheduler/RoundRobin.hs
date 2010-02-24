@@ -2,6 +2,7 @@ module LwConc.Scheduler.RoundRobin
 ( getNextThread
 , schedule
 , timeUp
+, dumpQueueLengths
 ) where
 
 -- This is a basic round-robin scheduler which ignores priority.
@@ -36,4 +37,9 @@ schedule :: Thread -> PTM ()
 schedule thread =
   do q <- readPVar readyQ
      writePVar readyQ (q |> thread)
+
+dumpQueueLengths :: (String -> IO ()) -> IO ()
+dumpQueueLengths cPrint = do len <- atomically $ do q <- readPVar (readyQ)
+                                                    return (Seq.length q)
+                             cPrint ("|readyQ| = " ++ show len ++ "\n")
 
