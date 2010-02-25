@@ -41,6 +41,11 @@ download = @if [ ! -f "$(1)" ]; then\
 	  fi
 
 boot:
+	@test -e $(GHCTOP)/libraries/stamp || mkdir $(GHCTOP)/libraries/stamp
+	@test -e kernel/top || ln -s .. kernel/top
+	@cd $(GHCTOP) && sh boot || echo "Done"
+
+vanillaboot:
 	$(call download,$(GHCSRC),$(GHCMD5))
 	$(call download,$(GHCXSRC),$(GHCXMD5))
 	@if [ -e $(GHCTOP) ] ; then \
