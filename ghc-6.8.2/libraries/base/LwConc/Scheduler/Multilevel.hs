@@ -8,7 +8,13 @@ module LwConc.Scheduler.Multilevel
 -- This is a multi-level queue scheduler, taking priority into account.
 --
 -- Priority scheduling works like this (assuming A > B > C > ...):
---   A AB ABC ABCD ABCDE ...
+--        A, A AB, A AB ABC, A AB ABC ABCD, A AB ABC ABCDE
+--
+--        A runs 14x
+--        B runs 9x
+--        C runs 5x
+--        D runs 2x
+--        E runs 1x
 
 import System.IO.Unsafe (unsafePerformIO)
 import Data.Sequence as Seq
@@ -25,19 +31,16 @@ type ReadyQ = PVar (Seq Thread)
 readyQs :: Array Priority ReadyQ
 readyQs = listArray (minBound, maxBound) (unsafePerformIO $ sequence [newPVarIO Seq.empty | p <- [minBound .. maxBound :: Priority]])
 
-priorityBox :: PVar (Priority, Priority) -- (Priority to run next, lower bound on allowed priority this run)
-priorityBox = unsafePerformIO $ newPVarIO (maxBound, maxBound)
+priorityBox :: PVar [Priority]
+priorityBox = unsafePerformIO $ newPVarIO $ (concat . repeat) priorityOrder
+  where priorityOrder = [A,A,A,B,A,A,B,A,B,C,A,A,B,A,B,C,A,B,C,D,A,A,B,A,B,C,A,B,C,D,A,B,C,D,E]
 
 -- |Returns which priority to pull the next thread from, and updates the countdown for next time.
 getNextPriority :: PTM Priority
 getNextPriority =
-  do (p, limit) <- readPVar priorityBox
-     writePVar priorityBox (if p > limit then (pred p, limit) else (maxBound, cyclicPred limit))
+  do (p:ps) <- readPVar priorityBox
+     writePVar priorityBox ps
      return p
-  where -- |Like `pred`, but cycles back to maxBound instead of throwing an error.
-        cyclicPred :: (Bounded a, Enum a, Eq a) => a -> a
-        cyclicPred p | p == minBound = maxBound
-                     | otherwise     = pred p
 
 -- |Returns the next ready thread, or Nothing.
 getNextThread :: PTM (Maybe Thread)

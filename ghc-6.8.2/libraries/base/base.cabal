@@ -71,10 +71,7 @@ Library {
         other-modules:
             LwConc.Scheduler.RoundRobin
             LwConc.Scheduler.Multilevel
-            LwConc.Scheduler.MultilevelLongslice
             LwConc.Scheduler.Longslice
-            LwConc.Scheduler.Nonlinear
-            LwConc.Scheduler.Extreme
             LwConc.Scheduler.Dynamic
             LwConc.Scheduler.Chance
             LwConc.Scheduler.FixedHigh
